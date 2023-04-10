@@ -3,6 +3,9 @@
 
 # generated and temporary files
 *.o
+*.a
+*.lib
+*.dll
 *.bak
 *.tmp
 *.gen

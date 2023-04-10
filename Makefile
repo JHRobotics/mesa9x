@@ -37,6 +37,8 @@ BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
 
+NULLOUT=$(if $(filter $(OS),Windows_NT),NUL,/dev/null)
+
 GIT      ?= git
 GIT_IS   := $(shell $(GIT) rev-parse --is-inside-work-tree 2> $(NULLOUT))
 ifeq ($(GIT_IS),true)
@@ -213,7 +215,7 @@ else
   #DEFS += -DVBOX_WITH_MESA3D_NINE_SVGA -DVBOX_WITH_MESA3D_SVGA_HALFZ -DVBOX_WITH_MESA3D_SVGA_INSTANCING -DVBOX_WITH_MESA3D_SVGA_GPU_FINISHED
 
   ifdef VERSION_BUILD
-    DEFS  += -MESA9X_BUILD=$(VERSION_BUILD)
+    DEFS  += -DMESA9X_BUILD=$(VERSION_BUILD)
   endif
 
 	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib
