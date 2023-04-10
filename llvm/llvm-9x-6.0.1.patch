@@ -1,0 +1,539 @@
+diff -ru llvm-6.0.1.orig/CMakeLists.txt llvm-6.0.1.src/CMakeLists.txt
+--- llvm-6.0.1.orig/CMakeLists.txt	2018-04-07 02:33:40.000000000 +0200
++++ llvm-6.0.1.src/CMakeLists.txt	2022-12-26 16:54:11.194750900 +0100
+@@ -832,7 +832,13 @@
+ if( MINGW )
+   # People report that -O3 is unreliable on MinGW. The traditional
+   # build also uses -O2 for that reason:
+-  llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
++  # llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
++  # JH: ^ many mingw versions are broken, but my not! :-)
++  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.0)
++    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=core2")
++    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=core2")
++  endif()
++  # JH: ^ llvm in llvmpipe won't run without SSE anyway so we can little tune up
+ endif()
+ 
+ # Put this before tblgen. Else we have a circular dependence.
+diff -ru llvm-6.0.1.orig/lib/Support/RandomNumberGenerator.cpp llvm-6.0.1.src/lib/Support/RandomNumberGenerator.cpp
+--- llvm-6.0.1.orig/lib/Support/RandomNumberGenerator.cpp	2017-12-01 01:53:10.000000000 +0100
++++ llvm-6.0.1.src/lib/Support/RandomNumberGenerator.cpp	2022-10-29 15:48:44.714078300 +0200
+@@ -19,6 +19,8 @@
+ #include "llvm/Support/raw_ostream.h"
+ #ifdef LLVM_ON_WIN32
+ #include "Windows/WindowsSupport.h"
++#include <cstdlib>
++#include <ctime>
+ #else
+ #include "Unix/Unix.h"
+ #endif
+@@ -64,6 +66,7 @@
+ // Get random vector of specified size
+ std::error_code llvm::getRandomBytes(void *Buffer, size_t Size) {
+ #ifdef LLVM_ON_WIN32
++#if 0
+   HCRYPTPROV hProvider;
+   if (CryptAcquireContext(&hProvider, 0, 0, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+@@ -73,6 +76,17 @@
+   }
+   return std::error_code(GetLastError(), std::system_category());
+ #else
++  uint8_t *ptr = (uint8_t *)Buffer;
++  srand(time(NULL));
++  
++  for(size_t i = 0; i < Size; i++)
++  {
++  	ptr[i] = rand() & 0xFF;
++  }
++#endif
++  
++  return std::error_code();
++#else
+   int Fd = open("/dev/urandom", O_RDONLY);
+   if (Fd != -1) {
+     std::error_code Ret;
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/DynamicLibrary.inc llvm-6.0.1.src/lib/Support/Windows/DynamicLibrary.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/DynamicLibrary.inc	2017-07-12 23:22:45.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/DynamicLibrary.inc	2022-10-29 15:48:44.717983300 +0200
+@@ -71,6 +71,7 @@
+ static bool GetProcessModules(HANDLE H, DWORD &Bytes, HMODULE *Data = nullptr) {
+   // EnumProcessModules will fail on Windows 64 while some versions of
+   // MingW-32 don't have EnumProcessModulesEx.
++#if 0
+   if (
+ #ifdef _WIN64
+       !EnumProcessModulesEx(H, Data, Bytes, &Bytes, LIST_MODULES_64BIT)
+@@ -84,6 +85,9 @@
+     return false;
+   }
+   return true;
++#else
++	return false;
++#endif
+ }
+ 
+ void *DynamicLibrary::HandleSet::DLSym(void *Handle, const char *Symbol) {
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/Mutex.inc llvm-6.0.1.src/lib/Support/Windows/Mutex.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/Mutex.inc	2017-03-31 16:26:44.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/Mutex.inc	2022-12-22 02:23:43.424520600 +0100
+@@ -51,7 +51,8 @@
+ bool
+ sys::MutexImpl::tryacquire()
+ {
+-  return TryEnterCriticalSection((LPCRITICAL_SECTION)data_);
++  EnterCriticalSection((LPCRITICAL_SECTION)data_);
++  return true;
+ }
+ 
+ }
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/Path.inc llvm-6.0.1.src/lib/Support/Windows/Path.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/Path.inc	2023-04-09 01:26:36.779558600 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/Path.inc	2023-04-09 01:28:49.569645700 +0200
+@@ -156,15 +156,20 @@
+ }
+ 
+ ErrorOr<space_info> disk_space(const Twine &Path) {
+-  ULARGE_INTEGER Avail, Total, Free;
+-  if (!::GetDiskFreeSpaceExA(Path.str().c_str(), &Avail, &Total, &Free))
++  DWORD lpSectorsPerCluster;
++  DWORD lpBytesPerSector;
++  DWORD lpNumberOfFreeClusters;
++  DWORD lpTotalNumberOfClusters;
++//  ULARGE_INTEGER Avail, Total, Free;
++//  if (!::GetDiskFreeSpaceExA(Path.str().c_str(), &Avail, &Total, &Free))
++//    return mapWindowsError(::GetLastError());
++  if(GetDiskFreeSpaceA(Path.str().c_str(), &lpSectorsPerCluster, &lpBytesPerSector, &lpNumberOfFreeClusters, &lpTotalNumberOfClusters))
+     return mapWindowsError(::GetLastError());
++
+   space_info SpaceInfo;
+-  SpaceInfo.capacity =
+-      (static_cast<uint64_t>(Total.HighPart) << 32) + Total.LowPart;
+-  SpaceInfo.free = (static_cast<uint64_t>(Free.HighPart) << 32) + Free.LowPart;
+-  SpaceInfo.available =
+-      (static_cast<uint64_t>(Avail.HighPart) << 32) + Avail.LowPart;
++  SpaceInfo.capacity = (uint64_t)lpBytesPerSector * (uint64_t)lpSectorsPerCluster * (uint64_t)lpTotalNumberOfClusters;
++  SpaceInfo.free = (uint64_t)lpBytesPerSector * (uint64_t)lpSectorsPerCluster * (uint64_t)lpNumberOfFreeClusters;
++  SpaceInfo.available = SpaceInfo.free;
+   return SpaceInfo;
+ }
+ 
+@@ -238,6 +243,7 @@
+ 
+ // We can't use symbolic links for windows.
+ std::error_code create_link(const Twine &to, const Twine &from) {
++#if 0
+   // Convert to utf-16.
+   SmallVector<wchar_t, 128> wide_from;
+   SmallVector<wchar_t, 128> wide_to;
+@@ -250,6 +256,9 @@
+     return mapWindowsError(::GetLastError());
+ 
+   return std::error_code();
++#else
++  return mapWindowsError(ERROR_ACCESS_DENIED); // links on fat32...
++#endif
+ }
+ 
+ std::error_code create_hard_link(const Twine &to, const Twine &from) {
+@@ -290,6 +299,7 @@
+ 
+ static std::error_code is_local_internal(SmallVectorImpl<wchar_t> &Path,
+                                          bool &Result) {
++#if 0
+   SmallVector<wchar_t, 128> VolumePath;
+   size_t Len = 128;
+   while (true) {
+@@ -328,6 +338,10 @@
+     return make_error_code(errc::no_such_file_or_directory);
+   }
+   llvm_unreachable("Unreachable!");
++#else
++  Result = true;
++  return std::error_code();
++#endif
+ }
+ 
+ std::error_code is_local(const Twine &path, bool &result) {
+@@ -392,11 +406,13 @@
+ }
+ 
+ static std::error_code setDeleteDisposition(HANDLE Handle, bool Delete) {
++#if 0
+   FILE_DISPOSITION_INFO Disposition;
+   Disposition.DeleteFile = Delete;
+   if (!SetFileInformationByHandle(Handle, FileDispositionInfo, &Disposition,
+                                   sizeof(Disposition)))
+     return mapWindowsError(::GetLastError());
++#endif
+   return std::error_code();
+ }
+ 
+@@ -452,6 +468,7 @@
+ 
+ static std::error_code rename_internal(HANDLE FromHandle, const Twine &To,
+                                        bool ReplaceIfExists) {
++#if 0
+   SmallVector<wchar_t, 0> ToWide;
+   if (auto EC = widenPath(To, ToWide))
+     return EC;
+@@ -473,8 +490,10 @@
+       Error = ERROR_CALL_NOT_IMPLEMENTED; // Wine doesn't always set error code.
+     return mapWindowsError(Error);
+   }
+-
+   return std::error_code();
++#else
++  return std::error_code(ERROR_CALL_NOT_IMPLEMENTED, std::system_category());
++#endif
+ }
+ 
+ static std::error_code rename_handle(HANDLE FromHandle, const Twine &To) {
+@@ -942,9 +961,14 @@
+ 
+   //  Get the first directory entry.
+   WIN32_FIND_DATAW FirstFind;
++#if 0
+   ScopedFindHandle FindHandle(::FindFirstFileExW(
+       c_str(path_utf16), FindExInfoBasic, &FirstFind, FindExSearchNameMatch,
+       NULL, FIND_FIRST_EX_LARGE_FETCH));
++#else
++  ScopedFindHandle FindHandle(::FindFirstFileW(
++      c_str(path_utf16), &FirstFind));
++#endif
+   if (!FindHandle)
+     return mapWindowsError(::GetLastError());
+ 
+@@ -1156,7 +1180,8 @@
+   shfos.pFrom = Path16.data();
+   shfos.fFlags = FOF_NO_UI;
+ 
+-  int result = ::SHFileOperationW(&shfos);
++  //int result = ::SHFileOperationW(&shfos);
++  int result = -1;
+   if (result != 0 && !IgnoreErrors)
+     return mapWindowsError(result);
+   return std::error_code();
+@@ -1215,6 +1240,7 @@
+ namespace path {
+ static bool getKnownFolderPath(KNOWNFOLDERID folderId,
+                                SmallVectorImpl<char> &result) {
++#if 0
+   wchar_t *path = nullptr;
+   if (::SHGetKnownFolderPath(folderId, KF_FLAG_CREATE, nullptr, &path) != S_OK)
+     return false;
+@@ -1222,6 +1248,9 @@
+   bool ok = !UTF16ToUTF8(path, ::wcslen(path), result);
+   ::CoTaskMemFree(path);
+   return ok;
++#else
++  return false;
++#endif
+ }
+ 
+ bool getUserCacheDir(SmallVectorImpl<char> &Result) {
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/Process.inc llvm-6.0.1.src/lib/Support/Windows/Process.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/Process.inc	2017-08-18 18:55:44.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/Process.inc	2022-12-26 17:57:22.731039300 +0100
+@@ -15,6 +15,8 @@
+ #include "llvm/Support/ErrorHandling.h"
+ #include "llvm/Support/WindowsError.h"
+ #include <malloc.h>
++#include <cstdlib>
++#include <ctime>
+ 
+ // The Windows.h header must be after LLVM and standard headers.
+ #include "WindowsSupport.h"
+@@ -55,7 +57,8 @@
+   // GetNativeSystemInfo() provides the physical page size which may differ
+   // from GetSystemInfo() in 32-bit applications running under WOW64.
+   SYSTEM_INFO info;
+-  GetNativeSystemInfo(&info);
++  //GetNativeSystemInfo(&info);
++  GetSystemInfo(&info);
+   // FIXME: FileOffset in MapViewOfFile() should be aligned to not dwPageSize,
+   // but dwAllocationGranularity.
+   return static_cast<unsigned>(info.dwPageSize);
+@@ -220,6 +223,7 @@
+ ExpandShortFileName(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
+                     SpecificBumpPtrAllocator<char> &Allocator) {
+   SmallVector<wchar_t, MAX_PATH> LongPath;
++#if 0
+   DWORD Length = GetLongPathNameW(Arg, LongPath.data(), LongPath.capacity());
+   if (Length == 0)
+     return mapWindowsError(GetLastError());
+@@ -231,6 +235,9 @@
+   }
+   LongPath.set_size(Length);
+   return ConvertAndPushArg(LongPath.data(), Args, Allocator);
++#else
++   return mapWindowsError(ERROR_SUCCESS);
++#endif
+ }
+ 
+ std::error_code
+@@ -447,6 +454,7 @@
+ }
+ 
+ unsigned Process::GetRandomNumber() {
++#if 0
+   HCRYPTPROV HCPC;
+   if (!::CryptAcquireContextW(&HCPC, NULL, NULL, PROV_RSA_FULL,
+                               CRYPT_VERIFYCONTEXT))
+@@ -458,4 +466,7 @@
+                         reinterpret_cast<BYTE *>(&Ret)))
+     ReportLastErrorFatal("Could not generate a random number");
+   return Ret;
++#else
++  return (unsigned)rand();
++#endif
+ }
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/Program.inc llvm-6.0.1.src/lib/Support/Windows/Program.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/Program.inc	2017-09-13 19:03:37.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/Program.inc	2022-10-29 15:50:26.892842700 +0200
+@@ -387,6 +387,7 @@
+ 
+   // Assign the process to a job if a memory limit is defined.
+   ScopedJobHandle hJob;
++#if 0
+   if (MemoryLimit != 0) {
+     hJob = CreateJobObjectW(0, 0);
+     bool success = false;
+@@ -409,6 +410,7 @@
+       return false;
+     }
+   }
++#endif
+ 
+   return true;
+ }
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/Signals.inc llvm-6.0.1.src/lib/Support/Windows/Signals.inc
+--- llvm-6.0.1.orig/lib/Support/Windows/Signals.inc	2017-08-04 01:12:33.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/Signals.inc	2022-10-29 15:48:44.755646200 +0200
+@@ -525,6 +525,7 @@
+ #endif
+ 
+ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
++#if 0
+   STACKFRAME64 StackFrame = {};
+   CONTEXT Context = {};
+   ::RtlCaptureContext(&Context);
+@@ -546,6 +547,7 @@
+   StackFrame.AddrFrame.Mode = AddrModeFlat;
+   PrintStackTraceForThread(OS, GetCurrentProcess(), GetCurrentThread(),
+                            StackFrame, &Context);
++#endif
+ }
+ 
+ 
+@@ -613,7 +615,7 @@
+ /// \returns true if a valid value for DumpFolder exists, false otherwise.
+ static bool GetDumpFolder(HKEY Key,
+                           llvm::SmallVectorImpl<char> &ResultDirectory) {
+-  using llvm::sys::windows::UTF16ToUTF8;
++  /*using llvm::sys::windows::UTF16ToUTF8;
+ 
+   if (!Key)
+     return false;
+@@ -645,7 +647,8 @@
+   if (UTF16ToUTF8(ExpandBuffer.data(), ExpandBufferSize - 1, ResultDirectory))
+     return false;
+ 
+-  return true;
++  return true;*/
++  return false;
+ }
+ 
+ /// \brief Populate ResultType with a valid MINIDUMP_TYPE based on the value of
+@@ -662,7 +665,7 @@
+ ///
+ /// \returns true if a valid value for ResultType can be set, false otherwise.
+ static bool GetDumpType(HKEY Key, MINIDUMP_TYPE &ResultType) {
+-  if (!Key)
++ /* if (!Key)
+     return false;
+ 
+   DWORD DumpType;
+@@ -692,7 +695,8 @@
+   default:
+     return false;
+   }
+-  return true;
++  return true;*/
++  return false;
+ }
+ 
+ /// \brief Write a Windows dump file containing process information that can be
+diff -ru llvm-6.0.1.orig/lib/Support/Windows/WindowsSupport.h llvm-6.0.1.src/lib/Support/Windows/WindowsSupport.h
+--- llvm-6.0.1.orig/lib/Support/Windows/WindowsSupport.h	2017-06-06 14:11:24.000000000 +0200
++++ llvm-6.0.1.src/lib/Support/Windows/WindowsSupport.h	2022-12-26 17:42:28.658033800 +0100
+@@ -27,8 +27,8 @@
+ #undef _WIN32_IE
+ 
+ // Require at least Windows 7 API.
+-#define _WIN32_WINNT 0x0601
+-#define _WIN32_IE    0x0800 // MinGW at it again. FIXME: verify if still needed.
++#define _WIN32_WINNT 0x0400
++#define _WIN32_IE    0x0400 // MinGW at it again. FIXME: verify if still needed.
+ #define WIN32_LEAN_AND_MEAN
+ #ifndef NOMINMAX
+ #define NOMINMAX
+@@ -49,12 +49,116 @@
+ // Must be included after windows.h
+ #include <wincrypt.h>
+ 
++#if _WIN32_WINNT <= 0x0400
++
++inline DWORD GetFinalPathNameByHandleW(HANDLE hFile, LPWSTR lpszFilePath, DWORD  cchFilePath,DWORD  dwFlags)
++{
++	return ERROR_FILE_NOT_FOUND;
++}
++
++#elif _WIN32_WINNT < 0x502
++
++#include <psapi.h>
++
++/* https://learn.microsoft.com/en-us/windows/win32/memory/obtaining-a-file-name-from-a-file-handle */
++inline DWORD GetFinalPathNameByHandleW(HANDLE hFile, LPWSTR lpszFilePath, DWORD  cchFilePath,DWORD  dwFlags)
++{
++  DWORD ret = ERROR_FILE_NOT_FOUND;
++  wchar_t filename[MAX_PATH+1];
++  HANDLE hFileMap;
++
++  // Get the file size.
++  DWORD dwFileSizeHi = 0;
++  DWORD dwFileSizeLo = GetFileSize(hFile, &dwFileSizeHi); 
++
++  if( dwFileSizeLo == 0 && dwFileSizeHi == 0 )
++  {
++     return GetLastError();
++  }
++
++  // Create a file mapping object.
++  hFileMap = CreateFileMapping(hFile, 
++                    NULL, 
++                    PAGE_READONLY,
++                    0, 
++                    1,
++                    NULL);
++
++  if (hFileMap) 
++  {
++    // Create a file mapping to get the file name.
++    void* pMem = MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, 1);
++
++    if (pMem) 
++    {
++      if (GetMappedFileNameW (GetCurrentProcess(), 
++                             pMem, 
++                             filename,
++                             MAX_PATH))
++      {
++
++        // Translate path with device name to drive letters.
++        wchar_t temp[MAX_PATH];
++        temp[0] = L'\0';
++
++        if (GetLogicalDriveStringsW(MAX_PATH-1, temp)) 
++        {
++          wchar_t szName[MAX_PATH];
++          wchar_t szDrive[3] = L" :";
++          bool bFound = FALSE;
++          wchar_t* p = temp;
++
++          do 
++          {
++            // Copy the drive letter to the template string
++            *szDrive = *p;
++
++            // Look up each device name
++            if (QueryDosDeviceW(szDrive, szName, MAX_PATH))
++            {
++              size_t uNameLen = wcslen(szName);
++
++              if (uNameLen < MAX_PATH) 
++              {
++                bFound = wcsncmp(filename, szName, uNameLen) == 0
++                         && *(filename + uNameLen) == L'\\';
++
++                if (bFound) 
++                {
++                  // Reconstruct pszFilename using szTempFile
++                  // Replace device path with DOS path
++                  swprintf(lpszFilePath, cchFilePath, L"%s%s", szDrive, filename+uNameLen);
++                  ret = 0;
++                }
++              }
++            }
++
++            // Go to the next NULL character.
++            while (*p++);
++          } while (!bFound && *p); // end of string
++        }
++      }
++      UnmapViewOfFile(pMem);
++    }
++
++    CloseHandle(hFileMap);
++  }
++  
++  return ret;
++}
++
++
++#endif
++
++typedef DWORD (WINAPI * GetVersion_f)();
++
+ /// Determines if the program is running on Windows 8 or newer. This
+ /// reimplements one of the helpers in the Windows 8.1 SDK, which are intended
+ /// to supercede raw calls to GetVersionEx. Old SDKs, Cygwin, and MinGW don't
+ /// yet have VersionHelpers.h, so we have our own helper.
+ inline bool RunningWindows8OrGreater() {
+   // Windows 8 is version 6.2, service pack 0.
++#if 0
+   OSVERSIONINFOEXW osvi = {};
+   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+   osvi.dwMajorVersion = 6;
+@@ -69,6 +173,30 @@
+   return VerifyVersionInfoW(&osvi, VER_MAJORVERSION | VER_MINORVERSION |
+                                        VER_SERVICEPACKMAJOR,
+                             Mask) != FALSE;
++#else
++  HMODULE hKernel32 = GetModuleHandleA("kernel32.dll");
++  if(hKernel32)
++  {
++  	GetVersion_f pGetVersion = (GetVersion_f)GetProcAddress(hKernel32, "GetVersion");
++  	if(pGetVersion)
++  	{
++  		DWORD version = pGetVersion();
++  		DWORD dwMajorVersion = version & 0xFF;
++  		DWORD dwMinorVersion = (version >> 8) & 0xFF;
++  		
++  		if(dwMajorVersion < 6)
++  		{
++  			return false;
++  		}
++  		else if(dwMajorVersion == 6 && dwMinorVersion < 2)
++  		{
++  			return false;
++  		}
++  	}
++  }
++  
++  return true;
++#endif
+ }
+ 
+ inline bool MakeErrMsg(std::string *ErrMsg, const std::string &prefix) {
+@@ -162,7 +290,9 @@
+   }
+ 
+   static void Close(handle_type h) {
++#if 0
+     ::CryptReleaseContext(h, 0);
++#endif
+   }
+ 
+   static bool IsValid(handle_type h) {

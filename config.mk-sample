@@ -1,0 +1,96 @@
+################################################################################
+# MINGW/GCC Sample configuration file                                          #
+################################################################################
+
+#
+# basic paths and names configuration
+#
+
+# Enable llvmpipe, require LLVM
+#LLVM := 1
+
+# If LLVM enabled, set this path to LLVM instalation dir
+#LLVM_DIR = ../path/to/llvm
+
+# LLVM version in hex internal format (e.g. 6.0.1 => 0x0601, 5.0.2 => 0x0502)
+#LLVM_VER = 0x0601
+
+# force using detele utility - microsoft or GNU one
+#RM = rm -f
+#RM = del /F /S /Q
+
+# compiler name prefix (useful on cross-compilation)
+#PREFIX=
+
+# compiler names
+CXX = $(PREFIX)g++
+CC  = $(PREFIX)gcc
+LD  = $(PREFIX)g++
+WINDRES = $(PREFIX)windres
+
+#
+# optimalizatin/debug configuration
+#
+
+# if enabled optimalize for speed nor for debug
+SPEED := 1
+
+# enable asserts and orders debug/instrumentation functions on code,
+# but add extra systems calls, so result potentialy won't run on Windows 9x
+#DEBUG := 1
+
+# force debug flags when compiling with LLVM, if disabled CLAGS/CXXFLAGS
+# are taken from LLVM configuration - useful if you have LLVM compiled for
+# release but you need debug mesa3d code
+#LP_DEBUG := 1
+
+### Truth table ###
+# 1 = defined 
+# 0 = not defined
+# X = doesn't matter
+#
+# SPEED | DEBUG | LP_DEBUG | Result
+# -------------------------|--------
+#   1   |   X   |    X     | opengl32.w95.dll = optimalized for speed, no asserts/debug logging
+#       |       |          | opengl32.w98me.dll = no asserts/debug, code optimalization taken from LLVM config
+# -------------------------|--------
+#   0   |   0   |    0     | opengl32.w95.dll = optimalized for debug, no asserts/debug logging
+#       |       |          | opengl32.w98me.dll = no asserts/debug, code optimalization taken from LLVM config
+# -------------------------|--------
+#   0   |   1   |    0     | opengl32.w95.dll = optimalized for debug, enabled asserts/debug logging
+#       |       |          | opengl32.w98me.dll = no asserts/debug, code optimalization taken from LLVM config
+# -------------------------|--------
+#   0   |   0   |    1     | opengl32.w95.dll = optimalized for debug, no asserts/debug logging
+#       |       |          | opengl32.w98me.dll = optimalized for debug, no asserts/debug logging
+# -------------------------|--------
+#   0   |   1   |    1     | opengl32.w95.dll = optimalized for debug, enabled asserts/debug logging
+#       |       |          | opengl32.w98me.dll = optimalized for debug, enabled asserts/debug logging
+# -------------------------|--------
+
+# enable link-time optimalization, linking with it is super slow, and build is broken anyway (!)
+# DON'T use this yet!
+#LTO   := 1
+
+# Show fatal error in GUI message box - nice to users, annoying for developers
+GUI_ERRORS = 1
+
+# allow extra tune for specific CPU, allow instrument C code by MMX, SSE or AVX instruction, but be
+# careful - in mingw 4.8.x is SSE instrumentation broken, so use this only with newer GCC!
+# Don't use -march=native here because it means usage of AVX instruction everyvere so thats could be problem
+# in all mutlithread applications (Windows Media Player is common example), instead target to last CPU without
+# AVX (core2 or westmere)
+#TUNE += -march=core2 -mtune=haswell
+# If you wish target Windows 95, situation is more complicated, because we must avoid even all SSE,
+# so last real target without SSE is pentium2, but optimize for much newer CPU
+#TUNE += -march=pentium2 -mtune=haswell
+# Same option but for older GCC
+#TUNE += -march=pentium2 -mtune=core2
+# this flags reduce size of library of few percent
+#TUNE += -fdata-sections -ffunction-sections
+# Remove all debug symbols, so reduce file size by a lot, turn off only if you wish debug
+# this library
+#TUNE_LD=,--strip-all
+
+# don't remove thread-safe data, but in Windows 95 fail to load this library
+# by LoadLibrary api call.
+#NO_STATIC_TLS_REMOVE=1

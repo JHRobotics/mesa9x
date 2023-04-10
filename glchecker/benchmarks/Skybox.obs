@@ -1,0 +1,157 @@
+CheckVersion 0.1
+SetAttributes 20 250.0 500.0 75.0 500.0
+LoadBMP glchecker/benchmarks/textures/skybox1_side.bmp 0 0 1 0 0
+LoadBMP glchecker/benchmarks/textures/skybox1_ends.bmp 1 0 1 0 0
+LoadBMP glchecker/benchmarks/textures/metal1.bmp 2 0 1 0 1
+LoadBMP glchecker/benchmarks/textures/wood1.bmp 3 0 1 0 1
+LoadOBJ glchecker/benchmarks/models/suzanne.obj 0 3
+LoadOBJ glchecker/benchmarks/models/torus.obj 1 2
+CreateVariable intra 0.0
+CreateVariable intrv 0.0
+CreateVariable wpress 0.0
+CreateVariable spress 0.0
+CreateVariable z 0.0
+CreateVariable y -5.0
+CreateVariable x 0.0
+CreateVariable iz 0.0
+CreateVariable iy 0.0
+CreateVariable ix 0.0
+CreateVariable a 0.0
+CreateVariable v 0.0
+CreateVariable speed 0.1
+CreateVariable hspeed 0.0
+CreateVariable zspeed 0.0
+CreateVariable yspeed 0.0
+CreateVariable xspeed 0.0
+CreateVariable rotz 0.0
+CreateVariable rotx 0.0
+CreateVariable cx 200.0
+CreateVariable cy 200.0
+CreateVariable sens 0.2
+CreateVariable ctr 0.0
+Message "Use 'w' and 's' keys to move.\nUse your cursor to look around."
+MoveCursor 200 200
+render:
+InterVariable intra a rotz
+InterVariable intrv v rotx
+InterVariable ix x xspeed
+InterVariable iy y yspeed
+InterVariable iz z zspeed
+Rotate intrv 1.0 0.0 0.0
+Rotate intra 0.0 1.0 0.0
+Disable depth
+Color 1.0 1.0 1.0 1.0
+Texture 0
+VertexFormat quads
+TexCoord 0.0 0.0
+Vertex -10.0 -10.0 -10.0
+TexCoord 0.25 0.0
+Vertex 10.0 -10.0 -10.0
+TexCoord 0.25 1.0
+Vertex 10.0 10.0 -10.0
+TexCoord 0.0 1.0
+Vertex -10.0 10.0 -10.0
+TexCoord 0.25 0.0
+Vertex 10.0 -10.0 -10.0
+TexCoord 0.5 0.0
+Vertex 10.0 -10.0 10.0
+TexCoord 0.5 1.0
+Vertex 10.0 10.0 10.0
+TexCoord 0.25 1.0
+Vertex 10.0 10.0 -10.0
+TexCoord 0.5 0.0
+Vertex 10.0 -10.0 10.0
+TexCoord 0.75 0.0
+Vertex -10.0 -10.0 10.0
+TexCoord 0.75 1.0
+Vertex -10.0 10.0 10.0
+TexCoord 0.5 1.0
+Vertex 10.0 10.0 10.0
+TexCoord 0.75 0.0
+Vertex -10.0 -10.0 10.0
+TexCoord 1.0 0.0
+Vertex -10.0 -10.0 -10.0
+TexCoord 1.0 1.0
+Vertex -10.0 10.0 -10.0
+TexCoord 0.75 1.0
+Vertex -10.0 10.0 10.0
+VertexEnd
+Texture 1
+VertexFormat quads
+TexCoord 0.0 0.5
+Vertex 10.0 10.0 -10.0
+TexCoord 1.0 0.5
+Vertex 10.0 10.0 10.0
+TexCoord 1.0 1.0
+Vertex -10.0 10.0 10.0
+TexCoord 0.0 1.0
+Vertex -10.0 10.0 -10.0
+TexCoord 0.0 0.0
+Vertex -10.0 -10.0 -10.0
+TexCoord 1.0 0.0
+Vertex -10.0 -10.0 10.0
+TexCoord 1.0 0.5
+Vertex 10.0 -10.0 10.0
+TexCoord 0.0 0.5
+Vertex 10.0 -10.0 -10.0
+VertexEnd
+Enable depth
+LightAttribs position 1.0 1.0 1.0 0.0
+LightAttribs ambient 1.0 1.0 1.0 1.0
+Enable light
+PushMatrix
+Translate ix iy iz
+RenderModel 0
+PushMatrix
+Translate 0.0 2.0 0.0
+RenderModel 1
+PopMatrix
+PopMatrix
+Disable light
+process:
+Event keypress w wpress
+Event keypress s spress
+ProcVariable xspeed 0.0 =
+ProcVariable yspeed 0.0 =
+ProcVariable zspeed 0.0 =
+If wpress == 1.0 9
+ProcVariable yspeed v sin
+ProcVariable yspeed speed *
+ProcVariable hspeed v cos
+ProcVariable hspeed speed *
+ProcVariable zspeed a cos
+ProcVariable zspeed hspeed *
+ProcVariable xspeed a sin
+ProcVariable xspeed -1.0 *
+ProcVariable xspeed hspeed *
+If spress == 1.0 10
+ProcVariable yspeed v sin
+ProcVariable yspeed speed *
+ProcVariable yspeed -1.0 *
+ProcVariable hspeed v cos
+ProcVariable hspeed speed *
+ProcVariable zspeed a cos
+ProcVariable zspeed -1.0 *
+ProcVariable zspeed hspeed *
+ProcVariable xspeed a sin
+ProcVariable xspeed hspeed *
+ProcVariable x xspeed +
+ProcVariable y yspeed +
+ProcVariable z zspeed +
+ProcVariable rotz cx =
+ProcVariable rotz 200.0 -
+ProcVariable rotx cy =
+ProcVariable rotx 200.0 -
+ProcVariable rotz sens *
+ProcVariable rotx sens *
+ProcVariable rotx -1.0 *
+ProcVariable a rotz +
+ProcVariable v rotx +
+If v > 90.0 2
+ProcVariable v 90.0 =
+ProcVariable rotx 0.0 =
+If v < -90.0 2
+ProcVariable v -90.0 =
+ProcVariable rotx 0.0 =
+CursorPos cx cy
+MoveCursor 200 200

@@ -1,0 +1,56 @@
+CheckVersion 0.1
+SetAttributes 40 250.0 500.0 75.0 1000.0
+LoadBMP glchecker/benchmarks/textures/wood1.bmp 0 0 1 0 1
+LoadBMP glchecker/benchmarks/textures/wood2.bmp 1 0 1 0 1
+LoadBMP glchecker/benchmarks/textures/wood3.bmp 2 0 1 0 1
+LoadBMP glchecker/benchmarks/textures/back.bmp 3 0 1 0 1
+LoadOBJ glchecker/benchmarks/models/suzanne.obj 0 0
+LoadOBJ glchecker/benchmarks/models/suzanne.obj 1 -1
+LoadOBJ glchecker/benchmarks/models/torus.obj 2 1
+LoadOBJ glchecker/benchmarks/models/torus.obj 3 2
+CreateVariable rot1 0.0
+CreateVariable rot2 0.0
+CreateVariable intr1 0.0
+CreateVariable intr2 0.0
+render:
+InterVariable intr1 rot1 1.5
+InterVariable intr2 rot2 2.1
+Enable light
+LightAttribs position -7.5 7.5 -15.0 1.0
+LightAttribs ambient 0.3 0.25 0.15 1.0
+PushMatrix
+Translate 1.2 -1.0 -8.0
+Rotate intr2 0.0 1.0 0.0
+RenderModel 0
+PopMatrix
+PushMatrix
+Translate -1.2 1.0 -8.0
+Rotate intr2 0.0 -1.0 0.0
+RenderModel 1
+PopMatrix
+PushMatrix
+Translate 4.0 2.0 -8.0
+Rotate intr2 1.0 0.7 0.28
+RenderModel 2
+PopMatrix
+PushMatrix
+Translate -4.0 -2.0 -8.0
+Rotate intr1 0.1 0.5 0.65
+RenderModel 3
+PopMatrix
+Disable light
+Color 1.0 1.0 1.0 1.0
+Texture 3
+VertexFormat quads
+TexCoord 0.0 0.0
+Vertex -15.0 -15.0 -15.0
+TexCoord 1.0 0.0
+Vertex 15.0 -15.0 -15.0
+TexCoord 1.0 1.0
+Vertex 15.0 15.0 -15.0
+TexCoord 0.0 1.0
+Vertex -15.0 15.0 -15.0
+VertexEnd
+process:
+ProcVariable rot1 1.5 +
+ProcVariable rot2 2.1 +

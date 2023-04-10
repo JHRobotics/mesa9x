@@ -1,0 +1,52 @@
+CheckVersion 0.1
+SetAttributes 10 350.0 600.0 90.0 100.0
+CreateVariable col1 0.0
+CreateVariable osc1 0.0
+CreateVariable col2 0.0
+CreateVariable osc2 0.0
+CreateVariable col3 0.0
+CreateVariable osc3 0.0
+CreateVariable i1 0.0
+CreateVariable i2 0.0
+CreateVariable i3 0.0
+CreateVariable p1 0.5
+CreateVariable p2 0.7
+CreateVariable p3 0.95
+render:
+InterVariable i1 col1 p1
+InterVariable i2 col2 p2
+InterVariable i3 col3 p3
+ProcVariable osc1 i1 sin
+ProcVariable osc1 0.5 *
+ProcVariable osc1 0.5 +
+ProcVariable osc2 i2 sin
+ProcVariable osc2 0.5 *
+ProcVariable osc2 0.5 +
+ProcVariable osc3 i3 sin
+ProcVariable osc3 0.5 *
+ProcVariable osc3 0.5 +
+Disable texture
+VertexFormat quads
+Color osc1 osc2 osc3 1.0
+Vertex -1.0 -1.0 -1.0
+Color osc3 osc1 osc2 1.0
+Vertex 1.0 -1.0 -1.0
+Color osc2 osc3 osc1 1.0
+Vertex 1.0 1.0 -1.0
+Color osc1 osc3 osc2 1.0
+Vertex -1.0 1.0 -1.0
+VertexEnd
+Enable texture
+process:
+ProcVariable col1 p1 +
+ProcVariable col2 p2 +
+ProcVariable col3 p3 +
+ProcVariable osc1 col1 sin
+ProcVariable osc1 0.5 *
+ProcVariable osc1 0.5 +
+ProcVariable osc2 col2 sin
+ProcVariable osc2 0.5 *
+ProcVariable osc2 0.5 +
+ProcVariable osc3 col3 sin
+ProcVariable osc3 0.5 *
+ProcVariable osc3 0.5 +

@@ -1,0 +1,18 @@
+#backup
+/backup/
+
+# generated and temporary files
+*.o
+*.bak
+*.tmp
+*.gen
+*.exe
+*.res
+
+# release and testing scripts
+*.bat
+
+# user defined configuration
+config.mk
+config.mk-msc
+

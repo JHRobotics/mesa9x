@@ -1,0 +1,2 @@
+#define C_ICON 1
+C_ICON ICON "icon.ico"

@@ -1,0 +1,97 @@
+CheckVersion 0.1
+SetAttributes 40 200.0 450.0 75.0 1000.0
+LoadBMP glchecker/benchmarks/textures/grass.bmp 0 1 1 0 1
+LoadBMP glchecker/benchmarks/textures/air.bmp 1 0 1 0 1
+LoadTGA glchecker/benchmarks/textures/sun.tga 2 0 1 0 0
+LoadBMP glchecker/benchmarks/textures/water.bmp 3 1 1 0 1
+LoadTGA glchecker/benchmarks/textures/bush.tga 4 1 1 0 0
+LoadBMP glchecker/benchmarks/textures/stone.bmp 5 1 1 0 1
+LoadOBJ glchecker/benchmarks/models/terrain.obj 0 0
+LoadOBJ glchecker/benchmarks/models/bush.obj 1 4
+LoadOBJ glchecker/benchmarks/models/cylinder.obj 2 5
+CreateVariable rot1 0.0
+CreateVariable inp1 0.0
+render:
+Rotate -105.0 0.0 1.0 0.0
+Translate -20.0 -0.3 2.0
+LightAttribs position -29.0 34.0 -21.0 1.0
+LightAttribs ambient 0.5 0.5 0.5 1.0
+Enable light
+RenderModel 0
+PushMatrix
+Translate -14.6 8.0 15.5
+RenderModel 2
+PopMatrix
+PushMatrix
+Translate -17.4 8.0 16.3
+RenderModel 2
+PopMatrix
+PushMatrix
+Translate -18.3 8.0 18.5
+RenderModel 2
+PopMatrix
+PushMatrix
+Translate -15.0 8.0 17.5
+RenderModel 2
+PopMatrix
+Disable light
+Color 1.0 1.0 1.0 1.0
+PushMatrix
+Rotate 15.0 0.0 1.0 0.0
+Texture 1
+VertexFormat quads
+TexCoord 0.0 0.0
+Vertex -30.0 0.0 -35.0
+TexCoord 1.0 0.0
+Vertex -30.0 40.0 -35.0
+TexCoord 1.0 1.0
+Vertex -30.0 40.0 45.0
+TexCoord 0.0 1.0
+Vertex -30.0 0.0 45.0
+VertexEnd
+Color 1.0 1.0 0.8 1.0
+Texture 2
+VertexFormat quads
+TexCoord 0.0 0.0
+Vertex -29.0 32.0 -23.0
+TexCoord 1.0 0.0
+Vertex -29.0 36.0 -23.0
+TexCoord 1.0 1.0
+Vertex -29.0 36.0 -19.0
+TexCoord 0.0 1.0
+Vertex -29.0 32.0 -19.0
+VertexEnd
+PopMatrix
+PushMatrix
+InterVariable inp1 rot1 0.1
+Rotate inp1 0.0 1.0 0.0
+Color 1.0 1.0 1.0 0.5
+Texture 3
+VertexFormat quads
+TexCoord 0.0 0.0
+Vertex -20.0 -0.2 -20.0
+TexCoord 5.0 0.0
+Vertex -20.0 -0.2 20.0
+TexCoord 5.0 5.0
+Vertex 20.0 -0.2 20.0
+TexCoord 0.0 5.0
+Vertex 20.0 -0.2 -20.0
+VertexEnd
+PopMatrix
+Color 1.0 1.0 1.0 1.0
+Disable cullface
+Disable depth
+PushMatrix
+Translate 17.5 0.0 0.6
+Scale 1.1 2.0 1.1
+RenderModel 1
+PopMatrix
+PushMatrix
+Translate 17.6 0.0 0.2
+Scale 1.0 0.8 1.0
+RenderModel 1
+PopMatrix
+Enable depth
+Enable cullface
+process:
+ProcVariable rot1 0.1 +

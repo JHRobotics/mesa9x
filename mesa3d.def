@@ -1,0 +1,21 @@
+EXPORTS
+	DrvCopyContext
+	DrvCreateContext
+	DrvCreateLayerContext
+	DrvDeleteContext
+	DrvDescribeLayerPlane
+	DrvDescribePixelFormat
+	DrvGetLayerPaletteEntries
+	DrvGetProcAddress
+	DrvPresentBuffers
+	DrvRealizeLayerPalette
+	DrvReleaseContext
+	DrvSetCallbackProcs
+	DrvSetContext
+	DrvSetLayerPaletteEntries
+	DrvSetPixelFormat
+	DrvShareLists
+	DrvSwapBuffers
+	DrvSwapLayerBuffers
+	DrvValidateVersion
+	DllCanUnloadNow

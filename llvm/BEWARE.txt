@@ -1,0 +1,6 @@
+These patches are only and ONLY for port Wine3D LLVMpipe driver to Windows 9x!
+================================================================================
+These patches remove some file system functionality (which doesn't work at all,
+because is full in Unicode and on Windows 9x systems these functions are only
+empty calls). It also remove random number generator (replacing with very simple
+pseudo-random) which could lead to serious security issues on reckless usage!

@@ -1,0 +1,61 @@
+	* INTRODUCTION *
+The OpenGLChecker Benchmark Script (OBS) is a very compact scripting language allowing mainly a functional 
+programming paradigm. It is read by the built-in scripter of OpenGLChecker and executed by the program and 
+engine. OBS aims to be as small as possible, yet retaining enough flexibility for the user to create a wide 
+variety of benchmarks.
+
+OpenGLChecker can only find the benchmark file in the /benchmark directory. So if you have created your script, 
+put it in that directory. Make sure you script has the .obs file extension. You can write your benchmark with 
+most text editors (Notepad++ is highly recommended).
+
+
+
+
+	* STRUCTURE *
+The main structure of an OBS script consists of scopes, which are blocks of commands each belonging 
+to a different part of the benchmark loop. There are three different scopes:
+ - Setup, here all the loading and initializing happens.
+ - Render, all the rendering code.
+ - Process, all the updating or processing code.
+
+This structure is designed similar to a standard game loop: a fixed amount of updates per second, 
+and an unrestrained loop for rendering frames. The process part is for the game logic, the render 
+part for all the eyecandy. Furthermore, one can add comments, ignored by the parser, by adding 
+the hashtag (#) as the first character of a line, or by adding the hashtag after a full command 
+with its arguments.
+
+Every OBS script must contain the following literally, including the empty line at the end:
+CheckVersion 0.1
+render:
+process:
+
+"render:" is to indicate the start of the rendering scope. Similarly, "process:" indicates the 
+process scope. Every OBS file has to end with a newline. This structure is obligatory. The setup 
+part are the lines before "render:". You mustn't put "setup:" at the beginning. "CheckVersion 0.1" 
+is a setup function that checks the version of the script with the version supported by the 
+executable, and this is mandatory. The OBS script version is 0.1 at the moment.
+
+Functions are used to execute certain things, like rendering or loading. To invoke a function, type 
+its name at the beginning of a line, then all arguments (with spaces inbetween) and finally a newline 
+to start the next command. For arguments that contain spaces themselves, we use doubles quotes (") to 
+denote the beginning and end of that argument, called a dedicated string. Futhermore, each scope has 
+its own unique functions. You cannot access those from outside, which would generate a 'wrong scope' 
+error. Apart from that there is a set of universal functions that can be used throughout the script.
+
+The OBS files (.obs) contain the complete script for each benchmark. It is important to note that the 
+file line endings have to be of UNIX type, and encoding should be ideally ANSI. Saving the text file as 
+OBS file should then generate a valid script.
+
+
+
+
+	* FUNCTIONS *
+Currently, the only documentation on functions available is the source code itself, all the functions 
+are defined in the benchmark.cpp file of the source package. Another good way to learn the script code 
+is to look at the four standard scripts included.
+
+
+
+
+	* ABOUT *
+This manual is supplied for the OBS scripting language 0.1 and is written by David Liu.
