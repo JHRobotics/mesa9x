@@ -1,3 +1,4 @@
 [submodule "winpthreads"]
 	path = winpthreads
 	url = https://github.com/JHRobotics/pthread9x
+	branch = main
