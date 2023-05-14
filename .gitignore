@@ -19,3 +19,5 @@
 config.mk
 config.mk-msc
 
+# newer mesa, not now yet
+mesa-21.3.8/
