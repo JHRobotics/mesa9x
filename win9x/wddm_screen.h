@@ -55,7 +55,8 @@ struct vmw_winsys_screen_wddm
 #endif
 
 typedef uint32_t SVGA3dSurfaceFlags;
-typedef uint32_t SVGA3dSurfaceAllFlags;
+//typedef uint32_t SVGA3dSurfaceAllFlags;
+typedef uint64_t SVGA3dSurfaceAllFlags;
 
 #define GA_MAX_SURFACE_FACES 6
 #define GA_MAX_MIP_LEVELS 24

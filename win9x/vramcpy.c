@@ -9,10 +9,18 @@
 #include "pipe/p_format.h"
 #include "pipe/p_context.h"
 #include "util/u_inlines.h"
+#ifdef MESA_NEW
+#include "u_format.h"
+#else
 #include "util/u_format.h"
+#endif
 #include "util/u_math.h"
 #include "util/u_memory.h"
+#ifdef MESA_NEW
+#include "frontend/sw_winsys.h"
+#else
 #include "state_tracker/sw_winsys.h"
+#endif
 #include "gdi/gdi_sw_winsys.h"
 
 /* sse vector types */

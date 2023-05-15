@@ -20,12 +20,20 @@
 
 include config.mk
 
-MESA_VER = mesa-17.3.9
+MESA_VER ?= mesa-17.3.9
 DEPS = config.mk Makefile
+
+ifeq ($(MESA_VER),mesa-21.3.8)
+  MESA_NEW := 1
+endif
 
 # only usefull with gcc/mingw
 CSTD=c99
-CXXSTD=gnu++11
+ifdef MESA_NEW
+  CXXSTD=gnu++14
+else
+  CXXSTD=gnu++11
+endif
 
 # base address from 98/NT opengl32.dll
 BASE_opengl32.w95.dll   := 0x78A40000
@@ -55,6 +63,7 @@ ifdef LLVM
     $(error Define LLVM_VER in config.mk please!)
   endif
 endif
+
 
 all: $(TARGETS)
 .PHONY: all clean
@@ -195,15 +204,20 @@ else
   
   LD_DEPS := winpthreads/libpthread.a
   
-  DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
+  DLLFLAGS = -o $@ -shared -Wl,--allow-multiple-definition,--dll,--out-implib,lib$(@:dll=a),--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
   
-  OPENGL_DEF = $(MESA_VER)/src/gallium/state_trackers/wgl/opengl32.mingw.def
-  MESA3D_DEF = mesa3d.mingw.def
+  ifdef MESA_NEW
+    OPENGL_DEF = $(MESA_VER)/src/gallium/targets/libgl-gdi/opengl32.mingw.def
+    MESA3D_DEF = mesa3d.mingw.def
+  else
+    OPENGL_DEF = $(MESA_VER)/src/gallium/state_trackers/wgl/opengl32.mingw.def
+    MESA3D_DEF = mesa3d.mingw.def
+  endif
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
     -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/include \
     -I$(MESA_VER)/src/gallium/drivers/svga -I$(MESA_VER)/src/gallium/drivers/svga/include -I$(MESA_VER)/src/gallium/winsys/sw  -I$(MESA_VER)/src/gallium/drivers -I$(MESA_VER)/src/gallium/winsys/svga/drm \
-    -Iwin9x
+    -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -Iwin9x
 
   DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
@@ -218,8 +232,8 @@ else
     DEFS  += -DMESA9X_BUILD=$(VERSION_BUILD)
   endif
 
-	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib
-	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib
+	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
+	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
   MESA_LIBS  := winpthreads/crtfix.o -static -Lwinpthreads -lpthread -lkernel32 -luser32 -lgdi32
   
   ifdef DEBUG
@@ -228,15 +242,19 @@ else
     DD_DEFS = -DNDEBUG
   endif
   
+  ifdef MESA_NEW
+    DEFS += -DMESA_NEW -DVBOX_WITH_MESA3D_COMPILE
+  endif
+  
   ifdef GUI_ERRORS
   	TUNE += -DGUI_ERRORS
   endif
 
   ifdef LLVM
-    SIMD_DEFS = $(DEFS) -DHAVE_LLVM=$(LLVM_VER) -DHAVE_GALLIUM_LLVMPIPE -DGALLIUM_LLVMPIPE -DHAVE_LLVMPIPE
+    SIMD_DEFS = $(DEFS) -DHAVE_LLVM=$(LLVM_VER) -DHAVE_GALLIUM_LLVMPIPE -DGALLIUM_LLVMPIPE -DHAVE_LLVMPIPE -DDRAW_LLVM_AVAILABLE
     SIMD_INCLUDE += $(INCLUDE) -I$(LLVM_DIR)/include
     
-    opengl_simd_LIBS := -L. -L$(LLVM_DIR)/lib -lMesaLibSimd -lMesaUtilLibSimd -lMesaGalliumLLVMPipe -lMesaGalliumAuxLibSimd
+    opengl_simd_LIBS := -L. -L$(LLVM_DIR)/lib -lMesaLibSimd -lMesaUtilLibSimd -lMesaGalliumLLVMPipe -lMesaGalliumAuxLibSimd -lMesaLibSimd -lMesaUtilLibSimd
     opengl_simd_LIBS := $(opengl_simd_LIBS) $(filter-out -lshell32,$(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static bitwriter engine mcdisassembler mcjit))
     
     # LLVMpipe 6.x required zlib
@@ -255,7 +273,7 @@ else
     LLVM_CXXFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cxxflags)
     ifndef LP_DEBUG
       SIMD_CFLAGS   = -std=$(CSTD) $(filter-out -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS)
-      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CXXFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS)
+      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS)
     else
       SIMD_CFLAGS = -std=$(CSTD) -O1 -g  $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)
       SIMD_CXXFLAGS = -std=$(CXXSTD) -O1 -g $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)

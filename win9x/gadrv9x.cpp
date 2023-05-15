@@ -23,7 +23,11 @@ extern "C" {
 #include "svga/svga_screen.h"
 
 
+#ifdef MESA_NEW
+#include "frontend/drm_driver.h"
+#else
 #include "state_tracker/drm_driver.h"
+#endif
 #include "pipe/p_context.h"
 
 #define uint8  uint8_t
@@ -67,12 +71,14 @@ GaDrvGetSurfaceId(struct pipe_screen *pScreen, struct pipe_resource *pResource)
         /* Get the sid (surface id). */
         struct winsys_handle whandle;
         memset(&whandle, 0, sizeof(whandle));
+#ifndef MESA_NEW
         whandle.type = DRM_API_HANDLE_TYPE_SHARED;
 
         if (pScreen->resource_get_handle(pScreen, NULL, pResource, &whandle, PIPE_HANDLE_USAGE_READ))
         {
             u32Sid = (uint32_t)whandle.handle;
         }
+#endif
     }
 
     return u32Sid;

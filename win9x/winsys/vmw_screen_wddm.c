@@ -39,7 +39,11 @@
 #include "pipe/p_compiler.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
+#ifdef MESA_NEW
+#include "u_format.h"
+#else
 #include "util/u_format.h"
+#endif
 
 #include "vmw_context.h"
 #include "vmw_screen.h"
@@ -48,7 +52,11 @@
 #include "svga_drm_public.h"
 #include "svga3d_surfacedefs.h"
 
+#ifdef MESA_NEW
+#include "frontend/drm_driver.h"
+#else
 #include "state_tracker/drm_driver.h"
+#endif
 
 #include "vmwgfx_drm.h"
 
@@ -144,6 +152,7 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
     whandle->stride = stride;
     whandle->offset = 0;
 
+#ifndef MESA_NEW
     switch (whandle->type) {
     case DRM_API_HANDLE_TYPE_SHARED:
     case DRM_API_HANDLE_TYPE_KMS:
@@ -157,6 +166,26 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
 		 whandle->type);
        return FALSE;
     }
+#else
+    switch (whandle->type) {
+    case WINSYS_HANDLE_TYPE_SHARED:
+    case WINSYS_HANDLE_TYPE_KMS:
+       whandle->handle = vsrf->sid;
+       break;
+    case WINSYS_HANDLE_TYPE_FD:
+       whandle->handle = vsrf->sid; /// @todo will this be enough for WDDM?
+       break;
+    default:
+       vmw_error("Attempt to export unsupported handle type %d.\n",
+		 whandle->type);
+       return FALSE;
+    }
+#endif
 
     return TRUE;
+}
+
+void vmw_svga_winsys_host_log(struct svga_winsys_screen *sws, const char *log)
+{
+	
 }

@@ -293,7 +293,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
          // clean hook in every case
+         #ifndef MESA_NEW
          stw_tls_clenup_hook();
+         #endif
       }
       // JH: clear the garbage
       SVGACleanup(NULL, 0);

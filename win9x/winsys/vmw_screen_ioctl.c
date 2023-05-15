@@ -39,7 +39,11 @@
 #include "util/u_memory.h"
 #include "util/u_math.h"
 #include "svgadump/svga_dump.h"
+#ifdef MESA_NEW
+#include "frontend/drm_driver.h"
+#else
 #include "state_tracker/drm_driver.h"
+#endif
 #include "vmw_screen.h"
 #include "vmw_context.h"
 #include "vmw_fence.h"
@@ -158,6 +162,7 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
     return u32Sid;
 }
 
+#ifndef MESA_NEW
 uint32
 vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
 			    SVGA3dSurfaceFlags flags,
@@ -169,6 +174,21 @@ vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
                             unsigned sampleCount,
                             uint32_t buffer_handle,
 			    struct vmw_region **p_region)
+#else
+uint32
+vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
+                            SVGA3dSurfaceAllFlags flags,
+                            SVGA3dSurfaceFormat format,
+                            unsigned usage,
+                            SVGA3dSize size,
+                            uint32_t numFaces,
+                            uint32_t numMipLevels,
+                            unsigned sampleCount,
+                            uint32_t buffer_handle,
+                            SVGA3dMSPattern multisamplePattern,
+                            SVGA3dMSQualityLevel qualityLevel,
+                            struct vmw_region **p_region)
+#endif
 {
     //RT_NOREF10(vws, flags, format, usage, size, numFaces, numMipLevels, sampleCount, buffer_handle, p_region);
     // guest-backed surface
@@ -214,6 +234,7 @@ vmw_ioctl_surface_req(const struct vmw_winsys_screen *vws,
  *
  * Returns 0 on success, a system error on failure.
  */
+#ifndef MESA_NEW
 int
 vmw_ioctl_gb_surface_ref(struct vmw_winsys_screen *vws,
                          const struct winsys_handle *whandle,
@@ -222,6 +243,16 @@ vmw_ioctl_gb_surface_ref(struct vmw_winsys_screen *vws,
                          uint32_t *numMipLevels,
                          uint32_t *handle,
                          struct vmw_region **p_region)
+#else
+int
+vmw_ioctl_gb_surface_ref(struct vmw_winsys_screen *vws,
+                         const struct winsys_handle *whandle,
+                         SVGA3dSurfaceAllFlags *flags,
+                         SVGA3dSurfaceFormat *format,
+                         uint32_t *numMipLevels,
+                         uint32_t *handle,
+                         struct vmw_region **p_region)
+#endif
 {
     //RT_NOREF7(vws, whandle, flags, format, numMipLevels, handle, p_region);
     // ??? DeviceCallbacks.pfnLockCb(pDevice->hDevice, );
@@ -610,9 +641,11 @@ vboxGetParam(struct vmw_winsys_screen_wddm *vws_wddm, struct drm_vmw_getparam_ar
         case DRM_VMW_PARAM_SCREEN_TARGET:
             gp_arg->value = 1;
             break;
+#ifndef MESA_NEW
         case DRM_VMW_PARAM_VGPU10:
             gp_arg->value = 1;
             break;
+#endif
         default: return -1;
     }
     return 0;
@@ -740,7 +773,11 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       if (vws->ioctl.have_drm_2_9) {
 
          memset(&gp_arg, 0, sizeof(gp_arg));
+#ifndef MESA_NEW
          gp_arg.param = DRM_VMW_PARAM_VGPU10;
+#else
+         gp_arg.param = 0;
+#endif
          ret = vboxGetParam(vws_wddm, &gp_arg);
          if (ret == 0 && gp_arg.value != 0) {
             const char *vgpu10_val;
