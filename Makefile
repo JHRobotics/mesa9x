@@ -467,7 +467,7 @@ opengl32.w95.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
 opengl32.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibGLSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
-# sotware ICD driver
+# software ICD driver
 mesa3d.w95.dll: $(LIBS_TO_BUILD) $(DEPS) mesa3d.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibICD_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF)
 

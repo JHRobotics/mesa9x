@@ -35,7 +35,7 @@
 #include "svga_context.h"
 #include "svga_cmd.h"
 
-#ifndef VBOX_WITH_MESA3D_NINE_SVGA
+#if !(defined(VBOX_WITH_MESA3D_NINE_SVGA) || defined(VBOX_WITH_MESA3D_DXFIX))
 #define SVGA_SURFACE_CACHE_ENABLED 1
 #else
 #define SVGA_SURFACE_CACHE_ENABLED 0

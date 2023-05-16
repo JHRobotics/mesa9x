@@ -3,9 +3,15 @@
 #define MESA9X_STR_(x) #x
 #define MESA9X_STR(x) MESA9X_STR_(x)
 
-#define MESA9X_MAJOR 17
-#define MESA9X_MINOR 3
-#define MESA9X_PATCH 9
+#ifndef MESA_NEW
+# define MESA9X_MAJOR 17
+# define MESA9X_MINOR 3
+# define MESA9X_PATCH 9
+#else
+# define MESA9X_MAJOR 21
+# define MESA9X_MINOR 3
+# define MESA9X_PATCH 8
+#endif
 
 #ifndef MESA9X_BUILD
 #define MESA9X_BUILD 0

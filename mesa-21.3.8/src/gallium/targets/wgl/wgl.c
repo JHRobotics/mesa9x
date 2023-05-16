@@ -80,15 +80,18 @@ static boolean use_d3d12 = FALSE;
 static boolean use_zink = FALSE;
 #endif
 
+#ifdef WIN9X
 #include "vramcpy.h"
+#endif
 
+#ifdef HAVE_CRTEX
 void crt_enable_sse2();
 int crt_sse2_is_safe();
-
 void crt_locks_init(int count);
 void crt_locks_destroy();
 #define LOCK_PROGRAM_OPTIMIZE 0
 #define CRT_LOCK_CNT 1
+#endif
 
 static const char *created_driver_name = NULL;
 
@@ -101,6 +104,9 @@ wgl_screen_create_by_name(HDC hDC, const char* driver, struct sw_winsys *winsys)
 
 #ifdef GALLIUM_LLVMPIPE
    if (strcmp(driver, "llvmpipe") == 0) {
+# ifdef HAVE_CRTEX
+  	  crt_enable_sse2();
+# endif
       screen = llvmpipe_create_screen(winsys);
       if (screen)
          use_llvmpipe = TRUE;
@@ -166,6 +172,19 @@ wgl_screen_create(HDC hDC)
     * sorted list. Don't do this if GALLIUM_DRIVER is specified.
     */
    for (unsigned i = 0; i < ARRAY_SIZE(drivers); ++i) {
+#ifdef WIN9X
+   	  if(strcmp(drivers[i], "llvmpipe") == 0)
+   	  {
+   	  	if(!crt_sse2_is_safe()) /* llvmpipe, but SSE missing or is pressent on W95 */
+   	  	{
+   	  		if(strcmp(debug_get_option("GALLIUM_DRIVER", ""), "llvmpipe") != 0) /* if user not specify llvmpipe, continue to another driver */
+   	  		{
+   	  			continue;
+   	  		}
+   	  	}
+   	  }
+#endif
+   	
       struct pipe_screen* screen = wgl_screen_create_by_name(hDC, drivers[i], winsys);
       if (screen) {
          created_driver_name = drivers[i];
@@ -203,7 +222,11 @@ wgl_present(struct pipe_screen *screen,
    if (use_llvmpipe) {
       winsys = llvmpipe_screen(screen)->winsys;
       dt = llvmpipe_resource(res)->dt;
+# ifndef WIN9X
       gdi_sw_display(winsys, dt, hDC);
+# else
+      vramcpy_display(winsys, dt, hDC);
+# endif
       return;
    }
 #endif
@@ -232,7 +255,11 @@ wgl_present(struct pipe_screen *screen,
 #ifdef GALLIUM_SOFTPIPE
    winsys = softpipe_screen(screen)->winsys,
    dt = softpipe_resource(res)->dt,
+# ifdef WIN9X
    gdi_sw_display(winsys, dt, hDC);
+# else
+   vramcpy_display(winsys, dt, hDC);
+# endif
 #endif
 }
 
@@ -308,7 +335,20 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
    switch (fdwReason) {
    case DLL_PROCESS_ATTACH:
+#ifdef HAVE_CRTEX
    	  crt_locks_init(CRT_LOCK_CNT);
+#endif
+#ifdef UNLOAD_PROTECTED
+   	  {
+   	  	/* load self again to protect from unload */
+	      char sz[MAX_PATH];
+				if(GetModuleFileName(hinstDLL, sz, MAX_PATH))
+				{
+					LoadLibrary(sz);
+				}
+   	  }
+#endif
+
       stw_init(&stw_winsys, hinstDLL);
       stw_init_thread();
       break;
@@ -326,6 +366,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // We're being unloaded from the process.
          stw_cleanup_thread();
          stw_cleanup();
+#ifdef HAVE_CRTEX
+         crt_locks_destroy();
+#endif
       } else {
          // Process itself is terminating, and all threads and modules are
          // being detached.
