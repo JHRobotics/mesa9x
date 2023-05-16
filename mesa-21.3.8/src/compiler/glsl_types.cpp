@@ -510,8 +510,9 @@ hash_free_type_function(struct hash_entry *entry)
 {
    glsl_type *type = (glsl_type *) entry->data;
 
-   if (type->is_array())
-      free((void*)entry->key);
+// JHFIX: crash here
+//   if (type->is_array())
+//      free((void*)entry->key);
 
    delete type;
 }

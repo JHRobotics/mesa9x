@@ -75,7 +75,7 @@ comma_separated_list_contains(const char *list, const char *s)
 bool
 env_var_as_boolean(const char *var_name, bool default_value)
 {
-   const char *str = getenv(var_name);
+   const char *str = os_get_option(var_name);
    if (str == NULL)
       return default_value;
 
@@ -100,7 +100,7 @@ env_var_as_boolean(const char *var_name, bool default_value)
 unsigned
 env_var_as_unsigned(const char *var_name, unsigned default_value)
 {
-   char *str = getenv(var_name);
+   char *str = os_get_option(var_name);
    if (str) {
       char *end;
       unsigned long result;

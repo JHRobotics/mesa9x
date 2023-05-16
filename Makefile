@@ -204,15 +204,10 @@ else
   
   LD_DEPS := winpthreads/libpthread.a
   
-  DLLFLAGS = -o $@ -shared -Wl,--allow-multiple-definition,--dll,--out-implib,lib$(@:dll=a),--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
+  DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
   
-  ifdef MESA_NEW
-    OPENGL_DEF = $(MESA_VER)/src/gallium/targets/libgl-gdi/opengl32.mingw.def
-    MESA3D_DEF = mesa3d.mingw.def
-  else
-    OPENGL_DEF = $(MESA_VER)/src/gallium/state_trackers/wgl/opengl32.mingw.def
-    MESA3D_DEF = mesa3d.mingw.def
-  endif
+  OPENGL_DEF = opengl32.mingw.def
+  MESA3D_DEF = mesa3d.mingw.def
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
     -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/include \
@@ -221,7 +216,7 @@ else
 
   DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
-    -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE \
+    -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DKHRONOS_DLL_EXPORTS \
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
     -DPACKAGE_VERSION="\"$(MESA_VER)\"" -DPACKAGE_BUGREPORT="\"$(MESA_VER)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX
   
@@ -243,7 +238,7 @@ else
   endif
   
   ifdef MESA_NEW
-    DEFS += -DMESA_NEW -DVBOX_WITH_MESA3D_COMPILE
+    DEFS += -DMESA_NEW -DGALLIUM_SOFTPIPE
   endif
   
   ifdef GUI_ERRORS

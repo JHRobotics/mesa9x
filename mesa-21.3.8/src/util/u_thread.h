@@ -96,6 +96,9 @@ util_get_current_cpu(void)
 #if DETECT_OS_LINUX && !defined(ANDROID)
    return sched_getcpu();
 
+#elif defined(WIN9X)
+	 return 1;
+
 #elif defined(_WIN32) && !defined(__CYGWIN__) && _WIN32_WINNT >= 0x0600
    return GetCurrentProcessorNumber();
 

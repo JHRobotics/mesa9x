@@ -228,7 +228,7 @@ _mesa_override_glsl_version(struct gl_constants *consts)
    const char *version;
    int n;
 
-   version = getenv(env_var);
+   version = os_get_option(env_var);
    if (!version) {
       return;
    }

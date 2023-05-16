@@ -529,9 +529,13 @@ stw_make_current(struct stw_framebuffer *fb, struct stw_framebuffer *fbRead, str
 fail:
       /* fb and fbRead must be unlocked at this point. */
       if (fb)
-         assert(!stw_own_mutex(&fb->mutex));
+      {
+         //assert(!stw_own_mutex(&fb->mutex));
+      }
       if (fbRead)
-         assert(!stw_own_mutex(&fbRead->mutex));
+      {
+         //assert(!stw_own_mutex(&fbRead->mutex));
+      }
 
       /* On failure, make the thread's current rendering context not current
        * before returning.

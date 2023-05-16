@@ -97,6 +97,8 @@ wgl_screen_create_by_name(HDC hDC, const char* driver, struct sw_winsys *winsys)
 {
    struct pipe_screen* screen = NULL;
 
+   debug_printf("tried driver: %s\n", driver);
+
 #ifdef GALLIUM_LLVMPIPE
    if (strcmp(driver, "llvmpipe") == 0) {
       screen = llvmpipe_create_screen(winsys);
@@ -306,6 +308,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
    switch (fdwReason) {
    case DLL_PROCESS_ATTACH:
+   	  crt_locks_init(CRT_LOCK_CNT);
       stw_init(&stw_winsys, hinstDLL);
       stw_init_thread();
       break;

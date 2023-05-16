@@ -105,10 +105,11 @@ os_log_message(const char *message)
          fout = stderr;
    }
 
-#if DETECT_OS_WINDOWS
-#ifdef VBOX_WITH_MESA3D_DBG
-   VBoxWddmUmLog(message);
-#endif
+#if defined(WIN9X)
+   fflush(stdout);
+   fputs(message, fout);
+   fflush(fout);
+#elif DETECT_OS_WINDOWS
    OutputDebugStringA(message);
    if(GetConsoleWindow() && !IsDebuggerPresent()) {
       fflush(stdout);
@@ -209,6 +210,7 @@ os_get_android_option(const char *name)
 
 
 #if !defined(EMBEDDED_DEVICE)
+# ifndef WIN9X
 const char *
 os_get_option(const char *name)
 {
@@ -220,6 +222,109 @@ os_get_option(const char *name)
 #endif
    return opt;
 }
+
+# else
+#define OS_GET_BUFFER_SIZE 128
+static char os_get_buffer[OS_GET_BUFFER_SIZE];
+
+int crt_sse2_is_safe();
+
+const char *
+os_get_option(const char *name)
+{
+	char tmppath[MAX_PATH];
+	char regpath[MAX_PATH];
+  const char *dirs[2] = {
+  	"global",
+  	NULL
+  };
+  int dirs_cnt = 1;
+  
+  const char *env = getenv(name);
+  
+  /* 
+   * try read option from registry, checked 2 locations:
+   *   HKLM\Software\Mesa3D\<application.exe>\<name>
+   *   HKLM\Software\Mesa3D\global\<name>
+   *
+   * So user can set option globaly or for selected application
+   */
+  if(env == NULL)
+  {
+	  if(GetModuleFileNameA(NULL, tmppath, MAX_PATH) > 0)
+	  {
+	    char *ptr = strrchr(tmppath, '\\');
+	    if(ptr != NULL && strlen(ptr) > 1)
+	    {
+	    	dirs[1] = ptr+1;
+	    	dirs_cnt++;
+	    }
+	  }
+   
+	  while(dirs_cnt > 0 && env == NULL)
+	  {
+	    HKEY  hKey;
+	    LSTATUS lResult;
+	    
+	    dirs_cnt--;
+	    
+	    if(sizeof("Software\\Mesa3D\\") + strlen(dirs[dirs_cnt]) >= MAX_PATH)
+	    {
+	    	continue;
+	    }
+	    
+	    strcpy(regpath, "Software\\Mesa3D\\");
+	    strcat(regpath, dirs[dirs_cnt]);
+	    
+	    lResult = RegOpenKeyEx (HKEY_LOCAL_MACHINE, regpath, 0, KEY_READ, &hKey);
+	
+	    if(lResult == ERROR_SUCCESS)
+	    {
+	    	DWORD size = OS_GET_BUFFER_SIZE;
+	    	DWORD type = 0;
+	    	DWORD temp_dw = 0;
+	    	
+	      lResult = RegQueryValueExA(hKey, name, NULL, &type, os_get_buffer, &size);
+	      
+	      if(lResult == ERROR_SUCCESS)
+	      {
+	        switch(type)
+	        {
+	          case REG_SZ:
+	          case REG_MULTI_SZ:
+	          case REG_EXPAND_SZ:
+	          	env = os_get_buffer;
+	            break;
+	          case REG_DWORD:
+	          	temp_dw = *((LPDWORD)os_get_buffer);
+	          	sprintf(os_get_buffer, "%u", temp_dw);
+	          	env = os_get_buffer;
+	          	break;
+	        }
+	      }
+	      RegCloseKey(hKey);
+	    }
+	  } // while
+  } // if env == NULL
+  
+  if(env == NULL)
+  {
+  	#ifdef HAVE_CRTEX
+      if(strcmp(name, "GALLIUM_NOSSE") == 0)
+      {
+      	if(crt_sse2_is_safe() == 0)
+      	{
+      		env = "1";
+      	}
+      }
+    #endif
+  }
+  
+  
+  return env;
+}
+# endif
+
 #endif /* !EMBEDDED_DEVICE */
 
 /**
@@ -268,13 +373,22 @@ os_get_total_physical_memory(uint64_t *size)
    *size = (uint64_t)info.max_pages * (uint64_t)B_PAGE_SIZE;
    return true;
 #elif DETECT_OS_WINDOWS
+# ifdef WIN9X
+  MEMORYSTATUS status;
+  status.dwLength = sizeof(status);
+  GlobalMemoryStatus(&status);
+  *size = (unsigned long long)status.dwMemoryLoad;
+
+# else
    MEMORYSTATUSEX status;
    BOOL ret;
 
    status.dwLength = sizeof(status);
    ret = GlobalMemoryStatusEx(&status);
    *size = status.ullTotalPhys;
+
    return (ret == TRUE);
+# endif
 #else
 #error unexpected platform in os_sysinfo.c
    return false;

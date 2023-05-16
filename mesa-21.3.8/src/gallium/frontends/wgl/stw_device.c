@@ -65,6 +65,7 @@ stw_get_param(struct st_manager *smapi,
    }
 }
 
+#define REFRESH_RATE_DEFAULT 60
 
 /** Get the refresh rate for the monitor, in Hz */
 static int
@@ -73,12 +74,20 @@ get_refresh_rate(void)
    DEVMODE devModes;
 
    if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devModes)) {
+   	  /* MSDN: dmDisplayFrequency member may return with the value 0 or 1. These values represent the display hardware's default refresh rate.
+   	     JH: this means, we hasn't precise information about frame rate - so return default
+   	  */
+   	  if(devModes.dmDisplayFrequency <= 1)
+   	  {
+   	  	return REFRESH_RATE_DEFAULT;
+   	  }
+
       /* clamp the value, just in case we get garbage */
-      return CLAMP(devModes.dmDisplayFrequency, 30, 120);
+      return CLAMP(devModes.dmDisplayFrequency, REFRESH_RATE_DEFAULT, 120); /* start at 60... */
    }
    else {
       /* reasonable default */
-      return 60;
+      return REFRESH_RATE_DEFAULT;
    }
 }
 
@@ -103,7 +112,7 @@ init_screen(const struct stw_winsys *stw_winsys, HDC hdc)
 static void
 init_options()
 {
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
    const driOptionDescription gallium_driconf[] = {
       #include "pipe-loader/driinfo_gallium.h"
    };
@@ -124,9 +133,12 @@ stw_init(const struct stw_winsys *stw_winsys, HINSTANCE hinstDLL)
 
    debug_disable_error_message_boxes();
 
+   debug_printf("%s\n", __FUNCTION__);
+   debug_printf("%s ENTER\n", __FUNCTION__);
+
    assert(!stw_dev);
 
-   stw_tls_init();
+   stw_tls_init(hinstDLL);
 
    stw_dev = &stw_dev_storage;
    memset(stw_dev, 0, sizeof(*stw_dev));
@@ -136,7 +148,10 @@ stw_init(const struct stw_winsys *stw_winsys, HINSTANCE hinstDLL)
    stw_dev->stapi = stw_st_create_api();
    stw_dev->smapi = CALLOC_STRUCT(st_manager);
    if (!stw_dev->stapi || !stw_dev->smapi)
+   {
+      debug_printf("%s stw_st_create_api - FAILED\n", __FUNCTION__);
       goto error1;
+   }
 
    stw_dev->smapi->get_param = stw_get_param;
 
@@ -146,6 +161,7 @@ stw_init(const struct stw_winsys *stw_winsys, HINSTANCE hinstDLL)
 
    stw_dev->ctx_table = handle_table_create();
    if (!stw_dev->ctx_table) {
+   	  debug_printf("%s handle_table_create - FAILED\n", __FUNCTION__);
       goto error1;
    }
 
@@ -157,6 +173,8 @@ stw_init(const struct stw_winsys *stw_winsys, HINSTANCE hinstDLL)
    stw_dev->refresh_rate = get_refresh_rate();
 
    stw_dev->initialized = true;
+   
+   debug_printf("%s SUCCESS\n", __FUNCTION__);
 
    return TRUE;
 
@@ -166,6 +184,9 @@ error1:
       stw_dev->stapi->destroy(stw_dev->stapi);
 
    stw_dev = NULL;
+   
+   debug_printf("%s FAILURE\n", __FUNCTION__);
+   
    return FALSE;
 }
 
@@ -231,7 +252,7 @@ stw_cleanup(void)
       return;
    }
 
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
    free(stw_dev->st_options.force_gl_vendor);
    free(stw_dev->st_options.force_gl_renderer);
    driDestroyOptionCache(&stw_dev->option_cache);

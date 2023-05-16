@@ -40,7 +40,7 @@ struct stw_tls_data
 };
 
 boolean
-stw_tls_init(void);
+stw_tls_init(HINSTANCE hinstDLL);
 
 boolean
 stw_tls_init_thread(void);

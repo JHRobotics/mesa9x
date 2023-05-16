@@ -242,7 +242,9 @@ _mesa_one_time_init_extension_overrides(void)
    char *ext;
    size_t offset;
    unsigned unknown_ext = 0;
+#ifndef WIN9X
    char *pszState = NULL;                                                                          /* VBox: strtok -> strtok_r */
+#endif
 
    memset(&_mesa_extension_override_enables, 0, sizeof(struct gl_extensions));
    memset(&_mesa_extension_override_disables, 0, sizeof(struct gl_extensions));
@@ -257,10 +259,14 @@ _mesa_one_time_init_extension_overrides(void)
    if (env == NULL)
       return;
 
-#if defined(_MSC_VER) && !defined(IPRT_NO_CRT)                                                     /* VBox: strtok -> strtok_r */
-# define strtok_r strtok_s                                                                         /* VBox: strtok -> strtok_r */
-#endif                                                                                             /* VBox: strtok -> strtok_r */
+#ifndef WIN9X
+# if defined(_MSC_VER) && !defined(IPRT_NO_CRT)                                                     /* VBox: strtok -> strtok_r */
+#  define strtok_r strtok_s                                                                         /* VBox: strtok -> strtok_r */
+# endif                                                                                             /* VBox: strtok -> strtok_r */
    for (ext = strtok_r(env, " ", &pszState); ext != NULL; ext = strtok_r(NULL, " ", &pszState)) {  /* VBox: strtok -> strtok_r */
+#else
+   for (ext = strtok(env, " "); ext != NULL; ext = strtok(NULL, " ")) {                            /* Mesa9x: strtok_r -> strtok */
+#endif
       int enable;
       int i;
       bool recognized;
@@ -399,7 +405,7 @@ _mesa_make_extension_string(struct gl_context *ctx)
 
    /* Check if the MESA_EXTENSION_MAX_YEAR env var is set */
    {
-      const char *env = getenv("MESA_EXTENSION_MAX_YEAR");
+      const char *env = os_get_option("MESA_EXTENSION_MAX_YEAR");
       if (env) {
          maxYear = atoi(env);
          _mesa_debug(ctx, "Note: limiting GL extensions to %u or earlier\n",

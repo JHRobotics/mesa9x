@@ -87,12 +87,20 @@
 
 static inline void* AlignedMalloc(size_t _Size, size_t _Alignment)
 {
+#ifndef MALLOC_IS_ALIGNED
     return _aligned_malloc(_Size, _Alignment);
+#else
+    return malloc(_Size);
+#endif
 }
 
 static inline void AlignedFree(void* p)
 {
+#ifndef MALLOC_IS_ALIGNED
     return _aligned_free(p);
+#else
+    return free(p);
+#endif
 }
 
 #if defined(_WIN64)

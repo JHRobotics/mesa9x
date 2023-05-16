@@ -3942,7 +3942,9 @@ void llvmpipe_remove_shader_variant(struct llvmpipe_context *lp,
    variant->shader->variants_cached--;
 
    /* remove from context's list */
+#ifndef WIN9X
    remove_from_list(&variant->list_item_global);
+#endif
    lp->nr_fs_variants--;
    lp->nr_fs_instrs -= variant->nr_instrs;
 }

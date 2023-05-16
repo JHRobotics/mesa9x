@@ -778,7 +778,7 @@ disk_cache_generate_cache_dir(void *mem_ctx, const char *gpu_name,
    if (env_var_as_boolean("MESA_DISK_CACHE_SINGLE_FILE", false))
       cache_dir_name = CACHE_DIR_NAME_SF;
 
-   char *path = getenv("MESA_GLSL_CACHE_DIR");
+   char *path = os_get_option("MESA_GLSL_CACHE_DIR");
    if (path) {
       if (mkdir_if_needed(path) == -1)
          return NULL;
@@ -789,7 +789,7 @@ disk_cache_generate_cache_dir(void *mem_ctx, const char *gpu_name,
    }
 
    if (path == NULL) {
-      char *xdg_cache_home = getenv("XDG_CACHE_HOME");
+      char *xdg_cache_home = os_get_option("XDG_CACHE_HOME");
 
       if (xdg_cache_home) {
          if (mkdir_if_needed(xdg_cache_home) == -1)

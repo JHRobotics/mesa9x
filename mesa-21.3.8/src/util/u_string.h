@@ -115,13 +115,17 @@ util_asprintf(char **str, const char *fmt, ...)
 #define strcasecmp stricmp
 #endif
 
-#define strdup _strdup
+#ifndef WIN9X
 
-#if defined(_WIN32) && !defined(HAVE_STRTOK_R)
-#define strtok_r strtok_s
-#endif
+# define strdup _strdup
 
-#endif
+# if defined(_WIN32) && !defined(HAVE_STRTOK_R)
+#  define strtok_r strtok_s
+# endif
+
+#endif /* !WIN9X */
+
+#endif /* _WIN32 */
 
 
 #ifdef __cplusplus

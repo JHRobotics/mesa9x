@@ -399,7 +399,9 @@ __ParseExtensionOverride(struct glx_screen *psc,
 {
    const struct extension_info *ext;
    char *env, *field;
+#ifndef WIN9X
    char *pszState = NULL;                                                                          /* VBox: strtok -> strtok_r */
+#endif
 
    if (override == NULL)
        return;
@@ -409,10 +411,14 @@ __ParseExtensionOverride(struct glx_screen *psc,
    if (env == NULL)
       return;
 
-#if defined(_MSC_VER) && !defined(IPRT_NO_CRT)                                                     /* VBox: strtok -> strtok_r */
-# define strtok_r strtok_s                                                                         /* VBox: strtok -> strtok_r */
-#endif                                                                                             /* VBox: strtok -> strtok_r */
+#ifndef WIN9X
+# if defined(_MSC_VER) && !defined(IPRT_NO_CRT)                                                     /* VBox: strtok -> strtok_r */
+#  define strtok_r strtok_s                                                                         /* VBox: strtok -> strtok_r */
+# endif                                                                                             /* VBox: strtok -> strtok_r */
    for (field = strtok_r(env, " ", &pszState); field!= NULL; field = strtok_r(NULL, " ", &pszState)) { /* VBox: strtok -> strtok_r */
+#else
+   for (field = strtok(env, " "); field!= NULL; field = strtok(NULL, " ")) { /* Mesa9X: strtok_r -> strtok */
+#endif
       GLboolean enable;
 
       switch (field[0]) {

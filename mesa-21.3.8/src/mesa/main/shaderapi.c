@@ -112,7 +112,7 @@ GLbitfield
 _mesa_get_shader_flags(void)
 {
    GLbitfield flags = 0x0;
-   const char *env = getenv("MESA_GLSL");
+   const char *env = os_get_option("MESA_GLSL");
 
    if (env) {
       if (strstr(env, "dump_on_error"))
@@ -152,7 +152,7 @@ _mesa_get_shader_capture_path(void)
    static const char *path = NULL;
 
    if (!read_env_var) {
-      path = getenv("MESA_SHADER_CAPTURE_PATH");
+      path = os_get_option("MESA_SHADER_CAPTURE_PATH");
       read_env_var = true;
    }
 
@@ -2000,7 +2000,7 @@ _mesa_dump_shader_source(const gl_shader_stage stage, const char *source)
    if (!path_exists)
       return;
 
-   dump_path = getenv("MESA_SHADER_DUMP_PATH");
+   dump_path = os_get_option("MESA_SHADER_DUMP_PATH");
    if (!dump_path) {
       path_exists = false;
       return;
@@ -2059,7 +2059,7 @@ _mesa_read_shader_source(const gl_shader_stage stage, const char *source)
    if (!path_exists)
       return NULL;
 
-   read_path = getenv("MESA_SHADER_READ_PATH");
+   read_path = os_get_option("MESA_SHADER_READ_PATH");
    if (!read_path) {
       path_exists = false;
       return NULL;
@@ -3373,9 +3373,13 @@ validate_and_tokenise_sh_incl(struct gl_context *ctx,
       }
       return false;
    }
-
+   
+#ifndef WINE9X
    char *save_ptr = NULL;
    char *path_str = strtok_r(full_path, "/", &save_ptr);
+#else
+   char *path_str = strtok(full_path, "/");
+#endif
 
    *path_list = rzalloc(mem_ctx, struct sh_incl_path_entry);
 
@@ -3404,7 +3408,11 @@ validate_and_tokenise_sh_incl(struct gl_context *ctx,
          insert_at_tail(*path_list, path);
       }
 
+#ifndef WINE9X
       path_str = strtok_r(NULL, "/", &save_ptr);
+#else
+      path_str = strtok(NULL, "/");
+#endif
    }
 
    return true;

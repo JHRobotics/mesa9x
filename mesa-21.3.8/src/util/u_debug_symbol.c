@@ -181,12 +181,15 @@ debug_symbol_name_dbghelp(const void *addr, char* buf, unsigned size)
        */
 
       HMODULE hModule = NULL;
-
+#ifdef WIN9X
+      return FALSE;
+#else
       if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
                              (LPCTSTR)addr,
                              &hModule)) {
          return FALSE;
       }
+#endif
 
       if (GetModuleFileNameA(hModule, buffer, sizeof buffer) == sizeof buffer) {
          return FALSE;

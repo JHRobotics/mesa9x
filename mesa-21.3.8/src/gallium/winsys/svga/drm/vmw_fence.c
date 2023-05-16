@@ -22,7 +22,7 @@
  * SOFTWARE.
  *
  **********************************************************/
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
 #include <libsync.h>
 #elif !defined(RT_OS_WINDOWS)
 # include <unistd.h> /* close() */
@@ -363,7 +363,7 @@ vmw_fence_finish(struct vmw_winsys_screen *vws,
 
    vfence = vmw_fence(fence);
 
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
    if (vfence->imported) {
       ret = sync_wait(vfence->fence_fd, timeout / 1000000);
 

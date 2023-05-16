@@ -45,13 +45,23 @@
 #define os_realloc( _old_ptr, _old_size, _new_size) \
    realloc(_old_ptr, _new_size + 0*(_old_size))
 
-#if DETECT_OS_WINDOWS && !defined(IPRT_NO_CRT)
+#if DETECT_OS_WINDOWS && !(defined(IPRT_NO_CRT) || defined(WIN9X))
 
 #include <malloc.h>
+
+#ifdef WIN9X
+#error "Cannot be here!"
+#endif
 
 #define os_malloc_aligned(_size, _align) _aligned_malloc(_size, _align)
 #define os_free_aligned(_ptr) _aligned_free(_ptr)
 #define os_realloc_aligned(_ptr, _oldsize, _newsize, _alignment) _aligned_realloc(_ptr, _newsize, _alignment)
+
+#elif defined(MALLOC_IS_ALIGNED) /* sometimes we're sure, that malloc's mem has 128b align */
+
+#define os_malloc_aligned(_size, _align) malloc(_size)
+#define os_free_aligned(_ptr) free(_ptr)
+#define os_realloc_aligned(_ptr, _oldsize, _newsize, _alignment) realloc(_ptr, _newsize)
 
 #else
 

@@ -208,7 +208,9 @@ wglCreatePbufferARB(HDC hCurrentDC,
     * WS_OVERLAPPEDWINDOW or WS_POPUPWINDOW as above.
     */
 
+#ifndef WIN9X
    AdjustWindowRectEx(&rect, dwStyle, FALSE, dwExStyle);
+#endif
 
    hWnd = CreateWindowEx(dwExStyle,
                          "wglpbuffer", /* wc.lpszClassName */

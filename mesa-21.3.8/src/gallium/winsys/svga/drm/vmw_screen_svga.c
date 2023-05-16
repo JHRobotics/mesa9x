@@ -32,7 +32,7 @@
  * @author Jose Fonseca
  */
 
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
 #include <libsync.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
@@ -59,7 +59,7 @@
 #include "vmw_query.h"
 #include "vmwgfx_drm.h"
 #include "svga3d_surfacedefs.h"
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
 #include "xf86drm.h"
 #endif
 
@@ -470,7 +470,7 @@ vmw_svga_winsys_fence_server_sync(struct svga_winsys_screen *sws,
                                   int32_t *context_fd,
                                   struct pipe_fence_handle *fence)
 {
-#ifndef VBOX_WITH_MESA3D_COMPILE
+#if !(defined(VBOX_WITH_MESA3D_COMPILE) || defined(WIN9X))
    int32_t fd = sws->fence_get_fd(sws, fence, FALSE);
 
    /* If we don't have fd, we don't need to merge fd into the context's fd. */

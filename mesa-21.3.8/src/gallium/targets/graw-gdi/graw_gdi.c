@@ -95,7 +95,9 @@ graw_create_window_and_screen(int x,
    RegisterClassEx(&wc);
 
    SetRect(&rect, 0, 0, width, height);
+#ifndef WIN9X
    AdjustWindowRectEx(&rect, style, FALSE, 0);
+#endif
 
    hWnd = CreateWindowEx(0,
                          wc.lpszClassName,

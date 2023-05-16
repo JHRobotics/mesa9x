@@ -56,10 +56,13 @@ stw_tls_data_create(DWORD dwThreadId);
 static struct stw_tls_data *
 stw_tls_lookup_pending_data(DWORD dwThreadId);
 
+static HHOOK CallWndProcHook = NULL;
 
 boolean
-stw_tls_init(void)
+stw_tls_init(HINSTANCE hinstDLL)
 {
+	 InitializeCriticalSection(&g_mutex);
+	 
    tlsIndex = TlsAlloc();
    if (tlsIndex == TLS_OUT_OF_INDEXES) {
       return FALSE;
@@ -228,6 +231,8 @@ stw_tls_cleanup(void)
       TlsFree(tlsIndex);
       tlsIndex = TLS_OUT_OF_INDEXES;
    }
+   
+   DeleteCriticalSection(&g_mutex);
 }
 
 /*
@@ -270,6 +275,15 @@ stw_tls_get_data(void)
    }
    
    data = (struct stw_tls_data *) TlsGetValue(tlsIndex);
+#if WIN9X
+   if (!data) {
+   	 /* JHFIX: 
+   	    TlsGetValue is always successfull for valid tlsIndex 
+   	    and if on Win9X NULL is something very wrong with window and we'll NOT continue!
+   	 */
+   	 return NULL;
+   }
+#else
    if (!data) {
       DWORD dwCurrentThreadId = GetCurrentThreadId();
 
@@ -301,5 +315,6 @@ stw_tls_get_data(void)
    assert(data->dwThreadId = GetCurrentThreadId());
    assert(data->next == NULL);
 
+#endif
    return data;
 }

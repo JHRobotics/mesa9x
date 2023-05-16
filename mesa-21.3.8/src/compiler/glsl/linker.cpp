@@ -3644,6 +3644,7 @@ included_in_packed_varying(ir_variable *var, const char *name)
    assert(list);
 
    bool found = false;
+   #ifndef WIN9X
    char *saveptr;
    char *token = strtok_r(list, ",", &saveptr);
    while (token) {
@@ -3653,6 +3654,17 @@ included_in_packed_varying(ir_variable *var, const char *name)
       }
       token = strtok_r(NULL, ",", &saveptr);
    }
+   #else
+   char *token = strtok(list, ",");
+   while (token) {
+      if (strcmp(token, name) == 0) {
+          found = true;
+          break;
+      }
+      token = strtok(NULL, ",");
+   }
+   #endif
+   
    free(list);
    return found;
 }

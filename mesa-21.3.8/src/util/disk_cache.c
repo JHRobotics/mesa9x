@@ -121,7 +121,7 @@ disk_cache_create(const char *gpu_name, const char *driver_id,
 
    max_size = 0;
 
-   max_size_str = getenv("MESA_GLSL_CACHE_MAX_SIZE");
+   max_size_str = os_get_option("MESA_GLSL_CACHE_MAX_SIZE");
    
    #ifdef MESA_GLSL_CACHE_MAX_SIZE
    if( !max_size_str ) {

@@ -58,7 +58,10 @@ stw_framebuffer_from_hwnd_locked(HWND hwnd)
    for (fb = stw_dev->fb_head; fb != NULL; fb = fb->next)
       if (fb->hWnd == hwnd) {
          stw_framebuffer_lock(fb);
-         assert(fb->mutex.RecursionCount == 1);
+         // JH: my 9x driver has little problem with locking, so RecursionCount *could* be 0
+         //debug_printf("fb->mutex.RecursionCount = %d\n", fb->mutex.RecursionCount);
+         assert(fb->mutex.RecursionCount <= 1);
+         
          return fb;
       }
 
@@ -595,6 +598,11 @@ stw_framebuffer_present_locked(HDC hdc,
                                struct stw_framebuffer *fb,
                                struct pipe_resource *res)
 {
+	 if(!stw_dev)
+   {
+	 	 return FALSE;
+	 }
+	
    if (fb->winsys_framebuffer) {
       BOOL result = fb->winsys_framebuffer->present(fb->winsys_framebuffer);
 

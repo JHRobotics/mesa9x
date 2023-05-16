@@ -293,7 +293,7 @@ one_time_init(void)
 
 #if defined(DEBUG)
    if (MESA_VERBOSE != 0) {
-      _mesa_debug(NULL, "Mesa " PACKAGE_VERSION " DEBUG build" MESA_GIT_SHA1 "\n");
+      _mesa_debug(NULL, "Mesa " PACKAGE_VERSION " DEBUG build\n");
    }
 #endif
 

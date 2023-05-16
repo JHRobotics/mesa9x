@@ -184,8 +184,3 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
 
     return TRUE;
 }
-
-void vmw_svga_winsys_host_log(struct svga_winsys_screen *sws, const char *log)
-{
-	
-}

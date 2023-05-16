@@ -75,7 +75,11 @@ struct stw_shared_surface
 
 static svga_inst_t sSvga;
 
+#ifndef MESA_NEW
 static struct pipe_screen *wddm_screen_create(void)
+#else
+static struct pipe_screen *wddm_screen_create(HDC hDC)
+#endif
 {
 	struct pipe_screen *screen = NULL;
 	if(!SVGACreate(&sSvga, INVALID_HANDLE_VALUE))
@@ -96,11 +100,15 @@ static struct pipe_screen *wddm_screen_create(void)
 }
 
 /* present direct to window or screen if possible */
+#ifndef MESA_NEW
 static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
     struct stw_context *ctx = stw_current_context();
     struct pipe_context *pipe = ctx->st->pipe;
-
+#else
+static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
+{
+#endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
 
     if (pEnv)
@@ -117,11 +125,15 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, 
 }
 
 /* present to window */
+#ifndef MESA_NEW
 static void wddm_present_window(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
-    struct stw_context *ctx = stw_current_context();
+	  struct stw_context *ctx = stw_current_context();
     struct pipe_context *pipe = ctx->st->pipe;
-
+#else
+static void wddm_present_window(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
+{
+#endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
 
     if (pEnv)
@@ -215,6 +227,43 @@ wddm_compose(struct pipe_screen *screen,
     }
 }
 
+#ifdef MESA_NEW
+static unsigned
+wddm_get_pfd_flags(struct pipe_screen *screen)
+{
+   return stw_pfd_gdi_support;
+}
+
+static struct stw_winsys_framebuffer *
+wddm_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
+{
+   return NULL;
+}
+
+static const char *
+wddm_get_name(void)
+{
+   return "SVGA3D";
+}
+#endif
+
+#ifdef MESA_NEW
+static struct stw_winsys stw_winsys = {
+   &wddm_screen_create,
+   &wddm_present_window,
+#if WINVER >= 0xA00
+   &wddm_get_adapter_luid,
+#else
+   NULL, /* get_adapter_luid */
+#endif
+   &wddm_shared_surface_open,
+   &wddm_shared_surface_close,
+   &wddm_compose,
+   &wddm_get_pfd_flags,
+   &wddm_create_framebuffer,
+   &wddm_get_name,
+};
+#else
 static struct stw_winsys stw_winsys = {
    wddm_screen_create,
    wddm_present_window,
@@ -223,6 +272,7 @@ static struct stw_winsys stw_winsys = {
    wddm_shared_surface_close,
    wddm_compose
 };
+#endif
 
 
 EXTERN_C BOOL WINAPI

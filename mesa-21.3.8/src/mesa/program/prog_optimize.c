@@ -1100,9 +1100,17 @@ alloc_register(GLboolean usedRegs[REG_ALLOCATE_MAX_PROGRAM_TEMPS])
 static void
 _mesa_reallocate_registers(struct gl_program *prog)
 {
+#ifdef HAVE_CRTEX
+   static struct interval_list liveIntervals;
+   static GLint registerMap[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
+   static GLboolean usedRegs[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
+   static struct interval_list activeIntervals;
+    /* reduce stack usage */
+#else
    struct interval_list liveIntervals;
    GLint registerMap[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
    GLboolean usedRegs[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
+#endif
    GLuint i;
    GLint maxTemp = -1;
 
@@ -1306,6 +1314,10 @@ _mesa_simplify_cmp(struct gl_program * program)
    }
 }
 
+void crt_lock(int lock_no);
+void crt_unlock(int lock_no);
+#define LOCK_PROGRAM_OPTIMIZE 0
+
 /**
  * Apply optimizations to the given program to eliminate unnecessary
  * instructions, temp regs, etc.
@@ -1316,6 +1328,10 @@ _mesa_optimize_program(struct gl_program *program, void *mem_ctx)
    GLboolean any_change;
 
    _mesa_simplify_cmp(program);
+   
+   #ifdef HAVE_CRTEX
+   crt_lock(LOCK_PROGRAM_OPTIMIZE);
+   #endif
    /* Stop when no modifications were output */
    do {
       any_change = GL_FALSE;
@@ -1330,5 +1346,9 @@ _mesa_optimize_program(struct gl_program *program, void *mem_ctx)
       any_change = _mesa_constant_fold(program) || any_change;
       _mesa_reallocate_registers(program);
    } while (any_change);
+   
+   #ifdef HAVE_CRTEX
+   crt_unlock(LOCK_PROGRAM_OPTIMIZE);
+   #endif   
 }
 

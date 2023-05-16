@@ -601,7 +601,8 @@ vboxGetParam(struct vmw_winsys_screen_wddm *vws_wddm, struct drm_vmw_getparam_ar
             gp_arg->value = 1; /* const */
             break;
         case DRM_VMW_PARAM_3D:
-            gp_arg->value = 1; /** @todo */
+            //gp_arg->value = 1; /** @todo */
+            gp_arg->value = (vws_wddm->HwInfo.au32Regs[SVGA_REG_CAPABILITIES] & SVGA_CAP_3D) != 0;
             break;
         case DRM_VMW_PARAM_HW_CAPS:
             gp_arg->value = vws_wddm->HwInfo.au32Regs[SVGA_REG_CAPABILITIES];
@@ -776,7 +777,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 #ifndef MESA_NEW
          gp_arg.param = DRM_VMW_PARAM_VGPU10;
 #else
-         gp_arg.param = 0;
+         gp_arg.param = DRM_VMW_PARAM_DX;
 #endif
          ret = vboxGetParam(vws_wddm, &gp_arg);
          if (ret == 0 && gp_arg.value != 0) {

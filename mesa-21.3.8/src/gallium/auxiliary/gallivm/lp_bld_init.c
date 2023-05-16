@@ -408,6 +408,7 @@ fail:
    return FALSE;
 }
 
+extern struct util_cpu_caps_t util_cpu_caps;
 
 boolean
 lp_build_init(void)
@@ -433,10 +434,19 @@ lp_build_init(void)
    util_cpu_detect();
 
    /* For simulating less capable machines */
-#ifdef DEBUG
+	 if (debug_get_bool_option("LP_FORCE_SSE1", FALSE)) {
+	 	  util_cpu_caps.has_sse2 = 0;
+      util_cpu_caps.has_sse3 = 0;
+      util_cpu_caps.has_ssse3 = 0;
+      util_cpu_caps.has_sse4_1 = 0;
+      util_cpu_caps.has_sse4_2 = 0;
+      util_cpu_caps.has_avx = 0;
+      util_cpu_caps.has_avx2 = 0;
+      util_cpu_caps.has_f16c = 0;
+      util_cpu_caps.has_fma = 0;
+	 }
+
    if (debug_get_bool_option("LP_FORCE_SSE2", FALSE)) {
-      extern struct util_cpu_caps_t util_cpu_caps;
-      assert(util_cpu_caps.has_sse2);
       util_cpu_caps.has_sse3 = 0;
       util_cpu_caps.has_ssse3 = 0;
       util_cpu_caps.has_sse4_1 = 0;
@@ -446,7 +456,6 @@ lp_build_init(void)
       util_cpu_caps.has_f16c = 0;
       util_cpu_caps.has_fma = 0;
    }
-#endif
 
    if (util_get_cpu_caps()->has_avx2 || util_get_cpu_caps()->has_avx) {
       lp_native_vector_width = 256;

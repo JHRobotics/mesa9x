@@ -131,3 +131,9 @@ vmw_winsys_destroy(struct vmw_winsys_screen *vws)
 		FREE(vws);
 	}
 }
+
+void vmw_svga_winsys_host_log(struct svga_winsys_screen *sws, const char *log)
+{
+	
+}
+

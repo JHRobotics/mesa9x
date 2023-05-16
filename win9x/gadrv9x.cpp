@@ -73,12 +73,21 @@ GaDrvGetSurfaceId(struct pipe_screen *pScreen, struct pipe_resource *pResource)
         memset(&whandle, 0, sizeof(whandle));
 #ifndef MESA_NEW
         whandle.type = DRM_API_HANDLE_TYPE_SHARED;
+#else
+        whandle.type = WINSYS_HANDLE_TYPE_SHARED;
+#endif
 
-        if (pScreen->resource_get_handle(pScreen, NULL, pResource, &whandle, PIPE_HANDLE_USAGE_READ))
+        if (pScreen->resource_get_handle(pScreen, NULL, pResource, &whandle, 
+#ifndef MESA_NEW
+        	PIPE_HANDLE_USAGE_READ
+#else
+          0
+#endif
+        ))
         {
             u32Sid = (uint32_t)whandle.handle;
         }
-#endif
+
     }
 
     return u32Sid;
@@ -120,3 +129,12 @@ GaDrvContextFlush(struct pipe_context *pPipeContext)
     if (pPipeContext)
         pPipeContext->flush(pPipeContext, NULL, PIPE_FLUSH_END_OF_FRAME);
 }
+
+#ifdef DEBUG
+struct svga_screen *
+svga_screen(struct pipe_screen *screen)
+{
+   assert(screen);
+   return (struct svga_screen *)screen;
+}
+#endif

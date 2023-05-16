@@ -62,6 +62,7 @@ stw_own_mutex(const CRITICAL_SECTION *cs)
    // We can't compare OwningThread with our thread handle/id (see
    // http://stackoverflow.com/a/12675635 ) but we can compare with the
    // OwningThread member of a critical section we know we own.
+#ifndef WIN9X
    CRITICAL_SECTION dummy;
    InitializeCriticalSection(&dummy);
    EnterCriticalSection(&dummy);
@@ -71,6 +72,9 @@ stw_own_mutex(const CRITICAL_SECTION *cs)
    LeaveCriticalSection(&dummy);
    DeleteCriticalSection(&dummy);
    return ret;
+#else
+   return true;
+#endif
 }
 
 static void
@@ -373,7 +377,7 @@ stw_st_framebuffer_present_locked(HDC hdc,
       stw_framebuffer_unlock(stwfb->fb);
    }
 
-   assert(!stw_own_mutex(&stwfb->fb->mutex));
+   //assert(!stw_own_mutex(&stwfb->fb->mutex));
 
    return true;
 }

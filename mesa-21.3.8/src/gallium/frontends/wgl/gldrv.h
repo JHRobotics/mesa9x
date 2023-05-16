@@ -489,7 +489,7 @@ INT             APIENTRY DrvGetLayerPaletteEntries(HDC, INT, INT, INT,
 BOOL            APIENTRY DrvRealizeLayerPalette(HDC, INT, BOOL);
 BOOL            APIENTRY DrvSwapLayerBuffers(HDC, UINT);
 
-#if WINVER >= 0x500
+//#if WINVER >= 0x500
 
 typedef struct IDirectDrawSurface *LPDIRECTDRAWSURFACE;
 typedef struct _DDSURFACEDESC *LPDDSURFACEDESC;
@@ -505,7 +505,7 @@ LONG            APIENTRY DrvDescribePixelFormat(HDC, INT, ULONG, PIXELFORMATDESC
 BOOL            APIENTRY DrvSetPixelFormat(HDC, LONG);
 BOOL            APIENTRY DrvSwapBuffers(HDC);
 
-#endif // WINVER >= 0x500
+//#endif // WINVER >= 0x500
 
 //#if WINVER >= 0x600
 typedef struct _PRESENTBUFFERS {
