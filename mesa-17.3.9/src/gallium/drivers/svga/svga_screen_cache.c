@@ -36,11 +36,12 @@
 
 
 #ifndef VBOX_WITH_MESA3D_DXFIX
-#define SVGA_SURFACE_CACHE_ENABLED 1
+#define SVGA_SURFACE_CACHE_ENABLED TRUE
 #else
-#define SVGA_SURFACE_CACHE_ENABLED 0
+#define SVGA_SURFACE_CACHE_ENABLED FALSE
 #endif
 
+DEBUG_GET_ONCE_BOOL_OPTION(surface_cache_enabled, "SVGA_SURFACE_CACHE_ENABLED", SVGA_SURFACE_CACHE_ENABLED)
 
 /**
  * Return the size of the surface described by the key (in bytes).
@@ -466,7 +467,7 @@ svga_screen_surface_create(struct svga_screen *svgascreen,
 {
    struct svga_winsys_screen *sws = svgascreen->sws;
    struct svga_winsys_surface *handle = NULL;
-   boolean cachable = SVGA_SURFACE_CACHE_ENABLED && key->cachable;
+   boolean cachable = debug_get_option_surface_cache_enabled() && key->cachable;
 
    SVGA_DBG(DEBUG_CACHE|DEBUG_DMA,
             "%s sz %dx%dx%d mips %d faces %d arraySize %d cachable %d\n",
@@ -587,7 +588,7 @@ svga_screen_surface_destroy(struct svga_screen *svgascreen,
     * exclusive owner.  So just hold onto our existing reference in
     * that case.
     */
-   if (SVGA_SURFACE_CACHE_ENABLED && key->cachable) {
+   if (debug_get_option_surface_cache_enabled() && key->cachable) {
       svga_screen_cache_add(svgascreen, key, p_handle);
    }
    else {
