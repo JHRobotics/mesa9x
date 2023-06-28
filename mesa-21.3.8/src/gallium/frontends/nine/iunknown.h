@@ -28,6 +28,8 @@
 #include "util/u_atomic.h"
 #include "util/u_memory.h"
 
+#include <windows.h>
+
 #include "guid.h"
 #include "nine_flags.h"
 #include "nine_debug.h"

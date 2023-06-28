@@ -918,7 +918,10 @@ MesaNineLib_SRC    = \
 	$(MESA_VER)/src/gallium/frontends/nine/vertexdeclaration9.c \
 	$(MESA_VER)/src/gallium/frontends/nine/vertexshader9.c \
 	$(MESA_VER)/src/gallium/frontends/nine/volume9.c \
-	$(MESA_VER)/src/gallium/frontends/nine/volumetexture9.c
+	$(MESA_VER)/src/gallium/frontends/nine/volumetexture9.c \
+	win9x/nine/nine_memory_helper.c \
+	win9x/nine/mesa99.c \
+	win9x/nine/nine_present.c
 
 MesaSVGALib_SRC  = \
 	$(MESA_VER)/src/gallium/drivers/svga/svga_cmd.c \

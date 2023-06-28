@@ -19,3 +19,5 @@
 config.mk
 config.mk-msc
 
+# non-working tests
+test99.c

@@ -19,3 +19,4 @@ EXPORTS
 	DrvSwapLayerBuffers = DrvSwapLayerBuffers@8
 	DrvValidateVersion = DrvValidateVersion@4
 	DllCanUnloadNow = DllCanUnloadNow@0
+	MesaGetWinsys = MesaGetWinsys@4

@@ -325,6 +325,15 @@ static const struct stw_winsys stw_winsys = {
    &wgl_get_name,
 };
 
+EXTERN_C BOOL WINAPI MesaGetWinsys(struct stw_winsys *out);
+
+BOOL WINAPI MesaGetWinsys(struct stw_winsys *out)
+{
+	memcpy(out, &stw_winsys, sizeof(stw_winsys));
+	
+	return TRUE;
+}
+
 
 EXTERN_C BOOL WINAPI
 DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
