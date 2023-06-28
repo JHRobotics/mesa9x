@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-17.3.9
-DEPS = config.mk Makefile
+#DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-21.3.8)
   MESA_NEW := 1
@@ -44,6 +44,7 @@ BASE_mesa3d.w95.dll     := 0x69500000
 BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
+BASE_mesa99.dll         := 0x10000000
 
 NULLOUT=$(if $(filter $(OS),Windows_NT),NUL,/dev/null)
 
@@ -204,19 +205,20 @@ else
   
   LD_DEPS := winpthreads/libpthread.a
   
-  DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
+  DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-all-symbols,--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
   
   OPENGL_DEF = opengl32.mingw.def
   MESA3D_DEF = mesa3d.mingw.def
+  MESA99_DEF = mesa99.mingw.def
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
     -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/include \
     -I$(MESA_VER)/src/gallium/drivers/svga -I$(MESA_VER)/src/gallium/drivers/svga/include -I$(MESA_VER)/src/gallium/winsys/sw  -I$(MESA_VER)/src/gallium/drivers -I$(MESA_VER)/src/gallium/winsys/svga/drm \
-    -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -Iwin9x
+    -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends/nine -Iwin9x
 
   DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
-    -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DKHRONOS_DLL_EXPORTS \
+    -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE \
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
     -DPACKAGE_VERSION="\"$(MESA_VER)\"" -DPACKAGE_BUGREPORT="\"$(MESA_VER)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX
   
@@ -460,6 +462,9 @@ MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_OBJS:.cpp=.cpp_gen$(OBJ))
 
+MesaNineLib_OBJS := $(MesaNineLib_SRC:.c=.c_gen$(OBJ))
+MesaNineLib_OBJS := $(MesaNineLib_OBJS:.cpp=.cpp_gen$(OBJ))
+
 # software opengl32 replacement
 opengl32.w95.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
@@ -477,6 +482,9 @@ mesa3d.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) mesa3d.res $(LD_DEPS)
 # accelerated ICD driver
 vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWgl_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+
+mesa99.dll: $(MesaNineLib_OBJS)
+	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(MESA99_DEF)
 
 # benchmark
 glchecked_OBJS := $(glchecked_SRC:.cpp=.cpp_app$(OBJ))
@@ -520,6 +528,7 @@ clean:
 	-$(RM) $(MesaGdiLibVMW_OBJS)
 	-$(RM) $(MesaSVGALib_OBJS)
 	-$(RM) $(MesaSVGAWinsysLib_OBJS)
+	-$(RM) $(MesaNineLib_OBJS)
 	-$(RM) icdtest.c_app$(OBJ)
 	-$(RM) wgltest.c_app$(OBJ)
 	-$(RM) $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX)
