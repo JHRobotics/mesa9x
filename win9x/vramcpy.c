@@ -81,11 +81,11 @@ static inline uint32_t pixel_read(uint8_t *src, size_t ps)
 		case 2:
 			{
 				uint16_t tmp = *((uint16_t*)src);
-				pixel = tmp & 0x1F;
-				tmp >= 5;
-				pixel |= (tmp & 0x3F) << 8;
-				tmp >= 6;
-				pixel |= tmp << 16;
+				pixel = (tmp & 0x1F) << 3;
+				tmp >>= 5;
+				pixel |= (tmp & 0x3F) << (8 + 2);
+				tmp >>= 6;
+				pixel |= tmp << (16 + 3);
 			}
 			break;
 		case 3:
@@ -109,7 +109,7 @@ static inline void pixel_write(uint8_t *dst, size_t ps, uint32_t pixel)
 			break;
 		case 2:
 			{
-			uint16_t tmp = 0;
+			uint16_t tmp;
 			tmp  =  (pixel >> ( 0 + 3)) & 0x1F;
 			tmp |= ((pixel >> ( 8 + 2)) & 0x3F) << 5;
 			tmp |= ((pixel >> (16 + 3)) & 0x1F) << (5+6);
@@ -182,7 +182,7 @@ void vramcpy(void *dst, void *src, vramcpy_rect_t *rect)
 			{
 				uint32_t r, g, b;
 				uint32_t p = *((uint32_t*)src_pix);
-				r = p & 0x00E80000;
+				r = p & 0x00F80000;
 				g = p & 0x0000FC00;
 				b = p & 0x000000F8;
 				r = r >> 8;
