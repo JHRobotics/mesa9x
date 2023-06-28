@@ -59,6 +59,7 @@ typedef struct _svga_inst_t
 	uint32_t softblit_gmr_size;
 	BOOL dx;
 	svga_surfinfo_t *surfinfo;
+	HANDLE vxd;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);

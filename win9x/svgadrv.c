@@ -56,7 +56,7 @@ static HANDLE mutex_ul = NULL;
 static HANDLE mutex_fifo = NULL;
 
 /* Actual driver api */
-#define DRV_API_LEVEL 20230326UL
+#define DRV_API_LEVEL 20230628UL
 
 #define SVGA_ASSERT assert(svga)
 
@@ -92,6 +92,44 @@ static HDC SVGAGetDesktopCTX()
 {
 	HWND hDesktop = GetDesktopWindow();
 	return GetDC(hDesktop);
+}
+
+/* Sync vGPU state */
+static void SVGACMDSync(svga_inst_t *svga)
+{
+	SVGA_ASSERT;
+	
+	/* try 32bit call */
+	if(svga->vxd)
+	{
+		DWORD cb;
+		if(DeviceIoControl(svga->vxd, SVGA_SYNC, NULL, 0, NULL, 0, NULL, NULL))
+		{
+			return;
+		}
+	}
+	
+	/* 16bit call */
+	ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
+}
+
+/* Tell the vGPU that is time to do something */
+static void SVGACMDRing(svga_inst_t *svga)
+{
+	SVGA_ASSERT;
+	
+	/* try 32bit call */
+	if(svga->vxd)
+	{
+		DWORD cb;
+		if(DeviceIoControl(svga->vxd, SVGA_RING, NULL, 0, NULL, 0, NULL, NULL))
+		{
+			return;
+		}
+	}
+	
+	/* 16bit call */
+	ExtEscape(svga->dc, SVGA_RING, 0, NULL, 0, NULL);
 }
 
 /* return and allocate first free surface ID */
@@ -254,7 +292,7 @@ uint32_t SVGAGMRIDNext(svga_inst_t *svga)
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_gmr_count; id++)
 		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*3];
+			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*4];
 			if(*id_ptr == 0)
 			{
 				*id_ptr = svga->pid;
@@ -272,6 +310,7 @@ uint32_t SVGAGMRIDNext(svga_inst_t *svga)
 #define GMR_INDEX_PID     0
 #define GMR_INDEX_ADDRESS 1
 #define GMR_INDEX_SIZE    2
+#define GMR_INDEX_PGBLK   4
 
 /* set memory address for GMR ID */
 void SVGAGMRInfoSet(svga_inst_t *svga, uint32_t rid, uint32_t index, uint32_t data)
@@ -284,7 +323,7 @@ void SVGAGMRInfoSet(svga_inst_t *svga, uint32_t rid, uint32_t index, uint32_t da
 	
 	if(wait_rc == WAIT_OBJECT_0)
 	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*3];
+		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4];
 		id_ptr[index] = data;
 		
 		ReleaseMutex(mutex_ul);
@@ -303,7 +342,7 @@ uint32_t SVGAGMRInfoGet(svga_inst_t *svga, uint32_t rid, uint32_t index)
 	
 	if(wait_rc == WAIT_OBJECT_0)
 	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*3];
+		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4];
 		data = id_ptr[index];
 		
 		ReleaseMutex(mutex_ul);
@@ -321,7 +360,7 @@ void SVGAGMRIDFree(svga_inst_t *svga, uint32_t rid)
 	
 	if(wait_rc == WAIT_OBJECT_0)
 	{
-		svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*3] = 0;
+		svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4] = 0;
 		ReleaseMutex(mutex_ul);
 	} // lock
 }
@@ -344,7 +383,7 @@ uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_gmr_count; id++)
 		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*3];
+			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*4];
 			if(*id_ptr == ident)
 			{
 				gmr_id = id;
@@ -408,7 +447,7 @@ BOOL SVGAGetNextPid(svga_inst_t *svga, uint32_t *pid, uint32_t *state)
 			break;
 		}
 		
-		if((*state) >= svga->hda.ul_gmr_start && (*state) < (svga->hda.ul_gmr_start+svga->hda.ul_gmr_count*3) && (*state) % 3 == 0)
+		if((*state) >= svga->hda.ul_gmr_start && (*state) < (svga->hda.ul_gmr_start+svga->hda.ul_gmr_count*4) && (*state) % 4 == 0)
 		{
 			fpid = svga->hda.userlist_linear[(*state)];
 		}
@@ -472,8 +511,7 @@ void SVGAUserlistInit(svga_inst_t *svga)
 /* sync hardware state = drain FIFO and re-read all registers */
 void SVGAFullSync(svga_inst_t *svga)
 {
-	SVGA_ASSERT;
-	ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
+	SVGACMDSync(svga);
 }
 
 /* called when is FIFO full, so this full sync to drain it
@@ -490,7 +528,7 @@ static BOOL HasFIFOCap(volatile uint32_t *fifo, uint32_t cap)
 	return (fifo[SVGA_FIFO_CAPABILITIES] & cap) != 0;
 }
 
-/* physical write command to fifo, don't call it directly */
+/* physical write command to fifo, don't call this directly */
 static void FifoWriteCopy(volatile uint32_t *fifo, uint32_t *cmd_buf, size_t cmd_bytes)
 {
 	BOOL reserveable = HasFIFOCap(fifo, SVGA_FIFO_CAP_RESERVE);
@@ -649,7 +687,7 @@ BOOL SVGAVerifyDriver(HDC gdi_ctx, uint32_t *drv_ver, uint32_t *vxd_ver)
 	return FALSE;
 }
 
-/*  */
+/* check if driver (16bit) supports minimal of command set */
 BOOL IsSVGAHW(HDC gdi_ctx)
 {
 	size_t i;
@@ -769,6 +807,8 @@ BOOL SVGACreate(svga_inst_t *svga, HWND win)
 			SVGAUserlistInit(svga);
 			svga->surfinfo = (svga_surfinfo_t*)calloc(sizeof(svga_surfinfo_t), svga->hda.ul_surf_count);
 			
+			svga->vxd = CreateFileA("\\\\.\\vmwsmini.vxd", 0, 0, NULL, 0, FILE_FLAG_DELETE_ON_CLOSE, NULL);
+
 			debug_printf("%s SUCCESS!\n", __FUNCTION__);
 			svga->ctx_id = 0;
 			return TRUE;
@@ -893,6 +933,11 @@ void SVGADestroy(svga_inst_t *svga)
 		svga->surfinfo = NULL;
 	}
 	
+	if(svga->vxd)
+	{
+		CloseHandle(svga->vxd);
+	}
+	
 }
 
 /* read hardware register */
@@ -939,10 +984,10 @@ uint32_t SVGAFenceInsert(svga_inst_t *svga)
   if(fence == 1)
   {
   	/*
-  	 * potencial fence overrun eg. SVGAFencePassed() returns immediatly,
-  	 * do extra sync to make sure, you sync to this and all next fences
+  	 * potencial fence overrun eg. SVGAFencePassed() returns immediately,
+  	 * do extra sync to make sure, you're sync to this and all next fences
   	 */
-  	ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
+  	SVGACMDSync(svga);
   }
 
 	return fence;
@@ -974,7 +1019,7 @@ SVGAFencePassed(svga_inst_t *svga, uint32_t fence)
 }
 
 /* wait to given fence
- * TODO: burning CPU in wait, solve with interputs and mutexes?
+ * TODO: burning CPU in wait, solve with interupts and mutexes?
  */
 void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
 {
@@ -983,7 +1028,8 @@ void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
 	{
 		if(!alarm)
 		{
-			ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
+			//ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
+			SVGACMDRing(svga);
 			alarm = TRUE;
 		}
 	}
@@ -1033,9 +1079,10 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		0, /* region id */
 		0, /* pages */
 	};
-	static uint32_t ids[2] = {
+	static uint32_t ids[3] = {
 		0, /* region id */
 		0, /* user page address */
+		0, /* page block */
 	};
 	
 	uint32_t rid = SVGAGMRIDNext(svga);
@@ -1067,6 +1114,7 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 	
 	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_ADDRESS, ids[1]);
 	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_SIZE, size);
+	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_PGBLK, ids[2]);
 	
 	return rid;
 }
@@ -1074,9 +1122,10 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 /* destroy the GMR */
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 {
-	static uint32_t ids[2] = {
+	static uint32_t ids[3] = {
 		0, /* region id */
 		0, /* user page address */
+		0, /* page block address */
 	};
 
 	SVGA_ASSERT;
@@ -1627,8 +1676,8 @@ void SVGACompose(svga_inst_t *svga, uint32_t srcSid, uint32_t destSid, LPCRECT p
     command.box.srcz = 0;
         
 		SVGAFifoWrite(svga, &command, sizeof(command));
-		//uint32_t fence = SVGAFenceInsert(svga);
-		//SVGAFenceSync(svga, fence);
+		uint32_t fence = SVGAFenceInsert(svga);
+		SVGAFenceSync(svga, fence);
 }
 
 /* Queue all allocated resource and free them if procces which allocate them
