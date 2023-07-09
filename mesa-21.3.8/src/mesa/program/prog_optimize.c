@@ -1110,6 +1110,7 @@ _mesa_reallocate_registers(struct gl_program *prog)
    struct interval_list liveIntervals;
    GLint registerMap[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
    GLboolean usedRegs[REG_ALLOCATE_MAX_PROGRAM_TEMPS];
+   struct interval_list activeIntervals;
 #endif
    GLuint i;
    GLint maxTemp = -1;
@@ -1131,7 +1132,6 @@ _mesa_reallocate_registers(struct gl_program *prog)
    }
 
    {
-      struct interval_list activeIntervals;
       activeIntervals.Num = 0;
 
       /* loop over live intervals, allocating a new register for each */
