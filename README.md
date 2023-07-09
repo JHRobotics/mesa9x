@@ -9,6 +9,13 @@ This is only OpenGL driver, if you need ready-to-use package for running DirectX
 ## Requirements
 Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: #Optimalizations). Binaries also working on all newer Windows (from NT 4 to 11).
 
+Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I  don't expect anyone to run it on a *real* Pentium II)
+
+Mesa 17.x build for Windows 98 require at last Intel Core2 CPU (SSE3 required).
+
+Mesa 21.x build for Windows 98 require at last Intel Core-i CPU (SSE4.2 required).
+
+
 ## Usage
 There is 2 ways to use this library/driver: first is traditional `opengl32.dll` which you can copy to directory with your application which you would like to run and second one OpenGL ICD (Installable Client Driver).
 

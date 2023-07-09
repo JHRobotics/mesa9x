@@ -33,6 +33,8 @@ typedef unsigned short v4us __attribute__ ((vector_size(8)));
 #define QUERYESCSUPPORT 8
 #define OPENGL_GETINFO 0x1101
 #define FBHDA_REQ      0x110A
+#define FBHDA_UPDATE   0x110C
+#define FBHDA_NEED_UPDATE 1
 
 #pragma pack(push)
 #pragma pack(1)
@@ -44,6 +46,7 @@ typedef struct _FBHDA
 	volatile DWORD pitch;
 	void *       fb_pm32;
 	DWORD        fb_pm16;
+	DWORD        flags;
 } FBHDA;
 #pragma pack(pop)
 
@@ -235,6 +238,7 @@ uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp)
 }
 
 static FBHDA *fbhda = NULL;
+static BOOL   fbhda_have_flags = FALSE;
 static HDC failure_hdc = NULL;
 
 static int IsSupportedEsc(HDC gdi_ctx, int code)
@@ -275,6 +279,12 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 					if(fbhda_ptr != 0)
 					{
 						fbhda = (FBHDA*)fbhda_ptr;
+						
+						if(IsSupportedEsc(hDC, FBHDA_UPDATE))
+						{
+							fbhda_have_flags = TRUE;
+						}
+						
 					}
 				}
 			}
@@ -320,7 +330,14 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 				crect.src_pitch = gdt->stride;//gdt->width * vramcpy_pointsize_fast(crect.src_bpp);
 				
 				vramcpy(fbhda->fb_pm32, gdt->data, &crect);
-				
+				if(fbhda_have_flags)
+				{
+					if(fbhda->flags & FBHDA_NEED_UPDATE)
+					{
+						ExtEscape(hDC, FBHDA_UPDATE, sizeof(RECT), (LPCSTR)&wrect, 0, NULL);
+					}
+				}
+								
 				return;
 			}
 		}

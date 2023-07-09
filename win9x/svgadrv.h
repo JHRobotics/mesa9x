@@ -60,6 +60,9 @@ typedef struct _svga_inst_t
 	BOOL dx;
 	svga_surfinfo_t *surfinfo;
 	HANDLE vxd;
+	/* (pseudo)v-sync variables */
+	ULARGE_INTEGER lastframe; /* last frame timestamp (FILETIME) */
+	uint64_t delta;           /* difference between Sleep input and real Sleep time */
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -87,6 +90,7 @@ void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t surf_id);
 
 void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
+void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGACompose(svga_inst_t *svga, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
 
 void SVGAZombieKiller();

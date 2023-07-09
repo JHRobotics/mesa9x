@@ -39,6 +39,9 @@
 #define OPENGL_CMD     0x1100
 #define WNDOBJ_SETUP   0x1102
 
+/* debug output from ring-3 application */
+#define SVGA_DBG             0x110B
+
 /* new escape codes */
 #define SVGA_API             0x110F
 #define SVGA_READ_REG        0x1110
@@ -56,7 +59,7 @@ static HANDLE mutex_ul = NULL;
 static HANDLE mutex_fifo = NULL;
 
 /* Actual driver api */
-#define DRV_API_LEVEL 20230628UL
+#define DRV_API_LEVEL 20230707UL
 
 #define SVGA_ASSERT assert(svga)
 
@@ -130,6 +133,20 @@ static void SVGACMDRing(svga_inst_t *svga)
 	
 	/* 16bit call */
 	ExtEscape(svga->dc, SVGA_RING, 0, NULL, 0, NULL);
+}
+
+/* Send debug message to driver */
+static void SVGACMDDebug(svga_inst_t *svga, const char *msg)
+{
+	DWORD len = strlen(msg);
+	if(svga->vxd)
+	{
+		if(DeviceIoControl(svga->vxd, SVGA_DBG, (LPVOID)msg, len+1, NULL, 0, NULL, NULL))
+		{
+			return;
+		}
+	}
+		
 }
 
 /* return and allocate first free surface ID */
@@ -808,6 +825,9 @@ BOOL SVGACreate(svga_inst_t *svga, HWND win)
 			svga->surfinfo = (svga_surfinfo_t*)calloc(sizeof(svga_surfinfo_t), svga->hda.ul_surf_count);
 			
 			svga->vxd = CreateFileA("\\\\.\\vmwsmini.vxd", 0, 0, NULL, 0, FILE_FLAG_DELETE_ON_CLOSE, NULL);
+#ifdef DEBUG
+			SVGACMDDebug(svga, "RING-3 DLL init");
+#endif
 
 			debug_printf("%s SUCCESS!\n", __FUNCTION__);
 			svga->ctx_id = 0;
@@ -1375,20 +1395,109 @@ static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render
 	return TRUE;
 }
 
-/* copy context of surface to window */
+/* FRAMERATE_LIMIT - limits number of frames per second */
+DEBUG_GET_ONCE_NUM_OPTION(framerate_limit, "FRAMERATE_LIMIT", 0)
+
+/* conversion between FILETIME and uint64_t */
+typedef union _wintick_t {
+	FILETIME ft;
+	ULARGE_INTEGER u;
+} wintick_t;
+
+/**
+ * Active waits (burns CPU) number of FILETIME ticks.
+ * 1 tick = 100 ns
+ *
+ **/
+static uint64_t asleep(uint64_t ftdelay)
+{
+	wintick_t start, act;
+	
+	GetSystemTimeAsFileTime(&(start.ft));
+	
+	do
+	{
+		GetSystemTimeAsFileTime(&(act.ft));
+	} while(start.u.QuadPart+ftdelay >= act.u.QuadPart);
+	
+	return act.u.QuadPart;
+}
+
+/**
+ * Wait for next frame - number of rames is in FRAMERATE_LIMIT enviroment option
+ *
+ **/
+static void frame_wait(svga_inst_t *svga)
+{
+	wintick_t act;
+	
+	if(debug_get_option_framerate_limit() <= 0)
+	{
+		return;
+	}
+	
+	uint64_t frame_time = 10000000ULL / debug_get_option_framerate_limit();
+	
+	GetSystemTimeAsFileTime(&(act.ft));
+	
+	uint64_t target = svga->lastframe.QuadPart + frame_time;
+	
+	if(target > act.u.QuadPart)
+	{
+		uint64_t delay =  target - act.u.QuadPart;
+		if(delay > svga->delta)
+		{
+			delay -= svga->delta;
+			
+			act.u.QuadPart = asleep(delay);
+
+			if(act.u.QuadPart > target)
+			{
+				svga->delta = act.u.QuadPart - target;
+			}
+		}
+		else
+		{
+			svga->delta = (svga->delta / 10)*9;
+		}
+		
+		svga->lastframe.QuadPart = target;
+	}
+	else
+	{
+		svga->lastframe.QuadPart = act.u.QuadPart;
+	}
+}
+
+void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
+{
+	assert(svga);
+	
+	frame_wait(svga);
+
+	SVGAPresentWindow(svga, hDC, cid, sid);
+}
+
+/**
+ * Present render to screen/window using direct vram access if its possible.
+ * If not calls SVGAPresentWindow.
+ *
+ **/
 void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
 	assert(svga);
 	
 	uint32_t bpp = svga->hda.userlist_linear[ULF_BPP];
   svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
-   
+  
   if(sinfo == NULL)
   {
    	return;
   }
    
   const int sbpp = format_to_bpp(sinfo->format);
+  
+  frame_wait(svga);
   
   if(sbpp == 8 || bpp == 8)
   {
@@ -1434,7 +1543,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	}
   
 	// surface and screen must have same color depth for HW present
-	if(bpp == sbpp)
+	if(bpp == sbpp && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
 	{
 		uint32_t fence;
 	        
@@ -1534,9 +1643,31 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		assert(svga->softblit_gmr_ptr);
 		
 		vramcpy(svga->hda.vram_linear, svga->softblit_gmr_ptr, &crect);
+		
+		/* update framebuffer command */
+#pragma pack(push)
+#pragma pack(1)
+		struct
+		{
+			uint32_t cmd;
+			SVGAFifoCmdUpdate rect;
+		} updatecmd;
+#pragma pack(pop)
+		
+		updatecmd.cmd = SVGA_CMD_UPDATE;
+		updatecmd.rect.x      = wrect.left;
+		updatecmd.rect.y      = wrect.top;
+		updatecmd.rect.width  = render_width;
+		updatecmd.rect.height = render_height;
+		
+		SVGAFifoWrite(svga, &updatecmd, sizeof(updatecmd));
 	}
 }
 
+/**
+ * Present render to screen/window using system StretchDIBits
+ *
+ **/
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
 #pragma pack(push)

@@ -144,7 +144,7 @@ static void wddm_present_window(struct pipe_screen *screen, struct pipe_context 
         uint32_t cid = GaDrvGetContextId(pipe);
         uint32_t sid = GaDrvGetSurfaceId(screen, res);
         
-        SVGAPresentWindow(svga, hDC, cid, sid);
+        SVGAPresentWinBlt(svga, hDC, cid, sid);
 		}
 
 }
@@ -313,7 +313,8 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	   */
    	  SVGAZombieKiller();
    	  
-   	  if(debug_get_bool_option("DIRECT_VRAM", TRUE))
+   	  /* DIRECT_VRAM = for compatibility reasons is now off by default */
+   	  if(debug_get_bool_option("DIRECT_VRAM", FALSE))
    	  {
    	  	stw_winsys.present = wddm_present;
    	  }
