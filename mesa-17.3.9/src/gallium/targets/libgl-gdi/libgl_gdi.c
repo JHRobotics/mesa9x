@@ -39,6 +39,9 @@
 #include "util/u_debug.h"
 #include "stw_winsys.h"
 #include "stw_device.h"
+#ifdef UNLOAD_PROTECTED
+#include "stw_tls.h"
+#endif
 #include "gdi/gdi_sw_winsys.h"
 
 #include "softpipe/sp_texture.h"
@@ -60,6 +63,7 @@
 static boolean use_llvmpipe = FALSE;
 static boolean use_swr = FALSE;
 
+#ifdef HAVE_CRTEX
 void crt_enable_sse2();
 int crt_sse2_is_safe();
 
@@ -67,6 +71,7 @@ void crt_locks_init(int count);
 void crt_locks_destroy();
 #define LOCK_PROGRAM_OPTIMIZE 0
 #define CRT_LOCK_CNT 1
+#endif
 
 static struct pipe_screen *
 gdi_screen_create(void)
@@ -187,6 +192,13 @@ static const struct stw_winsys stw_winsys = {
    NULL  /* compose */
 };
 
+BOOL WINAPI MesaGetWinsys(struct stw_winsys *out)
+{
+	memcpy(out, &stw_winsys, sizeof(stw_winsys));
+	
+	return TRUE;
+}
+
 EXTERN_C BOOL WINAPI
 DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
 
@@ -196,7 +208,19 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
    switch (fdwReason) {
    case DLL_PROCESS_ATTACH:
+#ifdef HAVE_CRTEX
    	  crt_locks_init(CRT_LOCK_CNT);
+#endif
+#ifdef UNLOAD_PROTECTED
+   	  {
+   	  	/* load self again to protect from unload */
+	      char sz[MAX_PATH];
+				if(GetModuleFileName(hinstDLL, sz, MAX_PATH))
+				{
+					LoadLibrary(sz);
+				}
+   	  }
+#endif
       stw_init(&stw_winsys, hinstDLL);
       stw_init_thread();
       break;
@@ -214,7 +238,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // We're being unloaded from the process.
          stw_cleanup_thread();
          stw_cleanup();
+#ifdef HAVE_CRTEX
          crt_locks_destroy();
+#endif
       } else {
          // Process itself is terminating, and all threads and modules are
          // being detached.
@@ -227,6 +253,10 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // still try to invoke DrvDeleteContext to destroys all outstanding,
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
+#ifdef UNLOAD_PROTECTED
+         // clean hook in every case
+         stw_tls_clenup_hook();
+#endif
       }
       break;
    default:
