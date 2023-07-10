@@ -7,9 +7,9 @@ There are also some disadvantages - at first, software rendering is much slower 
 This is only OpenGL driver, if you need ready-to-use package for running DirectX, OpenglGL, Glide application and games use this: https://github.com/JHRobotics/softgpu
 
 ## Requirements
-Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: #Optimalizations). Binaries also working on all newer Windows (from NT 4 to 11).
+Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: [#Optimalizations](#optimalizations)). Binaries also working on all newer Windows (from NT 4 to 11).
 
-Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I  don't expect anyone to run it on a *real* Pentium II)
+Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I don't expect anyone to run it on a *real* Pentium II)
 
 Mesa 17.x build for Windows 98 require at last Intel Core2 CPU (SSE3 required).
 
@@ -41,7 +41,7 @@ REGEDIT4
 
 Some useful variables:
 - `MESA_NO_DITHER`: disable dithering and improve speed a bit
-- `MESA_EXTENSION_MAX_YEAR`: if you have problem with too many GL extensios (see previous example)
+- `MESA_EXTENSION_MAX_YEAR`: if you have problem with too many GL extensions (see previous example)
 - `GALLIUM_DRIVER`: `llvmpipe` (default) or `softpipe` for reference (and slower) driver if you have problem with `llvmpipe`
 - `LP_NATIVE_VECTOR_WIDTH`: only usable values are `128` for SSE accelerated LLVM code or `256` for AVX accelerated code, any other values lead to crash.
 
