@@ -41,6 +41,9 @@ typedef struct _svga_hda_t
 #define ULF_HEIGHT 2
 #define ULF_BPP    3
 #define ULF_PITCH  4
+#define ULF_LOCK_UL   5
+#define ULF_LOCK_FIFO 6
+#define ULF_LOCK_FB   7
 
 typedef struct _svga_surfinfo_t
 {

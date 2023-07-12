@@ -55,13 +55,11 @@
 #define SVGA_HWINFO_FIFO   0x1122
 #define SVGA_HWINFO_CAPS   0x1123
 
-static HANDLE mutex_ul = NULL;
-static HANDLE mutex_fifo = NULL;
-
 /* Actual driver api */
-#define DRV_API_LEVEL 20230707UL
+#define DRV_API_LEVEL 20230710UL
 
 #define SVGA_ASSERT assert(svga)
+#define VXD_ASSERT assert(svga->vxd)
 
 #ifdef GUI_ERRORS
 void GUIError(svga_inst_t *svga, const char *msg, ...)
@@ -97,6 +95,55 @@ static HDC SVGAGetDesktopCTX()
 	return GetDC(hDesktop);
 }
 
+#define LOCK_FIFO ULF_LOCK_FIFO
+#define LOCK_UL   ULF_LOCK_UL
+
+/* VXD spinlock LOCK */
+static BOOL SVGALock(svga_inst_t *svga, uint32_t lock_id)
+{
+	SVGA_ASSERT;
+	
+	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
+	
+	if(ptr)
+	{
+		__asm volatile (
+			"movl %0, %%ecx;"
+			"spinlock_try%=:"
+			"movl $1, %%eax;"
+			"xchgl (%%ecx),%%eax;"
+			"testl %%eax,%%eax;"
+			"jnz spinlock_try%=;"
+			: 
+			: "m" (ptr)
+			: "%eax", "%ecx"
+		);
+		return TRUE;
+	}
+	
+	return FALSE;
+}
+
+/* VXD spinlock UNLOCK */
+static void SVGAUnlock(svga_inst_t *svga, uint32_t lock_id)
+{
+	SVGA_ASSERT;
+	
+	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
+	
+	if(ptr)
+	{
+		__asm volatile (
+			"movl   %0, %%ecx;"
+			"xorl   %%eax, %%eax;"
+			"xchgl (%%ecx), %%eax;"
+			: 
+			: "m" (ptr)
+			: "%eax", "%ecx"
+		);
+	}
+}
+
 /* Sync vGPU state */
 static void SVGACMDSync(svga_inst_t *svga)
 {
@@ -105,7 +152,6 @@ static void SVGACMDSync(svga_inst_t *svga)
 	/* try 32bit call */
 	if(svga->vxd)
 	{
-		DWORD cb;
 		if(DeviceIoControl(svga->vxd, SVGA_SYNC, NULL, 0, NULL, 0, NULL, NULL))
 		{
 			return;
@@ -124,7 +170,6 @@ static void SVGACMDRing(svga_inst_t *svga)
 	/* try 32bit call */
 	if(svga->vxd)
 	{
-		DWORD cb;
 		if(DeviceIoControl(svga->vxd, SVGA_RING, NULL, 0, NULL, 0, NULL, NULL))
 		{
 			return;
@@ -152,12 +197,11 @@ static void SVGACMDDebug(svga_inst_t *svga, const char *msg)
 /* return and allocate first free surface ID */
 uint32_t SVGASurfaceIDNext(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t surf_id = 0;
 	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_surf_count; id++)
@@ -171,7 +215,7 @@ uint32_t SVGASurfaceIDNext(svga_inst_t *svga)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return surf_id;
@@ -180,7 +224,6 @@ uint32_t SVGASurfaceIDNext(svga_inst_t *svga)
 /* return first surface ID allocated by 'ident' */
 uint32_t SVGASurfaceIDPop(svga_inst_t *svga, uint32_t ident)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t surf_id = 0;
 	
 	SVGA_ASSERT;
@@ -190,7 +233,7 @@ uint32_t SVGASurfaceIDPop(svga_inst_t *svga, uint32_t ident)
 		ident = svga->pid;
 	}
 		
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_surf_count; id++)
@@ -202,7 +245,7 @@ uint32_t SVGASurfaceIDPop(svga_inst_t *svga, uint32_t ident)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return surf_id;
@@ -211,14 +254,12 @@ uint32_t SVGASurfaceIDPop(svga_inst_t *svga, uint32_t ident)
 /* free surface ID */
 void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t sid)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
-	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		svga->hda.userlist_linear[svga->hda.ul_surf_start + sid] = 0;
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 }
@@ -226,12 +267,11 @@ void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t sid)
 /* return and allocate first free context ID  */
 uint32_t SVGAContextIDNext(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t ctx_id = 0;
 	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_ctx_count; id++)
@@ -245,7 +285,7 @@ uint32_t SVGAContextIDNext(svga_inst_t *svga)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return ctx_id;
@@ -254,21 +294,18 @@ uint32_t SVGAContextIDNext(svga_inst_t *svga)
 /* free context ID */
 void SVGAContextIDFree(svga_inst_t *svga, uint32_t ctx_id)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
-	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		svga->hda.userlist_linear[svga->hda.ul_ctx_start + ctx_id] = 0;
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 }
 
 /* return first context ID identified by 'ident' */
 uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t ctx_id = 0;
 	
 	SVGA_ASSERT;
@@ -278,7 +315,7 @@ uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
 		ident = svga->pid;
 	}
 		
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_ctx_count; id++)
@@ -290,7 +327,7 @@ uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return ctx_id;
@@ -299,12 +336,11 @@ uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
 /* return and allocate first free GMR (graphic memory region) ID */
 uint32_t SVGAGMRIDNext(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t gmr_id = 0;
 	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_gmr_count; id++)
@@ -318,7 +354,7 @@ uint32_t SVGAGMRIDNext(svga_inst_t *svga)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return gmr_id;
@@ -332,37 +368,34 @@ uint32_t SVGAGMRIDNext(svga_inst_t *svga)
 /* set memory address for GMR ID */
 void SVGAGMRInfoSet(svga_inst_t *svga, uint32_t rid, uint32_t index, uint32_t data)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
-
 	SVGA_ASSERT;
 	
 	assert(index >= 1 && index <= 2);
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4];
 		id_ptr[index] = data;
 		
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 }
 
 /* get memory address for GMR ID */
 uint32_t SVGAGMRInfoGet(svga_inst_t *svga, uint32_t rid, uint32_t index)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t data = 0;
 	
 	SVGA_ASSERT;
 	
 	assert(index >= 0 && index <= 2);
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4];
 		data = id_ptr[index];
 		
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return data;
@@ -371,21 +404,18 @@ uint32_t SVGAGMRInfoGet(svga_inst_t *svga, uint32_t rid, uint32_t index)
 /* free GMR ID */
 void SVGAGMRIDFree(svga_inst_t *svga, uint32_t rid)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
-	
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*4] = 0;
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 }
 
 /* return first GMR ID identified by 'ident' */
 uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t gmr_id = 0;
 	
 	SVGA_ASSERT;
@@ -395,7 +425,7 @@ uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
 		ident = svga->pid;
 	}
 		
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		uint32_t id = 0;
 		for(id = 1; id < svga->hda.ul_gmr_count; id++)
@@ -407,7 +437,7 @@ uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
 				break;
 			}
 		}
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return gmr_id;
@@ -416,13 +446,12 @@ uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
 /* return last used fence ID, 0 if no fence ever used */
 uint32_t SVGAFenceIDCur(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t fence_id;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		fence_id = svga->hda.userlist_linear[svga->hda.ul_fence_index];
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return fence_id;
@@ -431,10 +460,9 @@ uint32_t SVGAFenceIDCur(svga_inst_t *svga)
 /* allocate next fence id */
 uint32_t SVGAFenceIDNext(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
 	uint32_t fence_id;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		volatile uint32_t *ptr = &svga->hda.userlist_linear[svga->hda.ul_fence_index];
 		(*ptr)++;
@@ -447,7 +475,7 @@ uint32_t SVGAFenceIDNext(svga_inst_t *svga)
 			fence_id = *ptr;
 		}
 		
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	return fence_id;
@@ -495,8 +523,7 @@ BOOL SVGAGetNextPid(svga_inst_t *svga, uint32_t *pid, uint32_t *state)
  */
 void SVGAUserlistInit(svga_inst_t *svga)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_ul, INFINITE);
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_UL))
 	{
 		/* check if uset list is dirty */
 		if(svga->hda.userlist_linear[ULF_DIRTY] == 0xFFFFFFFFUL)
@@ -508,7 +535,7 @@ void SVGAUserlistInit(svga_inst_t *svga)
 			svga->hda.userlist_linear[ULF_DIRTY] = 0;
 		}
 		
-		ReleaseMutex(mutex_ul);
+		SVGAUnlock(svga, LOCK_UL);
 	} // lock
 	
 	debug_printf("userlist:\n  ul_flags_index: %d\n  ul_fence_index: %d\n  ul_gmr_start: %d\n  ul_gmr_count: %d\n"
@@ -613,9 +640,7 @@ static BOOL FifoWrite(svga_inst_t *svga, uint32_t *cmd_buf, size_t cmd_bytes)
 	SVGA_ASSERT;
 	assert((cmd_bytes % 4) == 0);
 	
-	wait_rc = WaitForSingleObject(mutex_fifo, INFINITE);
-	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_FIFO))
 	{
 		volatile uint32 *fifo = svga->hda.fifo_linear;
 		uint32_t max = fifo[SVGA_FIFO_MAX];
@@ -664,7 +689,7 @@ static BOOL FifoWrite(svga_inst_t *svga, uint32_t *cmd_buf, size_t cmd_bytes)
 			}
 		} // forever
 				
-		ReleaseMutex(mutex_fifo);
+		SVGAUnlock(svga, LOCK_FIFO);
 	} // lock
 	
 	return TRUE;
@@ -772,27 +797,6 @@ BOOL IsSVGA(HDC gdi_ctx)
 	return TRUE;
 }
 
-/* inicialize the mutexes if necessarily */
-static BOOL mutexes_init()
-{
-	if(mutex_ul == NULL)
-	{
-		mutex_ul = CreateMutexA(NULL, FALSE, "global\\vmwsvga_ul_mux");
-	}
-	
-	if(mutex_fifo == NULL)
-	{
-		mutex_fifo = CreateMutexA(NULL, FALSE, "global\\vmwsvga_fifo_mux");
-	}
-	
-	if(mutex_ul == NULL || mutex_fifo == NULL)
-	{
-		return FALSE;
-	}
-	
-	return TRUE;
-}
-
 /* create SVGA interface */
 BOOL SVGACreate(svga_inst_t *svga, HWND win)
 {
@@ -815,11 +819,6 @@ BOOL SVGACreate(svga_inst_t *svga, HWND win)
 		{
 			assert(svga->hda.fifo_linear);
 			assert(svga->hda.userlist_linear);
-			
-			if(!mutexes_init())
-			{
-				return FALSE;
-			}
 			
 			SVGAUserlistInit(svga);
 			svga->surfinfo = (svga_surfinfo_t*)calloc(sizeof(svga_surfinfo_t), svga->hda.ul_surf_count);
@@ -1020,17 +1019,16 @@ __attribute__ ((noinline))
 #endif
 SVGAFencePassed(svga_inst_t *svga, uint32_t fence)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_fifo, INFINITE);
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_FIFO))
 	{
 		volatile uint32 *fifo = svga->hda.fifo_linear;
 		BOOL res;
 		
 		res = ((int32)(fifo[SVGA_FIFO_FENCE] - fence)) >= 0;
 		
-		ReleaseMutex(mutex_fifo);
+		SVGAUnlock(svga, LOCK_FIFO);
 		return res;
 	}
 	
@@ -1048,7 +1046,6 @@ void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
 	{
 		if(!alarm)
 		{
-			//ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
 			SVGACMDRing(svga);
 			alarm = TRUE;
 		}
@@ -1058,10 +1055,9 @@ void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
 /* query fence state */
 BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, uint32_t *lastPassed, uint32_t *lastFence)
 {
-	DWORD wait_rc = WaitForSingleObject(mutex_fifo, INFINITE);
 	SVGA_ASSERT;
 	
-	if(wait_rc == WAIT_OBJECT_0)
+	if(SVGALock(svga, LOCK_FIFO))
 	{
 		volatile uint32 *fifo = svga->hda.fifo_linear;
 		
@@ -1075,7 +1071,7 @@ BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, ui
 			*fenceStatus = ((int32)(fifo[SVGA_FIFO_FENCE] - fence)) >= 0;
 		}
 		
-		ReleaseMutex(mutex_fifo);
+		SVGAUnlock(svga, LOCK_FIFO);
 		
 		if(lastFence)
 		{
@@ -1642,7 +1638,11 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		assert(svga->hda.vram_linear);
 		assert(svga->softblit_gmr_ptr);
 		
-		vramcpy(svga->hda.vram_linear, svga->softblit_gmr_ptr, &crect);
+		if(SVGALock(svga, ULF_LOCK_FB))
+		{
+			vramcpy(svga->hda.vram_linear, svga->softblit_gmr_ptr, &crect);
+			SVGALock(svga, ULF_LOCK_FB);
+		}
 		
 		/* update framebuffer command */
 #pragma pack(push)
@@ -1766,9 +1766,13 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		bmi.bmask = 0x000000FF;
 	}
 	
-	StretchDIBits(hDC, 0, 0, sinfo->size.width, sinfo->size.height,
+	if(SVGALock(svga, ULF_LOCK_FB))
+	{
+		StretchDIBits(hDC, 0, 0, sinfo->size.width, sinfo->size.height,
 	                   0, 0, sinfo->size.width, sinfo->size.height,
 		                 svga->softblit_gmr_ptr, (BITMAPINFO *)&bmi, 0, SRCCOPY);
+		SVGAUnlock(svga, ULF_LOCK_FB);
+	}
 }
 
 

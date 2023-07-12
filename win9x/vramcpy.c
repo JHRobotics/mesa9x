@@ -51,21 +51,7 @@ typedef struct _FBHDA
 #pragma pack(pop)
 
 /* convert bits per pixel to bytes per pixel */
-static inline size_t vramcpy_pointsize_fast(uint32_t bpp)
-{
-	switch(bpp)
-	{
-		case 32:
-			return 4;
-		case 24:
-			return 3;
-		case 16:
-			return 2;
-		case 8:
-			return 1;
-	}
-	return 0;
-}
+#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
 
 size_t vramcpy_pointsize(uint32_t bpp)
 {
