@@ -486,7 +486,9 @@ uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
 #define GMR_INDEX_ADDRESS 1
 #define GMR_INDEX_SIZE    2
 #define GMR_INDEX_PGBLK   3
-#define GMR_INDEX_CNT     4
+#define GMR_INDEX_MOBADDR 4
+#define GMR_INDEX_MOBPPN  5
+#define GMR_INDEX_CNT     6
 
 /* return and allocate first free GMR (graphic memory region) ID */
 uint32_t SVGAGMRIDNext(svga_inst_t *svga)
@@ -947,7 +949,7 @@ BOOL IsSVGA(HDC gdi_ctx)
 	return TRUE;
 }
 
-void SVGAInitOTables(svga_inst_t *svga)
+static BOOL SVGAInitOTables(svga_inst_t *svga)
 {
 	//BOOL createCtx = FALSE;
 	DWORD i;
@@ -964,7 +966,11 @@ void SVGAInitOTables(svga_inst_t *svga)
 	otinfo_entry_t entry;
 	for(i = SVGA_OTABLE_MOB; i < SVGA_OTABLE_DX_MAX; i++)
 	{
-		SVGAOTableQuery(svga, i, &entry);
+		if(!SVGAOTableQuery(svga, i, &entry))
+		{
+			return FALSE;
+		}
+		
 		if((entry.flags & FLAG_ACTIVE) == 0)
 		{
 			if(entry.size > 0)
@@ -989,6 +995,8 @@ void SVGAInitOTables(svga_inst_t *svga)
 	/* sync */
 	uint32_t fence = SVGAFenceInsert(svga);
 	SVGAFenceSync(svga, fence);
+	
+	return TRUE;
 }
 
 #define COTABLE_ENTRIES 1024
@@ -1198,7 +1206,6 @@ void SVGADestroy(svga_inst_t *svga)
 	{
 		CloseHandle(svga->vxd);
 	}
-	
 }
 
 /* read hardware register */
@@ -1337,10 +1344,12 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		0, /* region id */
 		0, /* pages */
 	};
-	static uint32_t ids[3] = {
+	static uint32_t ids[5] = {
 		0, /* region id */
 		0, /* user page address */
 		0, /* page block */
+		0, /* mob PT address */
+		0, /* mob ppn */
 	};
 	
 	uint32_t rid = SVGAGMRIDNext(svga);
@@ -1352,11 +1361,19 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 	ins[0] = rid;
 	ins[1] = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	
+#if 0
+	/* old 16 bit call */
 	if(!ExtEscape(svga->dc, SVGA_REGION_CREATE, sizeof(ins), (LPCSTR)&ins, sizeof(ids), (LPSTR)&ids))
 	{
 		return 0; /* call error */
 	}
+#else
+	if(!svga->vxd) return 0;
 	
+	if(!DeviceIoControl(svga->vxd, SVGA_REGION_CREATE, (LPVOID)&ins, sizeof(ins), (LPVOID)&ids, sizeof(ids), NULL, NULL))
+		return 0;
+#endif
+
 	if(ids[0] == 0)
 	{
 		GUIError(svga, "Failed to allocate continuous physical RAM space (%d bytes). Please attach more memory to VM or reboot guest OS.", size);	
@@ -1370,11 +1387,21 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		*user_page = ids[1];
 	}
 	
+	if(ids[4] == 0) /* mob PPN */
+	{
+		SVGAGuestMemDescriptor *gmr_desc = (SVGAGuestMemDescriptor*)ids[2];
+		ids[4] = gmr_desc->ppn;
+	}
+	
 	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_ADDRESS, ids[1]);
 	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_SIZE, size);
 	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_PGBLK, ids[2]);
-	
+	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBADDR, ids[3]);
+
+	if(svga->dx)
 	{
+		SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBPPN,  ids[4]);
+		
 #pragma pack(push)
 #pragma pack(1)
 		struct
@@ -1389,14 +1416,26 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		cmd_mob.type              = SVGA_3D_CMD_DEFINE_GB_MOB;
 		cmd_mob.size              = sizeof(SVGA3dCmdDefineGBMob);
 		cmd_mob.mob.mobid         = rid;
-		cmd_mob.mob.base          = gmr_desc->ppn;
+		cmd_mob.mob.base          = ids[4];
 		cmd_mob.mob.sizeInBytes   = size;
-		cmd_mob.mob.ptDepth       = SVGA3D_MOBFMT_RANGE;
+		if(ids[3] == 0)
+		{
+			cmd_mob.mob.ptDepth     = SVGA3D_MOBFMT_RANGE;
+		}
+		else
+		{
+			cmd_mob.mob.ptDepth     = SVGA3D_MOBFMT_PTDEPTH_2;
+		}
 		
 		SVGAFifoWrite(svga, &cmd_mob, sizeof(cmd_mob));
 		
 		svga_printf(svga, "GMR: ppn: %u, numPages: %u", gmr_desc->ppn, gmr_desc->numPages);	
 		svga_printf(svga, "SVGA_3D_CMD_DEFINE_GB_MOB (%d, %u, %d)", cmd_mob.mob.mobid, cmd_mob.mob.base, cmd_mob.mob.sizeInBytes);
+	}
+	else
+	{
+		/* mob region have PPN */
+		SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBPPN, 0);
 	}
 	
 	return rid;
@@ -1405,14 +1444,23 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 /* destroy the GMR */
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 {
-	static uint32_t ids[3] = {
+	static uint32_t ids[4] = {
 		0, /* region id */
 		0, /* user page address */
 		0, /* page block address */
+		0, /* mob PT address */
 	};
 
 	SVGA_ASSERT;
 	
+	ids[0] = regionId;
+	ids[1] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_ADDRESS);
+	ids[2] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_PGBLK);
+	ids[3] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_MOBADDR);
+	
+	DWORD mobPPN = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_MOBPPN);
+	
+	if(mobPPN)
 	{
 #pragma pack(push)
 #pragma pack(1)
@@ -1432,14 +1480,17 @@ void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 		SVGACMDSync(svga);
 	}
 	
-	
-	ids[0] = regionId;
-	ids[1] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_ADDRESS);
-	ids[2] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_PGBLK);
-	
+		
 	if(ids[1] != 0)
 	{
+#if 0
 		ExtEscape(svga->dc, SVGA_REGION_FREE, sizeof(ids), (LPCSTR)&ids, 0, NULL);
+#else
+		if(svga->vxd);
+		{
+			DeviceIoControl(svga->vxd, SVGA_REGION_FREE, (LPVOID)&ids, sizeof(ids), NULL, 0, NULL, NULL);
+		}
+#endif
 	}
 	
 	SVGAGMRIDFree(svga, regionId);
@@ -1665,6 +1716,8 @@ static int format_to_bpp(SVGA3dSurfaceFormat type)
 static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render_height)
 {
 	uint32_t softblit_minsize = vramcpy_calc_framebuffer(render_width, render_height, 32);
+	
+	svga_printf(svga, "set_fb_gmr: GMR: %d", svga->softblit_gmr_id);
 
 	if(!svga->softblit_gmr_id || softblit_minsize > svga->softblit_gmr_size)
 	{
@@ -1676,7 +1729,7 @@ static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render
 		
 		svga->softblit_gmr_size = softblit_minsize;
 		svga->softblit_gmr_id = SVGARegionCreate(svga, svga->softblit_gmr_size, (uint32_t*)(&svga->softblit_gmr_ptr));
-		debug_printf("Created new display region: %d (%p)\n", svga->softblit_gmr_id, svga->softblit_gmr_ptr);
+		svga_printf(svga, "Created new display region: %d (%p)", svga->softblit_gmr_id, svga->softblit_gmr_ptr);
 		if(!svga->softblit_gmr_id)
 		{
 				/* GMR allocation error */
@@ -1996,7 +2049,6 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
   const size_t sps = vramcpy_pointsize(sbpp);
 	
 	if(!sinfo->gmrId) /* old way: copy surface to guest memory and display it */
-	//if(1)
 	{
 	  if(!set_fb_gmr(svga, sinfo->size.width, sinfo->size.height))
 	  {
@@ -2061,12 +2113,6 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command.size = sizeof(SVGA3dCmdReadbackGBSurface);
 		command.surface.sid = sid;
 
-#if 0
-		SVGAFifoWrite(svga, &command, sizeof(command));
-
-		uint32_t fence = SVGAFenceInsert(svga);
-		SVGAFenceSync(svga, fence);
-#endif
 		cb_state_t cbs;
 		
 		cb_lock(svga, &cbs);
@@ -2242,6 +2288,11 @@ void SVGAZombieKiller()
 
 BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 {
+	if(!svga->dx)
+	{
+		return FALSE;
+	}
+	
 #pragma pack(push)
 #pragma pack(1)
 	struct

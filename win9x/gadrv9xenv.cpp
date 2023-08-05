@@ -77,10 +77,11 @@ static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFS
 	  {
 	  	*pu32Sid = sid;
 	  	
-	  	//if(svga->dx){
+	  	if(svga->dx)
+	  	{
 	  		uint32_t fence = SVGAFenceInsert(svga);
 	  		SVGAFenceSync(svga, fence);
-	  	//}
+	  	}
 	
 	  	return 0;
 	  }
