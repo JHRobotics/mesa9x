@@ -91,10 +91,27 @@ static inline void
 debug_printf(const char *format, ...)
 {
 #ifdef DEBUG
+#ifdef DEBUG_FILE
+#define DEBUF_FILE_STR(_FNDEF) DEBUF_FILE_STR2(_FNDEF)
+#define DEBUF_FILE_STR2(_FNDEF) #_FNDEF
+   FILE *fp;
+   va_list ap;
+   fp = fopen(DEBUF_FILE_STR(DEBUG_FILE), "at");
+   if(fp)
+   {
+     va_start(ap, format);
+     vfprintf(fp, format, ap);
+     va_end(ap);
+     fclose(fp);
+   }
+#undef DEBUF_FILE_STR
+#undef DEBUF_FILE_STR2
+#else
    va_list ap;
    va_start(ap, format);
    _debug_vprintf(format, ap);
    va_end(ap);
+#endif /* !DEBUG_FILE */
 #else
    (void) format; /* silence warning */
 #endif

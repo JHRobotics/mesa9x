@@ -17,18 +17,6 @@
 
 #define SVGA_ENV svga_inst_t *svga = (svga_inst_t *)pvEnv;assert(svga)
 
-static void vboxVxdContextDestroy(void *pvEnv, uint32_t u32Cid)
-{
-	SVGA_ENV;
-	SVGAContextDestroy(svga, u32Cid);
-}
-
-static uint32_t vboxVxdContextCreate(void *pvEnv, boolean extended, boolean vgpu10)
-{
-	SVGA_ENV;
-	return SVGAContextCreate(svga);
-}
-
 static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFSIZE *paSizes, uint32_t cSizes, uint32_t *pu32Sid)
 {
 	SVGA_ENV;
@@ -78,6 +66,7 @@ static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFS
 	  		svga->surfinfo[sid].size.width = siz->width;
 	  		svga->surfinfo[sid].size.height = siz->height;
 	  		svga->surfinfo[sid].size.depth = siz->depth;
+	  		svga->surfinfo[sid].gmrId = 0;
 	  	}
 	  	
 	  	paSizes++;
@@ -88,8 +77,10 @@ static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFS
 	  {
 	  	*pu32Sid = sid;
 	  	
-	  	//uint32_t fence = SVGAFenceInsert(svga);
-	  	//SVGAFenceSync(svga, fence);
+	  	//if(svga->dx){
+	  		uint32_t fence = SVGAFenceInsert(svga);
+	  		SVGAFenceSync(svga, fence);
+	  	//}
 	
 	  	return 0;
 	  }
@@ -161,18 +152,16 @@ static void vboxVxdFenceUnref(void *pvEnv, uint32_t u32FenceHandle)
   // nothing to do
 }
 
-
-#define AssertBreakStmt(_cond, _todo) \
-  if(!(_cond)){ _todo; break;}
-
-
 static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_t cbCommands, GAFENCEQUERY *pFenceQuery)
 {
 	SVGA_ENV;
 	HRESULT hr = S_OK;
 	const uint8_t *next = (const uint8_t *)pvCommands;
 	const uint8_t *last = next + cbCommands;
-   
+  cb_state_t cbs;
+  
+  cb_lock(svga, &cbs);
+  
   while(next < last)
  	{
 		const uint32_t cmd_id = *(const uint32_t *)next;
@@ -184,10 +173,25 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 			//debug_printf("%s: %d, %d\n", __FUNCTION__, cmd_id, real_size);
 
 			//svga_dump_command(cmd_id, body, header->size);
-			if(!SVGAFifoWrite(svga, (void*)header, cmd_bytes))
+			if(!svga->dx)
 			{
-				hr = E_FAIL;
-				break;
+				if(!SVGAFifoWrite(svga, (void*)header, cmd_bytes))
+				{
+					hr = E_FAIL;
+					break;
+				}
+			}
+			else
+			{
+				/* check buffer limits and send on full */
+				if(cbs.cb_pos + cmd_bytes > SVGA_CB_MAX_SIZE ||
+					cbs.cmd_count >=  SVGA_CB_MAX_QUEUED_PER_CONTEXT
+				){
+					cb_submit(svga, &cbs, u32Cid, SVGA_CB_CONTEXT_DEFAULT);
+					cb_lock(svga, &cbs);
+				}
+				
+				cb_push(&cbs, (void*)header, cmd_bytes);
 			}
 			
 			next = ((uint8_t*)header) + cmd_bytes;
@@ -206,15 +210,146 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 			break;
 		}
 	}
-  
+	
+	cb_submit(svga, &cbs, u32Cid, SVGA_CB_CONTEXT_DEFAULT);
+    
   if(pFenceQuery)
   {
+  	// TODO: submit fence to CB?
   	uint32_t fence = SVGAFenceInsert(svga);
   	
   	vboxVxdFenceQuery(pvEnv, fence, pFenceQuery);
   }
   
   return hr;
+}
+
+static void vboxVxdContextDestroy(void *pvEnv, uint32_t u32Cid)
+{
+	SVGA_ENV;
+#pragma pack(push)
+#pragma pack(1)
+	struct
+	{
+		uint32 cmd;
+		uint32 size;
+		SVGA3dCmdDXSetCOTable entry;
+	} cmd_cotable; // SVGA_3D_CMD_DX_SET_COTABLE
+	
+#pragma pack(pop)	
+	
+	if(svga->dx)
+	{
+		cb_state_t cbs;
+				
+	  /* invalidate cotable */
+	  cb_lock(svga, &cbs);
+	  for(int i = 0; i < SVGA_COTABLE_MAX; i++)
+		{
+			if(svga->cotable.item[i].gmr_id != 0)
+			{
+		  	cmd_cotable.cmd = SVGA_3D_CMD_DX_SET_COTABLE;
+		  	cmd_cotable.size = sizeof(SVGA3dCmdDXSetCOTable);
+		  	cmd_cotable.entry.cid = u32Cid;
+		  	cmd_cotable.entry.mobid = SVGA3D_INVALID_ID;
+		  	cmd_cotable.entry.type  = svga->cotable.item[i].type;
+		  	cmd_cotable.entry.validSizeInBytes = 0;
+		  	
+		  	cb_push(&cbs, (void*)&cmd_cotable, sizeof(cmd_cotable));
+			}
+		}
+		cb_submit(svga, &cbs, u32Cid, SVGA_CB_CONTEXT_DEFAULT);
+	}
+	
+	// todo: destroy SVGA_CB_CONTEXT_0 ?
+	SVGAContextDestroy(svga, u32Cid);
+	
+	if(svga->dx)
+	{
+		/* destroy MOBs */
+		for(int i = 0; i < SVGA_COTABLE_MAX; i++)
+		{
+			if(svga->cotable.item[i].gmr_id != 0)
+			{
+				SVGARegionDestroy(svga, svga->cotable.item[i].gmr_id);
+				svga->cotable.item[i].gmr_id = 0;
+			}
+		}
+	}
+}
+
+static uint32_t vboxVxdContextCreate(void *pvEnv, boolean extended, boolean vgpu10)
+{
+	SVGA_ENV;
+
+#pragma pack(push)
+#pragma pack(1)
+	struct
+	{
+		uint32 cmd;
+		SVGADCCmdStartStop ctx;
+	} cmd_ctx;
+	
+	struct
+	{
+		uint32 cmd;
+		uint32 size;
+		SVGA3dCmdDXSetCOTable entry;
+	} cmd_cotable; // SVGA_3D_CMD_DX_SET_COTABLE
+	
+#pragma pack(pop)
+
+	uint32_t cid = SVGAContextCreate(svga);
+	
+	if(svga->dx)
+	{
+		cb_state_t cbs;
+		uint32_t fence;
+		
+		/* create cb context 0 */
+	  cb_lock(svga, &cbs);
+	  
+		cmd_ctx.cmd         = SVGA_DC_CMD_START_STOP_CONTEXT;
+    cmd_ctx.ctx.enable  = 1;
+    cmd_ctx.ctx.context = SVGA_CB_CONTEXT_DEFAULT;
+	  
+		cb_push(&cbs, &cmd_ctx, sizeof(cmd_ctx));
+	  
+	  cb_submit(svga, &cbs, cid, SVGA_CB_CONTEXT_DEVICE);
+	  
+	  /* allocate cotable entries */
+	  for(int i = 0; i < SVGA_COTABLE_MAX; i++)
+	  {
+	  	if(svga->cotable.item[i].gmr_id == 0 && svga->cotable.item[i].cbItem > 0)
+	  	{
+	  		svga->cotable.item[i].gmr_id = SVGARegionCreate(svga, svga->cotable.item[i].cbItem * svga->cotable.item[i].count, NULL);
+	  	}
+	  }
+	  
+	  /* sync to MOBs creations */
+		fence = SVGAFenceInsert(svga);
+		SVGAFenceSync(svga, fence);
+	  
+	  /* set cotable */
+	  cb_lock(svga, &cbs);
+	  for(int i = 0; i < SVGA_COTABLE_MAX; i++)
+	  {
+	  	if(svga->cotable.item[i].gmr_id != 0)
+	  	{
+		  	cmd_cotable.cmd = SVGA_3D_CMD_DX_SET_COTABLE;
+		  	cmd_cotable.size = sizeof(SVGA3dCmdDXSetCOTable);
+		  	cmd_cotable.entry.cid = cid;
+		  	cmd_cotable.entry.mobid = svga->cotable.item[i].gmr_id;
+		  	cmd_cotable.entry.type  = svga->cotable.item[i].type;
+		  	cmd_cotable.entry.validSizeInBytes = 0;
+		  	
+		  	cb_push(&cbs, &cmd_cotable, sizeof(cmd_cotable));
+			}
+	  }
+	  cb_submit(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
+	}
+	
+	return cid;
 }
 
 static int vboxVxdRegionCreate(void *pvEnv, uint32_t u32RegionSize, uint32_t *pu32GmrId, void **ppvMap)

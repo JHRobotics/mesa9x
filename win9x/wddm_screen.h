@@ -163,7 +163,7 @@ typedef struct SVGAGBSURFCREATE
     } s;
     uint32_t gmrid; /* In/Out: Backing GMR. */
     uint32_t cbGB; /* Out: Size of backing memory. */
-    uint64_t u64UserAddress; /* Out: R3 mapping of the backing memory. */
+    uint32_t userAddress; /* Out: R3 mapping of the backing memory. */
     uint32_t u32Sid; /* Out: Surface id. */
 } SVGAGBSURFCREATE, *PSVGAGBSURFCREATE;
 

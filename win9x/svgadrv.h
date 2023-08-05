@@ -49,7 +49,22 @@ typedef struct _svga_surfinfo_t
 {
 	SVGA3dSurfaceFormat format; /* format of surface */
 	SVGA3dSize          size;   /* size of face 0    */
+	uint32_t            gmrId;  /* != 0 for GB surfaces */
 } svga_surfinfo_t;
+
+
+struct svga_cotable_entry
+{
+	SVGACOTableType type;
+	uint32_t cbItem;
+	uint32_t count;
+	uint32_t gmr_id;
+};
+
+typedef struct svga_cotable
+{
+	struct svga_cotable_entry item[SVGA_COTABLE_MAX];
+} svga_cotable_t;
 
 typedef struct _svga_inst_t
 {
@@ -66,6 +81,8 @@ typedef struct _svga_inst_t
 	/* (pseudo)v-sync variables */
 	ULARGE_INTEGER lastframe; /* last frame timestamp (FILETIME) */
 	uint64_t delta;           /* difference between Sleep input and real Sleep time */
+	/* cotable for DX content */
+	svga_cotable_t cotable;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -94,9 +111,25 @@ void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t surf_id);
 void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
-void SVGACompose(svga_inst_t *svga, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
+void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
 
 void SVGAZombieKiller();
+
+/* helpers for command buffers */
+typedef struct cb_state
+{
+  struct _SVGACBHeaderDX *cb;
+  uint8_t *cb_ptr;
+  size_t cb_pos;
+  int cmd_count;
+} cb_state_t;
+
+void cb_lock(svga_inst_t *svga, cb_state_t *cbs);
+void cb_submit(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
+void cb_sync(svga_inst_t *svga);
+void cb_push(cb_state_t *cbs, const void *buffer, size_t size);
+
+#define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
 
 #ifndef NO_VBOX_H
 BOOL SVGAReadHwInfo(svga_inst_t *ctx, VBOXGAHWINFO *pHwInfo);
@@ -113,6 +146,110 @@ void                         WINAPI GaDrvContextFlush(struct pipe_context *pPipe
 const WDDMGalliumDriverEnv * WINAPI GaDrvCreateEnv(svga_inst_t *svga);
 
 #endif
+
+/******************************************************************************
+ *                                                                            *
+ *                  some missing due old headers                              *
+ *                                                                            *
+ ******************************************************************************/
+typedef enum {
+   SVGA_CB_DX_FLAG_NONE       = 0,
+   SVGA_CB_DX_FLAG_NO_IRQ     = 1 << 0,
+   SVGA_CB_DX_FLAG_DX_CONTEXT = 1 << 1,
+   SVGA_CB_DX_FLAG_MOB        = 1 << 2,
+   SVGA_CB_DX_FLAG_FORCE_UINT = MAX_UINT32,
+} SVGACBFlagsDX;
+
+#pragma pack(push)
+#pragma pack(1)
+typedef struct _SVGACBHeaderDX {
+	volatile SVGACBStatus status; /* Modified by device. */
+	volatile uint32 errorOffset;  /* Modified by device. */
+	uint64 id;
+	SVGACBFlagsDX flags;
+	uint32 length;
+	union {
+		PA pa;
+		struct {
+			SVGAMobId mobid;
+			uint32 mobOffset;
+		} mob;
+	} ptr;
+	uint32 offset; /* Valid if CMD_BUFFERS_2 cap set, must be zero otherwise, modified by device. */
+	uint32 dxContext; /* Valid if DX_CONTEXT flag set, must be zero otherwise */
+	uint32 mustBeZero[6];
+} SVGACBHeaderDX;
+
+#define SVGA_3D_CMD_DEFINE_GB_SURFACE_V4		1267
+/*
+ * Defines a guest-backed surface, adding buffer byte stride.
+ */
+typedef
+struct SVGA3dCmdDefineGBSurface_v4 {
+   uint32 sid;
+   SVGA3dSurfaceAllFlags surfaceFlags;
+   SVGA3dSurfaceFormat format;
+   uint32 numMipLevels;
+   uint32 multisampleCount;
+   SVGA3dMSPattern multisamplePattern;
+   SVGA3dMSQualityLevel qualityLevel;
+   SVGA3dTextureFilter autogenFilter;
+   SVGA3dSize size;
+   uint32 arraySize;
+   uint32 bufferByteStride;
+}
+SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
+
+/* SVGA3dUAView */
+
+#define SVGA3D_UABUFFER_RAW     (1 << 0)
+#define SVGA3D_UABUFFER_APPEND  (1 << 1)
+#define SVGA3D_UABUFFER_COUNTER (1 << 2)
+typedef uint32 SVGA3dUABufferFlags;
+
+typedef
+#include "vmware_pack_begin.h"
+struct {
+   union {
+      struct {
+         uint32 firstElement;
+         uint32 numElements;
+         SVGA3dUABufferFlags flags;
+         uint32 padding0;
+         uint32 padding1;
+      } buffer;
+      struct {
+         uint32 mipSlice;
+         uint32 firstArraySlice;
+         uint32 arraySize;
+         uint32 padding0;
+         uint32 padding1;
+      } tex;  /* 1d, 2d */
+      struct {
+         uint32 mipSlice;
+         uint32 firstW;
+         uint32 wSize;
+         uint32 padding0;
+         uint32 padding1;
+      } tex3D;
+   };
+}
+#include "vmware_pack_end.h"
+SVGA3dUAViewDesc;
+
+typedef
+struct {
+   SVGA3dSurfaceId sid;
+   SVGA3dSurfaceFormat format;
+   SVGA3dResourceType resourceDimension;
+   SVGA3dUAViewDesc desc;
+   uint32 structureCount;
+   uint32 pad[7];
+}
+SVGACOTableDXUAViewEntry;
+
+
+#pragma pack(pop)
 
 #ifdef __cplusplus
 }

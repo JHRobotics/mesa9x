@@ -197,7 +197,7 @@ wddm_shared_surface_close(struct pipe_screen *screen,
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
     if (pEnv)
     {
-    	 printf("Shared surface close\n");
+    	 debug_printf("Shared surface close\n");
         //D3DKMT_HANDLE hDevice = GaDrvEnvKmtDeviceHandle(pEnv);
         //vboxKmtCloseSharedSurface(hDevice, surface);
     }
@@ -218,12 +218,13 @@ wddm_compose(struct pipe_screen *screen,
 
     uint32_t u32SourceSid = GaDrvGetSurfaceId(screen, res);
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
+    uint32_t cid = GaDrvGetContextId(pipe);
 
     if (pEnv)
     {
         svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
         assert(svga);
-        SVGACompose(svga, u32SourceSid, dest->u32Sid, pRect);
+        SVGACompose(svga, cid, u32SourceSid, dest->u32Sid, pRect);
     }
 }
 
@@ -234,11 +235,14 @@ wddm_get_pfd_flags(struct pipe_screen *screen)
    return stw_pfd_gdi_support;
 }
 
+#if 0
 static struct stw_winsys_framebuffer *
 wddm_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
 {
-   return NULL;
+	debug_printf("wddm_create_framebuffer\n");
+  return NULL;
 }
+#endif
 
 static const char *
 wddm_get_name(void)
@@ -260,7 +264,7 @@ static struct stw_winsys stw_winsys = {
    &wddm_shared_surface_close,
    &wddm_compose,
    &wddm_get_pfd_flags,
-   &wddm_create_framebuffer,
+   NULL,  //&wddm_create_framebuffer,
    &wddm_get_name,
 };
 #else
