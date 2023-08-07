@@ -99,6 +99,7 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 	return screen;
 }
 
+#if 0
 /* present direct to window or screen if possible */
 #ifndef MESA_NEW
 static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
@@ -121,8 +122,8 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
         
         SVGAPresent(svga, hDC, cid, sid);
 		}
-
 }
+#endif
 
 /* present to window */
 #ifndef MESA_NEW
@@ -143,6 +144,8 @@ static void wddm_present_window(struct pipe_screen *screen, struct pipe_context 
     
         uint32_t cid = GaDrvGetContextId(pipe);
         uint32_t sid = GaDrvGetSurfaceId(screen, res);
+        
+        debug_printf("wddm_present_window (%d x %d)\n", res->width0, res->height0);
         
         SVGAPresentWinBlt(svga, hDC, cid, sid);
 		}
@@ -226,6 +229,8 @@ wddm_compose(struct pipe_screen *screen,
         assert(svga);
         SVGACompose(svga, cid, u32SourceSid, dest->u32Sid, pRect);
     }
+    
+    debug_printf("wddm_compose\n");
 }
 
 #ifdef MESA_NEW
@@ -317,12 +322,14 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	   */
    	  SVGAZombieKiller();
    	  
+#if 0
    	  /* DIRECT_VRAM = for compatibility reasons is now off by default */
    	  if(debug_get_bool_option("DIRECT_VRAM", FALSE))
    	  {
    	  	stw_winsys.present = wddm_present;
    	  }
-   	  
+#endif
+ 
       stw_init(&stw_winsys, hinstDLL);
       stw_init_thread();
       break;

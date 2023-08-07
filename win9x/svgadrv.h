@@ -81,8 +81,8 @@ typedef struct _svga_inst_t
 	/* (pseudo)v-sync variables */
 	ULARGE_INTEGER lastframe; /* last frame timestamp (FILETIME) */
 	uint64_t delta;           /* difference between Sleep input and real Sleep time */
-	/* cotable for DX content */
-	svga_cotable_t cotable;
+	/* latch for creating one single and persistant GB content */
+	BOOL have_cb_context;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -92,6 +92,7 @@ BOOL SVGACreate(svga_inst_t *svga, HWND win);
 void SVGADestroy(svga_inst_t *svga);
 BOOL SVGAReadReg(svga_inst_t *svga, uint32_t reg, uint32_t *val);
 uint32_t SVGAFenceInsert(svga_inst_t *svga);
+uint32_t SVGAFenceInsertCB(svga_inst_t *svga);
 BOOL SVGAFencePassed(svga_inst_t *svga, uint32_t fence);
 void SVGAFenceSync(svga_inst_t *svga, uint32_t fence);
 BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, uint32_t *lastPassed, uint32_t *nextFence);
@@ -100,6 +101,8 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *address);
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
 uint32_t SVGAContextCreate(svga_inst_t *svga);
 void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid);
+BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid);
+void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid);
 void SVGACleanup(svga_inst_t *svga, uint32_t pid);
 void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid);
 
@@ -113,6 +116,8 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
 
+void SVGACBContextCreate(svga_inst_t *svga);
+
 void SVGAZombieKiller();
 
 /* helpers for command buffers */
@@ -124,10 +129,13 @@ typedef struct cb_state
   int cmd_count;
 } cb_state_t;
 
-void cb_lock(svga_inst_t *svga, cb_state_t *cbs);
+BOOL cb_lock(svga_inst_t *svga, cb_state_t *cbs);
 void cb_submit(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
 void cb_sync(svga_inst_t *svga);
 void cb_push(cb_state_t *cbs, const void *buffer, size_t size);
+BOOL cb_full(cb_state_t *cbs, size_t cbNeed);
+
+//#define cb_submit(_svga, _state, _cid, _cbc) debug_printf("%s:%d\n", __FILE__, __LINE__); cb_submit2(_svga, _state, _cid, _cbc)
 
 #define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
 
@@ -149,7 +157,7 @@ const WDDMGalliumDriverEnv * WINAPI GaDrvCreateEnv(svga_inst_t *svga);
 
 /******************************************************************************
  *                                                                            *
- *                  some missing due old headers                              *
+ *                  some missings due old headers                             *
  *                                                                            *
  ******************************************************************************/
 typedef enum {
@@ -208,7 +216,6 @@ SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
 typedef uint32 SVGA3dUABufferFlags;
 
 typedef
-#include "vmware_pack_begin.h"
 struct {
    union {
       struct {
@@ -234,7 +241,6 @@ struct {
       } tex3D;
    };
 }
-#include "vmware_pack_end.h"
 SVGA3dUAViewDesc;
 
 typedef
@@ -247,7 +253,6 @@ struct {
    uint32 pad[7];
 }
 SVGACOTableDXUAViewEntry;
-
 
 #pragma pack(pop)
 

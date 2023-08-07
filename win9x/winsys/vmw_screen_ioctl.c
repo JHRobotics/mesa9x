@@ -461,7 +461,7 @@ vmw_ioctl_syncforcpu(struct vmw_region *region,
 {
     //RT_NOREF4(region, dont_block, readonly, allow_cs);
     // ???
-    return 0;
+    return -1;
 }
 
 /**
