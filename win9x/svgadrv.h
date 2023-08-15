@@ -49,6 +49,7 @@ typedef struct _svga_surfinfo_t
 {
 	SVGA3dSurfaceFormat format; /* format of surface */
 	SVGA3dSize          size;   /* size of face 0    */
+	uint32_t            bpp;    /* bit per pixel */
 	uint32_t            gmrId;  /* != 0 for GB surfaces */
 } svga_surfinfo_t;
 
@@ -83,6 +84,7 @@ typedef struct _svga_inst_t
 	uint64_t delta;           /* difference between Sleep input and real Sleep time */
 	/* latch for creating one single and persistant GB content */
 	BOOL have_cb_context;
+	uint32_t blitsid;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -118,6 +120,14 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 
 void SVGACBContextCreate(svga_inst_t *svga);
 
+BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
+
+#ifdef DEBUG
+void svga_printf(svga_inst_t *svga, const char *fmt, ...);
+#else
+#define svga_printf(...)
+#endif
+
 void SVGAZombieKiller();
 
 /* helpers for command buffers */
@@ -131,6 +141,7 @@ typedef struct cb_state
 
 BOOL cb_lock(svga_inst_t *svga, cb_state_t *cbs);
 void cb_submit(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
+void cb_submit_sync(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
 void cb_sync(svga_inst_t *svga);
 void cb_push(cb_state_t *cbs, const void *buffer, size_t size);
 BOOL cb_full(cb_state_t *cbs, size_t cbNeed);
@@ -142,6 +153,7 @@ BOOL cb_full(cb_state_t *cbs, size_t cbNeed);
 #ifndef NO_VBOX_H
 BOOL SVGAReadHwInfo(svga_inst_t *ctx, VBOXGAHWINFO *pHwInfo);
 BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms);
+BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE *paSizes, uint32_t cSizes, uint32_t *outSid);
 
 struct pipe_screen;
 
@@ -253,6 +265,8 @@ struct {
    uint32 pad[7];
 }
 SVGACOTableDXUAViewEntry;
+
+#define SVGA_3D_CMD_DX_DEFINE_UA_VIEW 1245
 
 #pragma pack(pop)
 

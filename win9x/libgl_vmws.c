@@ -99,7 +99,6 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 	return screen;
 }
 
-#if 0
 /* present direct to window or screen if possible */
 #ifndef MESA_NEW
 static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
@@ -123,7 +122,6 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
         SVGAPresent(svga, hDC, cid, sid);
 		}
 }
-#endif
 
 /* present to window */
 #ifndef MESA_NEW
@@ -165,6 +163,7 @@ wddm_get_adapter_luid(struct pipe_screen *screen, LUID *pAdapterLuid)
     return false;
 }
 
+
 static struct stw_shared_surface *
 wddm_shared_surface_open(struct pipe_screen *screen, HANDLE hSharedSurface)
 {
@@ -173,13 +172,14 @@ wddm_shared_surface_open(struct pipe_screen *screen, HANDLE hSharedSurface)
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
     if (pEnv)
     {
+    		svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
         surface = (struct stw_shared_surface *)malloc(sizeof(struct stw_shared_surface));
         if (surface)
         {
         	surface->hResource = NULL;
         	surface->hSurface = hSharedSurface;
         	surface->u32Sid = (uint32)hSharedSurface;
-        	printf("Shared surface open\n");
+        	svga_printf(svga, "Shared surface open");
         	/*
             D3DKMT_HANDLE hDevice = GaDrvEnvKmtDeviceHandle(pEnv);
             NTSTATUS Status = vboxKmtOpenSharedSurface(hDevice, (D3DKMT_HANDLE)hSharedSurface, surface);
@@ -200,7 +200,8 @@ wddm_shared_surface_close(struct pipe_screen *screen,
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
     if (pEnv)
     {
-    	 debug_printf("Shared surface close\n");
+    	svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
+    	svga_printf(svga, "Shared surface close");
         //D3DKMT_HANDLE hDevice = GaDrvEnvKmtDeviceHandle(pEnv);
         //vboxKmtCloseSharedSurface(hDevice, surface);
     }
@@ -227,10 +228,11 @@ wddm_compose(struct pipe_screen *screen,
     {
         svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
         assert(svga);
+        svga_printf(svga, "wddm_compose\n");
         SVGACompose(svga, cid, u32SourceSid, dest->u32Sid, pRect);
     }
     
-    debug_printf("wddm_compose\n");
+    
 }
 
 #ifdef MESA_NEW
@@ -260,6 +262,7 @@ wddm_get_name(void)
 static struct stw_winsys stw_winsys = {
    &wddm_screen_create,
    &wddm_present_window,
+   //&wddm_present,
 #if WINVER >= 0xA00
    &wddm_get_adapter_luid,
 #else
@@ -322,13 +325,11 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	   */
    	  SVGAZombieKiller();
    	  
-#if 0
    	  /* DIRECT_VRAM = for compatibility reasons is now off by default */
    	  if(debug_get_bool_option("DIRECT_VRAM", FALSE))
    	  {
    	  	stw_winsys.present = wddm_present;
    	  }
-#endif
  
       stw_init(&stw_winsys, hinstDLL);
       stw_init_thread();

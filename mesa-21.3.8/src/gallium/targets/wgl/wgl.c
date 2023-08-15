@@ -255,7 +255,7 @@ wgl_present(struct pipe_screen *screen,
 #ifdef GALLIUM_SOFTPIPE
    winsys = softpipe_screen(screen)->winsys,
    dt = softpipe_resource(res)->dt,
-# ifdef WIN9X
+# ifndef WIN9X
    gdi_sw_display(winsys, dt, hDC);
 # else
    vramcpy_display(winsys, dt, hDC);

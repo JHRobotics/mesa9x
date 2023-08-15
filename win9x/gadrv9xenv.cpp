@@ -20,82 +20,12 @@
 static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFSIZE *paSizes, uint32_t cSizes, uint32_t *pu32Sid)
 {
 	SVGA_ENV;
-	const uint32_t cbSize = sizeof(SVGA3dCmdHeader)
-                        + sizeof(SVGA3dCmdDefineSurface_v2)
-                        + cSizes * sizeof(SVGA3dSize);
-	
-	uint8_t *cmd = (uint8_t *)alloca(cbSize);
-	
-	memset(cmd, 0, cbSize);
-	
-	((uint32_t*)cmd)[0] = SVGA_3D_CMD_SURFACE_DEFINE_V2;
-	((uint32_t*)cmd)[1] = cbSize - sizeof(SVGA3dCmdHeader);
-	
-	//debug_printf("Define surface\n");
-	
-	SVGA3dCmdDefineSurface_v2 *surface = (SVGA3dCmdDefineSurface_v2*)(cmd+sizeof(SVGA3dCmdHeader));
-	uint32_t sid = SVGASurfaceIDNext(svga);
-	
-	//printf("creating surface: %d %d\n", sid, pCreateParms->format);
-
-	if(sid)
+	if(SVGASurfaceCreate(svga, pCreateParms, paSizes, cSizes, pu32Sid))
 	{
-		surface->sid = sid;
-		surface->surfaceFlags = pCreateParms->flags;
-	  surface->format = (SVGA3dSurfaceFormat)pCreateParms->format;
-	  
-	  for(int i = 0; i < SVGA3D_MAX_SURFACE_FACES; i++)
-	  {
-	  	surface->face[i].numMipLevels = pCreateParms->mip_levels[i];
-	  }
-	  
-	  surface->multisampleCount = 0;
-	  surface->autogenFilter    = SVGA3D_TEX_FILTER_NONE;
-	  
-	  SVGA3dSize *siz = (SVGA3dSize*)(cmd+sizeof(SVGA3dCmdHeader)+sizeof(SVGA3dCmdDefineSurface_v2));
-	  
-	  for(int i = 0; i < cSizes; i++)
-	  {
-	    siz->width = paSizes->cWidth;
-	    siz->height = paSizes->cHeight;
-	    siz->depth = paSizes->cDepth;
-	  	
-	  	if(i == 0) /* save only face 0 */
-	  	{
-	  		svga->surfinfo[sid].format = surface->format;
-	  		svga->surfinfo[sid].size.width = siz->width;
-	  		svga->surfinfo[sid].size.height = siz->height;
-	  		svga->surfinfo[sid].size.depth = siz->depth;
-	  		svga->surfinfo[sid].gmrId = 0;
-	  	}
-	  	
-	  	paSizes++;
-	  	siz++;
-	  }
-	  
-	  if(svga->have_cb_context)
-	  {
-	  	cb_state_t cbs;
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, cmd, cbSize);
-			cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-			
-			cb_sync(svga);
-			
-		  *pu32Sid = sid;
-		  return 0;
-	  }
-	  else
-	  {
-		  if(SVGAFifoWrite(svga, cmd, cbSize))
-		  {
-		  	*pu32Sid = sid;
-		  	return 0;
-		  }
-		}
+		return S_OK;
 	}
 	
-	return 1;
+	return E_FAIL;
 }
 
 static void vboxVxdSurfaceDestroy(void *pvEnv, uint32_t u32Sid)
@@ -161,6 +91,12 @@ static void vboxVxdFenceUnref(void *pvEnv, uint32_t u32FenceHandle)
   // nothing to do
 }
 
+typedef struct _cmd_define_item_id
+{
+	SVGA3dCmdHeader header;
+	uint32_t itemId;
+} cmd_define_item_id_t;
+
 static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_t cbCommands, GAFENCEQUERY *pFenceQuery)
 {
 	SVGA_ENV;
@@ -192,8 +128,49 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 			const SVGA3dCmdHeader *header = (const SVGA3dCmdHeader *)next;
 			const size_t cmd_bytes = header->size + sizeof(SVGA3dCmdHeader);
 			//debug_printf("%s: %d, %d\n", __FUNCTION__, cmd_id, real_size);
+			const cmd_define_item_id_t *id_test = (cmd_define_item_id_t*)header;
 
 			//svga_dump_command(cmd_id, body, header->size);
+			
+			switch(cmd_id)
+			{
+				case SVGA_3D_CMD_DX_DEFINE_RENDERTARGET_VIEW:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_RTVIEW, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_SRVIEW, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_DSVIEW, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_ELEMENTLAYOUT:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_ELEMENTLAYOUT, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_BLEND_STATE:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_BLENDSTATE, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_STATE:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_DEPTHSTENCIL, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_RASTERIZERSTATE, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_SAMPLER_STATE:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_SAMPLER, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_STREAMOUTPUT, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_QUERY:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_DXQUERY, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_SHADER:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_DXSHADER, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DX_DEFINE_UA_VIEW:
+					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_UAVIEW, id_test->itemId);
+					break;
+			}
 			
 			if(svga->have_cb_context)
 			{
@@ -334,7 +311,6 @@ static void vboxVxdRegionDestroy(void *pvEnv, uint32_t u32GmrId, void *pvMap)
 		SVGARegionDestroy(svga, u32GmrId);
 	}
 }
-
 
 static int vboxVxdGBSurfaceDefine(void *pvEnv, SVGAGBSURFCREATE *pCreateParms)
 {

@@ -262,9 +262,20 @@ vmw_ioctl_surface_req(const struct vmw_winsys_screen *vws,
                       struct drm_vmw_surface_arg *req,
                       boolean *needs_unref)
 {
-    //RT_NOREF4(vws, whandle, req, needs_unref);
-    // ???
-    return -1;
+	switch(whandle->type)
+	{
+		case WINSYS_HANDLE_TYPE_SHARED:
+		case WINSYS_HANDLE_TYPE_KMS:
+		case WINSYS_HANDLE_TYPE_FD:
+			*needs_unref = FALSE;
+			req->handle_type = DRM_VMW_HANDLE_LEGACY;
+			req->sid = whandle->handle;
+			break;
+		default:
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -312,7 +323,6 @@ vmw_ioctl_surface_destroy(struct vmw_winsys_screen *vws, uint32 sid)
     struct vmw_winsys_screen_wddm *vws_wddm = (struct vmw_winsys_screen_wddm *)vws;
     /// @todo ? take into account surface references, referencing should be probably implemented here in user mode.
     vws_wddm->pEnv->pfnSurfaceDestroy(vws_wddm->pEnv->pvEnv, sid);
-    return;
 }
 
 void
@@ -357,7 +367,6 @@ vmw_ioctl_command(struct vmw_winsys_screen *vws, int32_t cid,
           }
        }
     }
-    return;
 }
 
 struct vmw_region *
@@ -417,8 +426,7 @@ vmw_ioctl_region_ptr(struct vmw_region *region)
 void *
 vmw_ioctl_region_map(struct vmw_region *region)
 {
-    debug_printf("%s: gmrId = %u\n", __FUNCTION__,
-                 region->handle);
+    debug_printf("%s: gmrId = %u\n", __FUNCTION__, region->handle);
 
     if (region->data == NULL)
     {
@@ -550,6 +558,7 @@ vmw_ioctl_shader_create(struct vmw_winsys_screen *vws,
 {
     //RT_NOREF3(vws, type, code_len);
     // DeviceCallbacks.pfnAllocateCb(pDevice->hDevice, pDdiAllocate);
+    debug_printf("vmw_ioctl_shader_create: FIALED\n");
     return 0;
 }
 
@@ -1025,7 +1034,8 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 
       vws->ioctl.max_texture_size = VMW_MAX_DEFAULT_TEXTURE_SIZE;
 
-      size = SVGA_FIFO_3D_CAPS_SIZE * sizeof(uint32_t);
+      //size = SVGA_FIFO_3D_CAPS_SIZE * sizeof(uint32_t);
+      size = GA_HWINFO_CAPS * sizeof(uint32_t);
    }
 
    debug_printf("VGPU10 interface is %s.\n",
