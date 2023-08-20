@@ -194,7 +194,8 @@ static void SVGACMDRing(svga_inst_t *svga)
 	ExtEscape(svga->dc, SVGA_RING, 0, NULL, 0, NULL);
 }
 
-#ifdef DEBUG
+//#ifdef DEBUG
+#if 1
 /* Send debug message to driver */
 static void SVGACMDDebug(svga_inst_t *svga, const char *msg)
 {
@@ -1820,10 +1821,7 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		else
 		{
 			SVGAFifoWrite(svga, &cmd_mob, sizeof(cmd_mob));
-		
-			svga_printf(svga, "GMR: ppn: %u, numPages: %u", gmr_desc->ppn, gmr_desc->numPages);	
-			svga_printf(svga, "SVGA_3D_CMD_DEFINE_GB_MOB (%d, %u, %d)", cmd_mob.mob.mobid, cmd_mob.mob.base, cmd_mob.mob.sizeInBytes);
-		
+			
 			uint32_t fence = SVGAFenceInsert(svga);
 			SVGAFenceSync(svga, fence);
 		}
@@ -2124,6 +2122,177 @@ static int format_to_bpp(SVGA3dSurfaceFormat type)
 	return 32;
 }
 
+typedef struct _format_debug_{
+	uint32_t id;
+	const char *name;
+} format_debug_t;
+
+#define FORMAT_ITEM(_e) {_e, #_e},
+format_debug_t format_debug_table[] = {
+   FORMAT_ITEM(SVGA3D_FORMAT_INVALID)
+   FORMAT_ITEM(SVGA3D_X8R8G8B8)
+   FORMAT_ITEM(SVGA3D_A8R8G8B8)
+   FORMAT_ITEM(SVGA3D_R5G6B5)
+   FORMAT_ITEM(SVGA3D_X1R5G5B5)
+   FORMAT_ITEM(SVGA3D_A1R5G5B5)
+   FORMAT_ITEM(SVGA3D_A4R4G4B4)
+   FORMAT_ITEM(SVGA3D_Z_D32)
+   FORMAT_ITEM(SVGA3D_Z_D16)
+   FORMAT_ITEM(SVGA3D_Z_D24S8)
+   FORMAT_ITEM(SVGA3D_Z_D15S1)
+   FORMAT_ITEM(SVGA3D_LUMINANCE8)
+   FORMAT_ITEM(SVGA3D_LUMINANCE4_ALPHA4)
+   FORMAT_ITEM(SVGA3D_LUMINANCE16)
+   FORMAT_ITEM(SVGA3D_LUMINANCE8_ALPHA8)
+   FORMAT_ITEM(SVGA3D_DXT1)
+   FORMAT_ITEM(SVGA3D_DXT2)
+   FORMAT_ITEM(SVGA3D_DXT3)
+   FORMAT_ITEM(SVGA3D_DXT4)
+   FORMAT_ITEM(SVGA3D_DXT5)
+   FORMAT_ITEM(SVGA3D_BUMPU8V8)
+   FORMAT_ITEM(SVGA3D_BUMPL6V5U5)
+   FORMAT_ITEM(SVGA3D_BUMPX8L8V8U8)
+   FORMAT_ITEM(SVGA3D_FORMAT_DEAD1)
+   FORMAT_ITEM(SVGA3D_ARGB_S10E5)
+   FORMAT_ITEM(SVGA3D_ARGB_S23E8)
+   FORMAT_ITEM(SVGA3D_A2R10G10B10)
+   FORMAT_ITEM(SVGA3D_V8U8)
+   FORMAT_ITEM(SVGA3D_Q8W8V8U8)
+   FORMAT_ITEM(SVGA3D_CxV8U8)
+   FORMAT_ITEM(SVGA3D_X8L8V8U8)
+   FORMAT_ITEM(SVGA3D_A2W10V10U10)
+   FORMAT_ITEM(SVGA3D_ALPHA8)
+   FORMAT_ITEM(SVGA3D_R_S10E5)
+   FORMAT_ITEM(SVGA3D_R_S23E8)
+   FORMAT_ITEM(SVGA3D_RG_S10E5)
+   FORMAT_ITEM(SVGA3D_RG_S23E8)
+   FORMAT_ITEM(SVGA3D_BUFFER)
+   FORMAT_ITEM(SVGA3D_Z_D24X8)
+   FORMAT_ITEM(SVGA3D_V16U16)
+   FORMAT_ITEM(SVGA3D_G16R16)
+   FORMAT_ITEM(SVGA3D_A16B16G16R16)
+   FORMAT_ITEM(SVGA3D_UYVY)
+   FORMAT_ITEM(SVGA3D_YUY2)
+   FORMAT_ITEM(SVGA3D_NV12)
+   FORMAT_ITEM(SVGA3D_AYUV)
+   FORMAT_ITEM(SVGA3D_R32G32B32A32_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R32G32B32A32_UINT)
+   FORMAT_ITEM(SVGA3D_R32G32B32A32_SINT)
+   FORMAT_ITEM(SVGA3D_R32G32B32_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R32G32B32_FLOAT)
+   FORMAT_ITEM(SVGA3D_R32G32B32_UINT)
+   FORMAT_ITEM(SVGA3D_R32G32B32_SINT)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_UINT)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_SNORM)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_SINT)
+   FORMAT_ITEM(SVGA3D_R32G32_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R32G32_UINT)
+   FORMAT_ITEM(SVGA3D_R32G32_SINT)
+   FORMAT_ITEM(SVGA3D_R32G8X24_TYPELESS)
+   FORMAT_ITEM(SVGA3D_D32_FLOAT_S8X24_UINT)
+   FORMAT_ITEM(SVGA3D_R32_FLOAT_X8X24)
+   FORMAT_ITEM(SVGA3D_X32_G8X24_UINT)
+   FORMAT_ITEM(SVGA3D_R10G10B10A2_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R10G10B10A2_UINT)
+   FORMAT_ITEM(SVGA3D_R11G11B10_FLOAT)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_UNORM)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_UINT)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_SINT)
+   FORMAT_ITEM(SVGA3D_R16G16_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R16G16_UINT)
+   FORMAT_ITEM(SVGA3D_R16G16_SINT)
+   FORMAT_ITEM(SVGA3D_R32_TYPELESS)
+   FORMAT_ITEM(SVGA3D_D32_FLOAT)
+   FORMAT_ITEM(SVGA3D_R32_UINT)
+   FORMAT_ITEM(SVGA3D_R32_SINT)
+   FORMAT_ITEM(SVGA3D_R24G8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_D24_UNORM_S8_UINT)
+   FORMAT_ITEM(SVGA3D_R24_UNORM_X8)
+   FORMAT_ITEM(SVGA3D_X24_G8_UINT)
+   FORMAT_ITEM(SVGA3D_R8G8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R8G8_UNORM)
+   FORMAT_ITEM(SVGA3D_R8G8_UINT)
+   FORMAT_ITEM(SVGA3D_R8G8_SINT)
+   FORMAT_ITEM(SVGA3D_R16_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R16_UNORM)
+   FORMAT_ITEM(SVGA3D_R16_UINT)
+   FORMAT_ITEM(SVGA3D_R16_SNORM)
+   FORMAT_ITEM(SVGA3D_R16_SINT)
+   FORMAT_ITEM(SVGA3D_R8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_R8_UNORM)
+   FORMAT_ITEM(SVGA3D_R8_UINT)
+   FORMAT_ITEM(SVGA3D_R8_SNORM)
+   FORMAT_ITEM(SVGA3D_R8_SINT)
+   FORMAT_ITEM(SVGA3D_P8)
+   FORMAT_ITEM(SVGA3D_R9G9B9E5_SHAREDEXP)
+   FORMAT_ITEM(SVGA3D_R8G8_B8G8_UNORM)
+   FORMAT_ITEM(SVGA3D_G8R8_G8B8_UNORM)
+   FORMAT_ITEM(SVGA3D_BC1_TYPELESS)
+   FORMAT_ITEM(SVGA3D_BC1_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_BC2_TYPELESS)
+   FORMAT_ITEM(SVGA3D_BC2_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_BC3_TYPELESS)
+   FORMAT_ITEM(SVGA3D_BC3_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_BC4_TYPELESS)
+   FORMAT_ITEM(SVGA3D_ATI1)
+   FORMAT_ITEM(SVGA3D_BC4_SNORM)
+   FORMAT_ITEM(SVGA3D_BC5_TYPELESS)
+   FORMAT_ITEM(SVGA3D_ATI2)
+   FORMAT_ITEM(SVGA3D_BC5_SNORM)
+   FORMAT_ITEM(SVGA3D_R10G10B10_XR_BIAS_A2_UNORM)
+   FORMAT_ITEM(SVGA3D_B8G8R8A8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_B8G8R8A8_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_B8G8R8X8_TYPELESS)
+   FORMAT_ITEM(SVGA3D_B8G8R8X8_UNORM_SRGB)
+   FORMAT_ITEM(SVGA3D_Z_DF16)
+   FORMAT_ITEM(SVGA3D_Z_DF24)
+   FORMAT_ITEM(SVGA3D_Z_D24S8_INT)
+   FORMAT_ITEM(SVGA3D_YV12)
+   FORMAT_ITEM(SVGA3D_R32G32B32A32_FLOAT)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_FLOAT)
+   FORMAT_ITEM(SVGA3D_R16G16B16A16_UNORM)
+   FORMAT_ITEM(SVGA3D_R32G32_FLOAT)
+   FORMAT_ITEM(SVGA3D_R10G10B10A2_UNORM)
+   FORMAT_ITEM(SVGA3D_R8G8B8A8_SNORM)
+   FORMAT_ITEM(SVGA3D_R16G16_FLOAT)
+   FORMAT_ITEM(SVGA3D_R16G16_UNORM)
+   FORMAT_ITEM(SVGA3D_R16G16_SNORM)
+   FORMAT_ITEM(SVGA3D_R32_FLOAT)
+   FORMAT_ITEM(SVGA3D_R8G8_SNORM)
+   FORMAT_ITEM(SVGA3D_R16_FLOAT)
+   FORMAT_ITEM(SVGA3D_D16_UNORM)
+   FORMAT_ITEM(SVGA3D_A8_UNORM)
+   FORMAT_ITEM(SVGA3D_BC1_UNORM)
+   FORMAT_ITEM(SVGA3D_BC2_UNORM)
+   FORMAT_ITEM(SVGA3D_BC3_UNORM)
+   FORMAT_ITEM(SVGA3D_B5G6R5_UNORM)
+   FORMAT_ITEM(SVGA3D_B5G5R5A1_UNORM)
+   FORMAT_ITEM(SVGA3D_B8G8R8A8_UNORM)
+   FORMAT_ITEM(SVGA3D_B8G8R8X8_UNORM)
+   FORMAT_ITEM(SVGA3D_BC4_UNORM)
+   FORMAT_ITEM(SVGA3D_BC5_UNORM)
+   0, NULL
+};
+
+const char *get_format_name(SVGA3dSurfaceFormat e)
+{
+	format_debug_t *item = &format_debug_table[0];
+	
+	while(item->name != NULL)
+	{
+		if(e == item->id)
+		{
+			return item->name;
+		}
+		item++;
+	}
+	
+	return "Unknown format";
+}
+
 static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render_height)
 {
 	uint32_t softblit_minsize = vramcpy_calc_framebuffer(render_width, render_height, 32);
@@ -2303,8 +2472,6 @@ void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	
 	frame_wait(svga);
 	
-	//svga_printf(svga, "SVGAPresentWinBlt(-, -, %d, %d)", cid, sid);
-
 	SVGAPresentWindow(svga, hDC, cid, sid);
 }
 
@@ -2333,6 +2500,8 @@ static void refresh_fb(svga_inst_t *svga)
 	}
 }
 
+static uint32_t last_sid_format = -1;
+
 /**
  * Present render to screen/window using direct vram access if its possible.
  * If not calls SVGAPresentWindow.
@@ -2345,6 +2514,9 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	uint32_t bpp = svga->hda.userlist_linear[ULF_BPP];
   svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
   uint32_t cb_cid = SVGA3D_INVALID_ID;
+  
+  PIXELFORMATDESCRIPTOR pfd;
+  
   if(svga->dx)
   {
   	cb_cid = cid;
@@ -2352,11 +2524,16 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
   
   if(sinfo == NULL)
   {
-  	printf("bad sid!\n", sid);
    	return;
   }
    
   frame_wait(svga);
+  
+  if(last_sid_format != sinfo->format)
+  {
+  	svga_printf(svga, "SVGAPresent = bpp: %d, format: %u", sinfo->bpp, sinfo->format); 
+  	last_sid_format = sinfo->format;
+  }
   
   if(sinfo->bpp == 8 || bpp == 8)
   {
@@ -2372,28 +2549,27 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		printf("bad hwnd!\n");
 		return;
 	}
-
-#if 0
-	if(GetTopWindow(GetDesktopWindow()) != hwnd)
-	{
-		SVGAPresentWindow(svga, hDC, cid, sid);
-		return;
-	}
-#endif
 	
-	if(!IsWindowVisible(hwnd))
+/*	if(!IsWindowVisible(hwnd))
 	{
 		SVGAPresentWindow(svga, hDC, cid, sid);
 		return;
-	}
+	}*/
 
 	if(!GetWindowRect(hwnd, &wrect))
 	{
+		//SVGAPresentWindow(svga, hDC, cid, sid);
+		return;
+	}
+	
+	DescribePixelFormat(hDC, GetPixelFormat(hDC), sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+	if((pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0)
+	{
 		SVGAPresentWindow(svga, hDC, cid, sid);
 		return;
 	}
 
-  
   uint32_t render_top  = wrect.top;
   uint32_t render_left = wrect.left;
 	uint32_t render_width  = wrect.right - wrect.left;
@@ -2408,7 +2584,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	/*
 	 * quick way: surface and screen must have same color depth for HW present
 	 */
-	if(bpp == sinfo->bpp && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
+	if((bpp == sinfo->bpp || svga->dx) && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
 	{
 		uint32_t fence;
 	        
@@ -2670,7 +2846,6 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 #pragma pack(pop)
 
 	cb_state_t cbs;
-	vramcpy_rect_t crect;
 	svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
 	void *gmr = NULL;
 
@@ -2680,6 +2855,12 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		/* Nothing to see here. Please disperse. */
 		return;
 	}
+
+  if(last_sid_format != sinfo->format)
+  {
+  	svga_printf(svga, "SVGAPresent = bpp: %d, format: %u", sinfo->bpp, sinfo->format); 
+  	last_sid_format = sinfo->format;
+  }
 
   const int sbpp = format_to_bpp(sinfo->format);
   const size_t sps = vramcpy_pointsize(sbpp);
@@ -2694,8 +2875,6 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	  
 		debug_printf("SVGAPresentWindow: %d %d, format: %d\n", sbpp, sps, sinfo->format);
 		
-		memset(&command, 0, sizeof(command));
-	
 		command.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
 		command.dma.guest.ptr.offset = 0;
 		command.dma.guest.pitch      = sinfo->size.width * sps;
@@ -3036,7 +3215,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
   
 	uint32_t cbGB = 0;
 	uint32_t userAddress = 0;
-
+	
 	/*if(pCreateParms->s.flags & SVGA3D_SURFACE_HINT_RENDERTARGET)
 	{
 		svga_printf(svga, "SVGASurfaceGBCreate: SVGA3D_SURFACE_HINT_RENDERTARGET");
@@ -3074,6 +3253,8 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	cmd.gbsurf.size               = pCreateParms->s.size;
 	cmd.gbsurf.arraySize          = pCreateParms->s.numFaces;
 	cmd.gbsurf.bufferByteStride   = 0;
+	
+	//svga_printf(svga, "new surface(%d): %s", sid, get_format_name(pCreateParms->s.format));
 	
 	//SVGAFifoWrite(svga, &cmd, sizeof(cmd));
 

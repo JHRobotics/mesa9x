@@ -122,7 +122,8 @@ void SVGACBContextCreate(svga_inst_t *svga);
 
 BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
 
-#ifdef DEBUG
+//#ifdef DEBUG
+#if 1
 void svga_printf(svga_inst_t *svga, const char *fmt, ...);
 #else
 #define svga_printf(...)

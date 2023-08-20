@@ -513,9 +513,45 @@ svga_clear_render_target(struct pipe_context *pipe,
     svga_toggle_render_condition(svga, render_condition_enabled, TRUE);
 }
 
+#ifdef VBOX_WITH_MESA3D_STENCIL_CLEAR
+static void
+svga_clear_depth_stencil(struct pipe_context *pipe,
+                         struct pipe_surface *dst,
+                         unsigned clear_flags,
+                         double depth,
+                         unsigned stencil,
+                         unsigned dstx, unsigned dsty,
+                         unsigned width, unsigned height,
+                         bool render_condition_enabled)
+{
+    struct svga_context *svga = svga_context( pipe );
+
+    svga_toggle_render_condition(svga, render_condition_enabled, FALSE);
+
+    /* Use software fallback */
+    begin_blit(svga);
+    util_blitter_save_framebuffer(svga->blitter, &svga->curr.framebuffer);
+
+#ifdef VBOX_WITH_MESA3D_NINE_SVGA
+    /* Flip Y. See comment in svga_clear_texture */
+    dsty = dst->height - dsty - height;
+#endif
+    util_blitter_clear_depth_stencil(svga->blitter,
+                                     dst, clear_flags,
+                                     depth, stencil,
+                                     dstx, dsty,
+                                     width, height);
+
+    svga_toggle_render_condition(svga, render_condition_enabled, TRUE);
+}
+#endif
+
 void svga_init_clear_functions(struct svga_context *svga)
 {
    svga->pipe.clear_render_target = svga_clear_render_target;
+#ifdef VBOX_WITH_MESA3D_STENCIL_CLEAR
+   svga->pipe.clear_depth_stencil = svga_clear_depth_stencil;
+#endif
    svga->pipe.clear_texture = svga_clear_texture;
    svga->pipe.clear = svga_clear;
 }

@@ -325,8 +325,8 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	   */
    	  SVGAZombieKiller();
    	  
-   	  /* DIRECT_VRAM = for compatibility reasons is now off by default */
-   	  if(debug_get_bool_option("DIRECT_VRAM", FALSE))
+   	  /* DIRECT_VRAM ... enabled now */
+   	  if(debug_get_bool_option("DIRECT_VRAM", TRUE))
    	  {
    	  	stw_winsys.present = wddm_present;
    	  }
