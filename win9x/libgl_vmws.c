@@ -33,6 +33,10 @@
  * @author Jose Fonseca <jfonseca@vmware.com>
  */
 
+#ifdef MESA23
+# include "state_tracker/st_format.h"
+# include "state_tracker/st_context.h"
+#endif
 
 #include <windows.h>
 
@@ -75,7 +79,7 @@ struct stw_shared_surface
 
 static svga_inst_t sSvga;
 
-#ifndef MESA_NEW
+#if !(defined(MESA_NEW) || defined(MESA23))
 static struct pipe_screen *wddm_screen_create(void)
 #else
 static struct pipe_screen *wddm_screen_create(HDC hDC)
@@ -100,7 +104,7 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 }
 
 /* present direct to window or screen if possible */
-#ifndef MESA_NEW
+#if !(defined(MESA_NEW) || defined(MESA23))
 static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
     struct stw_context *ctx = stw_current_context();
@@ -124,7 +128,7 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
 }
 
 /* present to window */
-#ifndef MESA_NEW
+#if !(defined(MESA_NEW) || defined(MESA23))
 static void wddm_present_window(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
 	  struct stw_context *ctx = stw_current_context();
@@ -235,7 +239,7 @@ wddm_compose(struct pipe_screen *screen,
     
 }
 
-#ifdef MESA_NEW
+#if defined(MESA_NEW) || defined(MESA23)
 static unsigned
 wddm_get_pfd_flags(struct pipe_screen *screen)
 {
@@ -258,7 +262,7 @@ wddm_get_name(void)
 }
 #endif
 
-#ifdef MESA_NEW
+#if defined(MESA_NEW) || defined(MESA23)
 static struct stw_winsys stw_winsys = {
    &wddm_screen_create,
    &wddm_present_window,
@@ -364,7 +368,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
          // clean hook in every case
-         #ifndef MESA_NEW
+         #if !(defined(MESA_NEW) || defined(MESA23))
          stw_tls_clenup_hook();
          #endif
       }

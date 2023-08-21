@@ -25,11 +25,17 @@ DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-21.3.8)
   MESA_NEW := 1
+  MESA_GPU10 := 1
+endif
+
+ifeq ($(MESA_VER),mesa-23.1.x)
+  MESA23 := 1
+  MESA_GPU10 := 1
 endif
 
 # only usefull with gcc/mingw
 CSTD=c99
-ifdef MESA_NEW
+ifdef MESA_GPU10
   CXXSTD=gnu++14
 else
   CXXSTD=gnu++11
@@ -48,6 +54,8 @@ BASE_mesa99.dll         := 0x10000000
 
 NULLOUT=$(if $(filter $(OS),Windows_NT),NUL,/dev/null)
 
+VERSION_BUILD := 0
+
 GIT      ?= git
 GIT_IS   := $(shell $(GIT) rev-parse --is-inside-work-tree 2> $(NULLOUT))
 ifeq ($(GIT_IS),true)
@@ -65,9 +73,12 @@ ifdef LLVM
   endif
 endif
 
+all: generator $(TARGETS)
+.PHONY: generator all clean distclean
 
-all: $(TARGETS)
-.PHONY: all clean
+include $(MESA_VER).mk
+
+PACKAGE_VERSION := 9x $(MESA_DIST_VERSION).$(VERSION_BUILD)
 
 ifdef MSC
 #
@@ -84,7 +95,7 @@ ifdef MSC
   # /DNDEBUG
 	CL_DEFS =  /D__i386__ /D_X86_ /D_USE_MATH_DEFINES /D_WIN32 /DWIN32 \
 	  /DMAPI_MODE_UTIL /D_GDI32_ /DBUILD_GL32 /DKHRONOS_DLL_EXPORTS /DGDI_DLL_EXPORTS /DGL_API=GLAPI /DGL_APIENTRY=GLAPIENTRY /D_GLAPI_NO_EXPORTS /DCOBJMACROS /DINC_OLE2 \
-	  /DPACKAGE_VERSION="\"$(MESA_VER)\"" /DPACKAGE_BUGREPORT="\"$(MESA_VER)\""
+	  /DPACKAGE_VERSION="\"$(PACKAGE_VERSION)\"" /DPACKAGE_BUGREPORT="\"$(PACKAGE_VERSION)\""
   
   ifdef DEBUG
     DD_DEFS = /DDEBUG
@@ -214,18 +225,19 @@ else
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
     -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/include \
     -I$(MESA_VER)/src/gallium/drivers/svga -I$(MESA_VER)/src/gallium/drivers/svga/include -I$(MESA_VER)/src/gallium/winsys/sw  -I$(MESA_VER)/src/gallium/drivers -I$(MESA_VER)/src/gallium/winsys/svga/drm \
-    -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends/nine -Iwin9x
+    -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends/nine -Iwin9x
 
   DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
     -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE \
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
-    -DPACKAGE_VERSION="\"$(MESA_VER)\"" -DPACKAGE_BUGREPORT="\"$(MESA_VER)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX
+    -DPACKAGE_VERSION="\"$(PACKAGE_VERSION)\"" -DPACKAGE_BUGREPORT="\"$(PACKAGE_VERSION)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX \
+    -DHAVE_OPENGL=1 -DHAVE_OPENGL_ES_2=0 -DHAVE_OPENGL_ES_1=0 -DWINDOWS_NO_FUTEX -DGALLIUM_SOFTPIPE
   
   DEFS += -DVBOX_WITH_MESA3D_STENCIL_CLEAR -DVBOX_WITH_MESA3D_DXFIX
   #DEFS += -DVBOX_WITH_MESA3D_NINE_SVGA -DVBOX_WITH_MESA3D_SVGA_HALFZ -DVBOX_WITH_MESA3D_SVGA_INSTANCING -DVBOX_WITH_MESA3D_SVGA_GPU_FINISHED
   
-  ifdef MESA_NEW
+  ifdef MESA_GPU10
     DEFS += -DVBOX_WITH_MESA3D_SVGA_GPU_FINISHED -DVBOX_WITH_MESA3D_SVGA_HALFZ -DVBOX_WITH_MESA3D_D3D_FROM_SYSTEMMEM
   endif
 
@@ -244,7 +256,11 @@ else
   endif
   
   ifdef MESA_NEW
-    DEFS += -DMESA_NEW -DGALLIUM_SOFTPIPE
+    DEFS += -DMESA_NEW
+  endif
+  
+  ifdef MESA23
+  	DEFS += -DMESA23
   endif
   
   ifdef GUI_ERRORS
@@ -362,8 +378,6 @@ LIBS_TO_BUILD += $(LIBPREFIX)MesaGalliumAuxLib$(LIBSUFFIX)
 LIBS_TO_BUILD += $(LIBPREFIX)MesaGdiLibGL$(LIBSUFFIX)
 LIBS_TO_BUILD += $(LIBPREFIX)MesaGdiLibICD$(LIBSUFFIX)
 LIBS_TO_BUILD += $(LIBPREFIX)MesaWglLib$(LIBSUFFIX)
-
-include $(MESA_VER).mk
 
 glchecked_SRC = \
   glchecker/src/benchmark.cpp \
@@ -569,3 +583,9 @@ clean:
 	-$(RM) wgltest.exe
 	-cd winpthreads && $(MAKE) clean
 endif
+
+generator:
+	$(MAKE) -f generator/$(MESA_VER)-gen.mk
+
+distclean:
+	$(MAKE) -f generator/$(MESA_VER)-gen.mk distclean

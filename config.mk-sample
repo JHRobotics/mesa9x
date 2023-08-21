@@ -6,6 +6,9 @@
 # basic paths and names configuration
 #
 
+# selected Mesa version
+MESA_VER = mesa-23.1.x
+
 # Enable llvmpipe, require LLVM
 #LLVM := 1
 
@@ -27,6 +30,11 @@ CXX = $(PREFIX)g++
 CC  = $(PREFIX)gcc
 LD  = $(PREFIX)g++
 WINDRES = $(PREFIX)windres
+
+# supporting programs for mesa source files generating
+PYTHON = python
+FLEX   = flex
+BISON  = bison
 
 #
 # optimalizatin/debug configuration
@@ -87,6 +95,8 @@ GUI_ERRORS = 1
 #TUNE += -march=pentium2 -mtune=core2
 # this flags reduce size of library of few percent
 #TUNE += -fdata-sections -ffunction-sections
+# use pipes instead of temp files, recommended unless you have very low memory
+TUNE += -pipe
 # Remove all debug symbols, so reduce file size by a lot, turn off only if you wish debug
 # this library
 #TUNE_LD=,--strip-all

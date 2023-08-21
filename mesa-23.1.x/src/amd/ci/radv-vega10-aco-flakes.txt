@@ -1,0 +1,3 @@
+dEQP-VK.dynamic_rendering.basic.*
+dEQP-VK.dynamic_rendering.primary.*
+dEQP-VK.pipeline.fast_linked_library.multisample_interpolation.sample_interpolation_consistency.component_1.128_128_1.samples_8

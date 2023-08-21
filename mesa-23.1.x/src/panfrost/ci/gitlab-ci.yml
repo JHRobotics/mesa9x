@@ -1,0 +1,167 @@
+.panfrost-test:
+  variables:
+    FLAKES_CHANNEL: "#panfrost-ci"
+    PAN_MESA_DEBUG: sync
+    HWCI_FREQ_MAX: "true"
+
+.panfrost-traces:
+  variables:
+    PAN_MESA_DEBUG: "deqp,sync"
+    MESA_GLES_VERSION_OVERRIDE: "3.1"
+    MESA_GL_VERSION_OVERRIDE: "3.3"
+    MESA_GLSL_VERSION_OVERRIDE: 330
+    EGL_PLATFORM: surfaceless
+    PIGLIT_REPLAY_DESCRIPTION_FILE: "/install/traces-panfrost.yml"
+    PIGLIT_REPLAY_EXTRA_ARGS: --keep-image
+
+# 2 machines, but shared with KernelCI (2022-10-24)
+.lava-rk3288-veyron-jaq:
+  variables:
+    BOOT_METHOD: depthcharge
+    DEVICE_TYPE: rk3288-veyron-jaq
+    DEQP_SUITE: panfrost-t760
+    DRIVER_NAME: panfrost
+    DTB: $DEVICE_TYPE
+    GPU_VERSION: panfrost-t760
+    KERNEL_IMAGE_TYPE: ""
+    FDO_CI_CONCURRENT: 6
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3288-veyron-jaq
+
+panfrost-t720-gles2:arm64:
+  extends:
+    - .lava-test-deqp:arm64
+    - .panfrost-midgard-rules
+    - .panfrost-test
+  variables:
+    DEVICE_TYPE: sun50i-h6-pine-h64
+    DTB: $DEVICE_TYPE
+    GPU_VERSION: panfrost-t720
+    DEQP_SUITE: panfrost-t720
+    FDO_CI_CONCURRENT: 6
+    RUNNER_TAG: mesa-ci-x86-64-lava-sun50i-h6-pine-h64
+
+# We only have two machines, which we share with KernelCI.
+# Keep the second t760 job manual.
+panfrost-t760-gles2:armhf:
+  extends:
+    - .lava-test-deqp:armhf
+    - .panfrost-midgard-manual-rules
+    - .panfrost-test
+    - .lava-rk3288-veyron-jaq
+
+.panfrost-t760-traces:armhf:
+  extends:
+    - .lava-piglit-traces:armhf
+    - .panfrost-midgard-rules
+    - .panfrost-test
+    - .lava-rk3288-veyron-jaq
+    - .panfrost-traces
+
+.lava-rk3399-gru-kevin:
+  extends:
+    - .panfrost-midgard-rules
+    - .panfrost-test
+  variables:
+    DEVICE_TYPE: rk3399-gru-kevin
+    DTB: $DEVICE_TYPE
+    GPU_VERSION: panfrost-t860
+    DRIVER_NAME: panfrost
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3399-gru-kevin
+
+panfrost-t860-gl:arm64:
+  parallel: 3
+  extends:
+    - .lava-test-deqp:arm64
+    - .lava-rk3399-gru-kevin
+  variables:
+    FDO_CI_CONCURRENT: 6
+    DEQP_SUITE: panfrost-t860
+
+panfrost-t860-egl:arm64:
+  extends:
+    - .lava-test-deqp:arm64
+    - .lava-rk3399-gru-kevin
+  variables:
+    HWCI_START_WESTON: 1
+    DEQP_SUITE: panfrost-t860-egl
+
+.panfrost-t860-traces:arm64:
+  extends:
+    - .lava-piglit-traces:arm64
+    - .lava-rk3399-gru-kevin
+    - .panfrost-traces
+
+.lava-meson-g12b-a311d-khadas-vim3:
+  extends:
+    - .panfrost-bifrost-rules
+    - .panfrost-test
+  variables:
+    DEVICE_TYPE: meson-g12b-a311d-khadas-vim3
+    DTB: $DEVICE_TYPE
+    GPU_VERSION: panfrost-g52
+    RUNNER_TAG: mesa-ci-x86-64-lava-meson-g12b-a311d-khadas-vim3
+
+panfrost-g52-gl:arm64:
+  parallel: 3
+  extends:
+    - .lava-test-deqp:arm64
+    - .lava-meson-g12b-a311d-khadas-vim3
+  variables:
+    FDO_CI_CONCURRENT: 6
+    DEQP_SUITE: panfrost-g52
+    PAN_MESA_DEBUG: "deqp,sync,indirect"
+
+.panfrost-g52-vk:arm64:
+  extends:
+    - .lava-test-deqp:arm64
+    - .lava-meson-g12b-a311d-khadas-vim3
+  variables:
+    VK_DRIVER: panfrost
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+    PAN_I_WANT_A_BROKEN_VULKAN_DRIVER: 1
+    DEQP_SUITE: panfrost-g52-vk
+
+panfrost-g52-piglit-gles2:arm64:
+  extends:
+    - .piglit-test
+    - .lava-piglit:arm64
+    - .lava-meson-g12b-a311d-khadas-vim3
+  variables:
+    HWCI_START_XORG: 1
+    DEQP_VER: gles2
+    PIGLIT_PROFILES: quick_gl
+
+.lava-mt8183-kukui-jacuzzi-juniper-sku16:
+  extends:
+    - .panfrost-bifrost-rules
+    - .panfrost-test
+  variables:
+    DEVICE_TYPE: mt8183-kukui-jacuzzi-juniper-sku16
+    DTB: mt8183-kukui-jacuzzi-juniper-sku16
+    BOOT_METHOD: depthcharge
+    KERNEL_IMAGE_TYPE: ""
+    GPU_VERSION: panfrost-g72
+    RUNNER_TAG: mesa-ci-x86-64-lava-mt8183-kukui-jacuzzi-juniper-sku16
+
+panfrost-g72-gl:arm64:
+  parallel: 3
+  extends:
+    - .lava-test-deqp:arm64
+    - .lava-mt8183-kukui-jacuzzi-juniper-sku16
+  variables:
+    DEQP_SUITE: panfrost-g72
+
+.panfrost-t820-gles2:arm64:
+  extends:
+    - .lava-test-deqp:arm64
+    - .panfrost-midgard-rules
+    - .panfrost-test
+  variables:
+    DEVICE_TYPE: meson-gxm-khadas-vim2
+    DTB: $DEVICE_TYPE
+    GPU_VERSION: panfrost-t820
+    FDO_CI_CONCURRENT: 6
+    DEQP_SUITE: panfrost-t720
+    RUNNER_TAG: mesa-ci-aarch64-lava-baylibre

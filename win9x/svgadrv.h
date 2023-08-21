@@ -173,6 +173,7 @@ const WDDMGalliumDriverEnv * WINAPI GaDrvCreateEnv(svga_inst_t *svga);
  *                  some missings due old headers                             *
  *                                                                            *
  ******************************************************************************/
+
 typedef enum {
    SVGA_CB_DX_FLAG_NONE       = 0,
    SVGA_CB_DX_FLAG_NO_IRQ     = 1 << 0,
@@ -220,6 +221,8 @@ struct SVGA3dCmdDefineGBSurface_v4 {
    uint32 bufferByteStride;
 }
 SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
+
+#ifndef MESA23
 
 /* SVGA3dUAView */
 
@@ -269,7 +272,13 @@ SVGACOTableDXUAViewEntry;
 
 #define SVGA_3D_CMD_DX_DEFINE_UA_VIEW 1245
 
+#else
+#define SVGA3D_MOBFMT_PTDEPTH_2 SVGA3D_MOBFMT_PT_2
+#endif
+
+
 #pragma pack(pop)
+
 
 #ifdef __cplusplus
 }

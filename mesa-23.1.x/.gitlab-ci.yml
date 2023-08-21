@@ -1,0 +1,242 @@
+workflow:
+  rules:
+    - if: $GITLAB_USER_LOGIN == "marge-bot" && $CI_COMMIT_BRANCH == null
+      variables:
+        MESA_CI_PERFORMANCE_ENABLED: 1
+    - if: $GITLAB_USER_LOGIN == "marge-bot" && $CI_COMMIT_BRANCH
+      variables:
+        LAVA_JOB_PRIORITY: 40
+    - if: $GITLAB_USER_LOGIN != "marge-bot"
+      variables:
+        LAVA_JOB_PRIORITY: 50
+    - when: always
+
+variables:
+  FDO_UPSTREAM_REPO: mesa/mesa
+  MESA_TEMPLATES_COMMIT: &ci-templates-commit d5aa3941aa03c2f716595116354fb81eb8012acb
+  CI_PRE_CLONE_SCRIPT: |-
+          set -o xtrace
+          wget -q -O download-git-cache.sh ${CI_PROJECT_URL}/-/raw/${CI_COMMIT_SHA}/.gitlab-ci/download-git-cache.sh
+          bash download-git-cache.sh
+          rm download-git-cache.sh
+          set +o xtrace
+  CI_JOB_JWT_FILE: /minio_jwt
+  MINIO_HOST: s3.freedesktop.org
+  # per-pipeline artifact storage on MinIO
+  PIPELINE_ARTIFACTS_BASE: ${MINIO_HOST}/artifacts/${CI_PROJECT_PATH}/${CI_PIPELINE_ID}
+  # per-job artifact storage on MinIO
+  JOB_ARTIFACTS_BASE: ${PIPELINE_ARTIFACTS_BASE}/${CI_JOB_ID}
+  # reference images stored for traces
+  PIGLIT_REPLAY_REFERENCE_IMAGES_BASE: "${MINIO_HOST}/mesa-tracie-results/$FDO_UPSTREAM_REPO"
+  # Individual CI farm status, set to "offline" to disable jobs
+  # running on a particular CI farm (ie. for outages, etc):
+  FD_FARM: "online"
+  COLLABORA_FARM: "online"
+  MICROSOFT_FARM: "online"
+  LIMA_FARM: "online"
+  IGALIA_FARM: "online"
+  ANHOLT_FARM: "online"
+  VALVE_FARM: "online"
+  AUSTRIANCODER_FARM: "online"  # only etnaviv GPUs
+
+default:
+  before_script:
+    - >
+      export SCRIPTS_DIR=$(mktemp -d) &&
+      curl -L -s --retry 4 -f --retry-all-errors --retry-delay 60 -O --output-dir "${SCRIPTS_DIR}" "${CI_PROJECT_URL}/-/raw/${CI_COMMIT_SHA}/.gitlab-ci/setup-test-env.sh" &&
+      chmod +x ${SCRIPTS_DIR}/setup-test-env.sh &&
+      . ${SCRIPTS_DIR}/setup-test-env.sh &&
+      echo -n "${CI_JOB_JWT}" > "${CI_JOB_JWT_FILE}" &&
+      unset CI_JOB_JWT  # Unsetting vulnerable env variables
+
+  after_script:
+    - >
+      set +x
+
+      test -e "${CI_JOB_JWT_FILE}" &&
+      export CI_JOB_JWT="$(<${CI_JOB_JWT_FILE})" &&
+      rm "${CI_JOB_JWT_FILE}"
+
+  # Retry when job fails. Failed jobs can be found in the Mesa CI Daily Reports:
+  # https://gitlab.freedesktop.org/mesa/mesa/-/issues/?sort=created_date&state=opened&label_name%5B%5D=CI%20daily
+  retry:
+    max: 1
+
+include:
+  - project: 'freedesktop/ci-templates'
+    ref: 16bc29078de5e0a067ff84a1a199a3760d3b3811
+    file:
+      - '/templates/ci-fairy.yml'
+  - project: 'freedesktop/ci-templates'
+    ref: *ci-templates-commit
+    file:
+      - '/templates/alpine.yml'
+      - '/templates/debian.yml'
+      - '/templates/fedora.yml'
+  - local: '.gitlab-ci/image-tags.yml'
+  - local: '.gitlab-ci/lava/lava-gitlab-ci.yml'
+  - local: '.gitlab-ci/container/gitlab-ci.yml'
+  - local: '.gitlab-ci/build/gitlab-ci.yml'
+  - local: '.gitlab-ci/test/gitlab-ci.yml'
+  - local: '.gitlab-ci/test-source-dep.yml'
+  - local: 'docs/gitlab-ci.yml'
+  - local: 'src/amd/ci/gitlab-ci.yml'
+  - local: 'src/broadcom/ci/gitlab-ci.yml'
+  - local: 'src/etnaviv/ci/gitlab-ci.yml'
+  - local: 'src/freedreno/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/crocus/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/d3d12/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/i915/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/lima/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/llvmpipe/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/nouveau/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/softpipe/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/virgl/ci/gitlab-ci.yml'
+  - local: 'src/gallium/drivers/zink/ci/gitlab-ci.yml'
+  - local: 'src/gallium/frontends/lavapipe/ci/gitlab-ci.yml'
+  - local: 'src/intel/ci/gitlab-ci.yml'
+  - local: 'src/microsoft/ci/gitlab-ci.yml'
+  - local: 'src/panfrost/ci/gitlab-ci.yml'
+  - local: 'src/virtio/ci/gitlab-ci.yml'
+
+stages:
+  - sanity
+  - container
+  - git-archive
+  - build-x86_64
+  - build-misc
+  - lint
+  - amd
+  - intel
+  - nouveau
+  - arm
+  - broadcom
+  - freedreno
+  - etnaviv
+  - software-renderer
+  - layered-backends
+  - deploy
+
+
+# YAML anchors for rule conditions
+# --------------------------------
+.rules-anchors:
+  rules:
+    # Post-merge pipeline
+    - if: &is-post-merge '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_BRANCH'
+      when: on_success
+    # Post-merge pipeline, not for Marge Bot
+    - if: &is-post-merge-not-for-marge '$CI_PROJECT_NAMESPACE == "mesa" && $GITLAB_USER_LOGIN != "marge-bot" && $CI_COMMIT_BRANCH'
+      when: on_success
+    # Pre-merge pipeline
+    - if: &is-pre-merge '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    # Pre-merge pipeline for Marge Bot
+    - if: &is-pre-merge-for-marge '$GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+
+
+# When to automatically run the CI for build jobs
+.build-rules:
+  rules:
+    # If any files affecting the pipeline are changed, build/test jobs run
+    # automatically once all dependency jobs have passed
+    - changes: &all_paths
+      - VERSION
+      - bin/git_sha1_gen.py
+      - bin/install_megadrivers.py
+      - bin/symbols-check.py
+      # GitLab CI
+      - .gitlab-ci.yml
+      - .gitlab-ci/**/*
+      # Meson
+      - meson*
+      - build-support/**/*
+      - subprojects/**/*
+      # Source code
+      - include/**/*
+      - src/**/*
+      when: on_success
+    # Otherwise, build/test jobs won't run because no rule matched.
+
+
+.ci-deqp-artifacts:
+  artifacts:
+    name: "mesa_${CI_JOB_NAME}"
+    when: always
+    untracked: false
+    paths:
+      # Watch out!  Artifacts are relative to the build dir.
+      # https://gitlab.com/gitlab-org/gitlab-ce/commit/8788fb925706cad594adf6917a6c5f6587dd1521
+      - artifacts
+      - _build/meson-logs/*.txt
+      - _build/meson-logs/strace
+
+.container-rules:
+  rules:
+    # Run pipeline by default in the main project if any CI pipeline
+    # configuration files were changed, to ensure docker images are up to date
+    - if: *is-post-merge
+      changes:
+      - .gitlab-ci.yml
+      - .gitlab-ci/**/*
+      when: on_success
+    # Run pipeline by default if it was triggered by Marge Bot, is for a
+    # merge request, and any files affecting the pipeline were changed
+    - if: *is-pre-merge-for-marge
+      changes:
+        *all_paths
+      when: on_success
+    # Run pipeline by default in the main project if it was not triggered by
+    # Marge Bot, and any files affecting the pipeline were changed
+    - if: *is-post-merge-not-for-marge
+      changes:
+        *all_paths
+      when: on_success
+    # Allow triggering jobs manually in other cases if any files affecting the
+    # pipeline were changed
+    - changes:
+        *all_paths
+      when: manual
+    # Otherwise, container jobs won't run because no rule matched.
+
+# Git archive
+
+make git archive:
+  extends:
+    - .fdo.ci-fairy
+  stage: git-archive
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+  # ensure we are running on packet
+  tags:
+    - packet.net
+  script:
+    # Compactify the .git directory
+    - git gc --aggressive
+    # Download & cache the perfetto subproject as well.
+    - rm -rf subprojects/perfetto ; mkdir -p subprojects/perfetto && curl https://android.googlesource.com/platform/external/perfetto/+archive/$(grep 'revision =' subprojects/perfetto.wrap | cut -d ' ' -f3).tar.gz | tar zxf - -C subprojects/perfetto
+    # compress the current folder
+    - tar -cvzf ../$CI_PROJECT_NAME.tar.gz .
+
+    - ci-fairy s3cp --token-file "${CI_JOB_JWT_FILE}" ../$CI_PROJECT_NAME.tar.gz https://$MINIO_HOST/git-cache/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/$CI_PROJECT_NAME.tar.gz
+
+
+# Sanity checks of MR settings and commit logs
+sanity:
+  extends:
+    - .fdo.ci-fairy
+  stage: sanity
+  rules:
+    - if: *is-pre-merge
+      when: on_success
+    # Other cases default to never
+  variables:
+    GIT_STRATEGY: none
+  script:
+    # ci-fairy check-commits --junit-xml=check-commits.xml
+    - ci-fairy check-merge-request --require-allow-collaboration --junit-xml=check-merge-request.xml
+  artifacts:
+    when: on_failure
+    reports:
+      junit: check-*.xml

@@ -1,5 +1,7 @@
 # rules for mesa 17.3.9
 
+MESA_DIST_VERSION=17.3.9
+
 MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/bitscan.c \
 	$(MESA_VER)/src/util/build_id.c \

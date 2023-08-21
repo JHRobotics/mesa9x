@@ -39,7 +39,7 @@
 #include "pipe/p_compiler.h"
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
-#ifdef MESA_NEW
+#if defined(MESA_NEW) || defined(MESA23)
 #include "u_format.h"
 #else
 #include "util/u_format.h"
@@ -52,7 +52,7 @@
 #include "svga_drm_public.h"
 #include "svga3d_surfacedefs.h"
 
-#ifdef MESA_NEW
+#if defined(MESA_NEW) || defined(MESA23)
 #include "frontend/drm_driver.h"
 #else
 #include "state_tracker/drm_driver.h"
@@ -152,7 +152,7 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
     whandle->stride = stride;
     whandle->offset = 0;
 
-#ifndef MESA_NEW
+#if !(defined(MESA_NEW) || defined(MESA23))
     switch (whandle->type) {
     case DRM_API_HANDLE_TYPE_SHARED:
     case DRM_API_HANDLE_TYPE_KMS:

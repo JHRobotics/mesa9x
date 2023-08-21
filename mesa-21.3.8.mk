@@ -1,5 +1,7 @@
 # rules for mesa 21.3.8
 
+MESA_DIST_VERSION=21.3.8
+
 MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/anon_file.c \
 	$(MESA_VER)/src/util/bitscan.c \

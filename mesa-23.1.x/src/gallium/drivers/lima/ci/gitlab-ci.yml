@@ -1,0 +1,27 @@
+.lava-meson-gxl-s805x-libretech-ac:
+  extends:
+    - .lava-test-deqp:arm64
+    - .lima-rules
+  variables:
+    DEVICE_TYPE: meson-gxl-s805x-libretech-ac
+    DTB: ${DEVICE_TYPE}
+    FDO_CI_CONCURRENT: 4
+    FDO_HTTP_CACHE_URI: ''
+    GPU_VERSION: lima
+    VISIBILITY_GROUP: "mesa-ci"
+    RUNNER_TAG: mesa-ci-x86-64-lava-lima
+
+lima-mali450-deqp:arm64:
+  extends:
+    - .lava-meson-gxl-s805x-libretech-ac
+  variables:
+    HWCI_START_WESTON: 1
+    DEQP_SUITE: lima-mali450-deqp
+
+lima-mali450-piglit:arm64:
+  extends:
+    - .lava-meson-gxl-s805x-libretech-ac
+  variables:
+    DEQP_SUITE: lima-mali450-piglit
+    PIGLIT_PLATFORM: gbm
+  parallel: 2

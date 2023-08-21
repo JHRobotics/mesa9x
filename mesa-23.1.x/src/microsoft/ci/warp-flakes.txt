@@ -1,0 +1,2 @@
+dEQP-VK.query_pool.concurrent_queries.primary_command_buffer
+dEQP-VK.memory.mapping.suballocation.full.variable.implicit_unmap

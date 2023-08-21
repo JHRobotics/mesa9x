@@ -1,0 +1,86 @@
+.broadcom-test:
+  variables:
+    HWCI_TEST_SCRIPT: "/install/deqp-runner.sh"
+    FLAKES_CHANNEL: "#videocore-ci"
+
+.broadcom-test:arm64:
+  extends:
+    - .broadcom-test
+    - .baremetal-test-arm64
+  variables:
+    BM_BOOTFS: /boot/raspberrypi_arm64
+
+.broadcom-test:armhf:
+  extends:
+    - .broadcom-test
+    - .baremetal-test-armhf
+  variables:
+    BM_BOOTFS: /boot/raspberrypi_armhf
+
+vc4-rpi3-gl:armhf:
+  extends:
+    - .broadcom-test:armhf
+    - .vc4-rules
+  script:
+    - ./install/bare-metal/poe-powered.sh
+  tags:
+    - igalia-rpi3
+  parallel: 4
+  variables:
+    GPU_VERSION: broadcom-rpi3
+    HWCI_KERNEL_MODULES: vc4
+    DEQP_SUITE: broadcom-rpi3
+    HWCI_START_WESTON: 1
+
+v3d-rpi4-gl:armhf:
+  extends:
+    - .broadcom-test:armhf
+    - .v3d-rules
+  script:
+    - ./install/bare-metal/poe-powered.sh
+  tags:
+    - igalia-rpi4
+  parallel: 12
+  variables:
+    GPU_VERSION: broadcom-rpi4
+    HWCI_KERNEL_MODULES: v3d,vc4
+    HWCI_START_WESTON: 1
+    DEQP_SUITE: broadcom-rpi4
+
+v3d-rpi4-traces:arm64:
+  extends:
+    - .piglit-traces-test
+    - .broadcom-test:arm64
+    - .v3d-manual-rules
+  variables:
+    GPU_VERSION: broadcom-rpi4
+    HWCI_KERNEL_MODULES: v3d,vc4
+    HWCI_START_XORG: 1
+    HWCI_TEST_SCRIPT: "/install/piglit/piglit-traces.sh"
+    PIGLIT_PLATFORM: mixed_glx_egl
+    PIGLIT_REPLAY_DESCRIPTION_FILE: "/install/traces-broadcom.yml"
+    PIGLIT_REPLAY_DEVICE_NAME: "broadcom-rpi4"
+    PIGLIT_RESULTS: "broadcom-rpi4-replay"
+  script:
+    - ./install/bare-metal/poe-powered.sh
+  tags:
+    - igalia-rpi4
+
+v3dv-rpi4-vk:arm64:
+  extends:
+    - .broadcom-test:arm64
+    - .v3dv-rules
+  parallel: 10
+  variables:
+    HWCI_TEST_SCRIPT: "/install/deqp-runner.sh"
+    DEQP_EXPECTED_RENDERER: "V3D.4.2"
+    DEQP_FRACTION: 8
+    DEQP_VER: vk
+    FLAKES_CHANNEL: "#videocore-ci"
+    GPU_VERSION: broadcom-rpi4
+    HWCI_KERNEL_MODULES: v3d,vc4
+    VK_DRIVER: broadcom
+  script:
+    - ./install/bare-metal/poe-powered.sh
+  tags:
+    - igalia-rpi4

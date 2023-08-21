@@ -379,7 +379,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	
 	printf("Creating screen\n");
 	
-#ifndef MESA_NEW
+#if !(defined(MESA_NEW) || defined(MESA23))
 	struct pipe_screen *s = stw_winsys.create_screen();
 #else
 	struct pipe_screen *s = stw_winsys.create_screen(hdc);
