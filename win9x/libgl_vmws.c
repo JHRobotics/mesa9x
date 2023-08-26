@@ -265,8 +265,8 @@ wddm_get_name(void)
 #if defined(MESA_NEW) || defined(MESA23)
 static struct stw_winsys stw_winsys = {
    &wddm_screen_create,
-   &wddm_present_window,
-   //&wddm_present,
+   //&wddm_present_window,
+   &wddm_present,
 #if WINVER >= 0xA00
    &wddm_get_adapter_luid,
 #else
@@ -282,7 +282,8 @@ static struct stw_winsys stw_winsys = {
 #else
 static struct stw_winsys stw_winsys = {
    wddm_screen_create,
-   wddm_present_window,
+   //wddm_present_window,
+   wddm_present,
    wddm_get_adapter_luid,
    wddm_shared_surface_open,
    wddm_shared_surface_close,
@@ -330,9 +331,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	  SVGAZombieKiller();
    	  
    	  /* DIRECT_VRAM ... enabled now */
-   	  if(debug_get_bool_option("DIRECT_VRAM", TRUE))
+   	  if(!debug_get_bool_option("DIRECT_VRAM", TRUE))
    	  {
-   	  	stw_winsys.present = wddm_present;
+   	  	stw_winsys.present = wddm_present_window;
    	  }
  
       stw_init(&stw_winsys, hinstDLL);

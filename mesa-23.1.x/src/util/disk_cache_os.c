@@ -43,20 +43,27 @@
 bool
 disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx)
 {
+#ifndef WIN9X
    HMODULE mod = NULL;
-   GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                      (LPCWSTR)ptr,
+   GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                      (LPCSTR)ptr,
                       &mod);
    if (!mod)
       return false;
 
-   WCHAR filename[MAX_PATH];
-   DWORD filename_length = GetModuleFileNameW(mod, filename, ARRAY_SIZE(filename));
+   CHAR filename[MAX_PATH];
+   DWORD filename_length = GetModuleFileName(mod, filename, ARRAY_SIZE(filename));
 
    if (filename_length == 0 || filename_length == ARRAY_SIZE(filename))
       return false;
 
-   HANDLE mod_as_file = CreateFileW(
+#else
+   CHAR filename[MAX_PATH];
+   
+   GetSystemDirectoryA(filename, MAX_PATH);
+   strcat(filename, "mesa3d.dll");
+#endif
+   HANDLE mod_as_file = CreateFile(
         filename,
         GENERIC_READ,
         FILE_SHARE_READ,

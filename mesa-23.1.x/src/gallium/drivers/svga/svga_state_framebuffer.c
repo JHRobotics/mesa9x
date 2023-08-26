@@ -685,8 +685,11 @@ get_viewport_prescale(struct svga_context *svga,
        * Overwrite prescale.translate with values for K:
        */
       for (i = 0; i < 2; i++) {
-         prescale->translate[i] = ((prescale->translate[i] +
+         if(H[i] != 0.0f) /* JH: x87 doesn't like divide J/H when H = 0 */
+         {
+         	  prescale->translate[i] = ((prescale->translate[i] +
                                    (prescale->scale[i] - 1.0f) * J[i]) / H[i]);
+         }
       }
 
       SVGA_DBG(DEBUG_VIEWPORT,

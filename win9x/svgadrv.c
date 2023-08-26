@@ -194,8 +194,8 @@ static void SVGACMDRing(svga_inst_t *svga)
 	ExtEscape(svga->dc, SVGA_RING, 0, NULL, 0, NULL);
 }
 
-//#ifdef DEBUG
-#if 1
+#ifdef DEBUG
+//#if 1
 /* Send debug message to driver */
 static void SVGACMDDebug(svga_inst_t *svga, const char *msg)
 {
@@ -2546,25 +2546,15 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	
 	if(!hwnd)
 	{
-		printf("bad hwnd!\n");
 		return;
 	}
 	
-/*	if(!IsWindowVisible(hwnd))
-	{
-		SVGAPresentWindow(svga, hDC, cid, sid);
-		return;
-	}*/
-
 	if(!GetWindowRect(hwnd, &wrect))
 	{
-		//SVGAPresentWindow(svga, hDC, cid, sid);
 		return;
 	}
 	
-	DescribePixelFormat(hDC, GetPixelFormat(hDC), sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-
-	if((pfd.dwFlags & PFD_DRAW_TO_WINDOW) != 0)
+	if(!vramcpy_direct_rendering(hDC))
 	{
 		SVGAPresentWindow(svga, hDC, cid, sid);
 		return;
@@ -2637,11 +2627,6 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		} cmd_readback = {{
 			SVGA_3D_CMD_READBACK_GB_SURFACE,
 			sizeof(SVGA3dCmdReadbackGBSurface)}};
-		struct
-		{
-			uint32_t          cmd;
-			SVGAFifoCmdUpdate rect;
-		} cmd_update = {SVGA_CMD_UPDATE};
 #pragma pack(pop)
 		cb_state_t cbs;
 		vramcpy_rect_t vrect;
@@ -2667,20 +2652,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		vrect.src_y       = 0;
 		vrect.src_bpp     = sinfo->bpp;
 		
-		vramcpy(svga->hda.vram_linear, gmr, &vrect);
-		
-		if(bpp == 32)
-		{
-			cmd_update.rect.x      = render_left;
-			cmd_update.rect.y      = render_top;
-			cmd_update.rect.width  = render_width;
-			cmd_update.rect.height = render_height;
-			
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &cmd_update, sizeof(cmd_update));
-			cb_submit(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		
+		vramcpy(svga->hda.vram_linear, gmr, &vrect);		
 	}
 	/*
 	 * harder way: we'll need render surface to some GMR region and copy to frame buffer manualy
@@ -2862,7 +2834,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
   	last_sid_format = sinfo->format;
   }
 
-  const int sbpp = format_to_bpp(sinfo->format);
+  const int sbpp = sinfo->bpp;
   const size_t sps = vramcpy_pointsize(sbpp);
 	
 	if(!sinfo->gmrId) /* old way: copy surface to guest memory and display it */
@@ -2917,7 +2889,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	
 		gmr = svga->softblit_gmr_ptr;
 	}
-	else
+	else /* new way: sync GMR and copy buffer to window */
 	{
 		command_dx.surf.sid = sid;
 		
@@ -2954,6 +2926,13 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		bmi.bmiHeader.biCompression = BI_BITFIELDS;
 		bmi.rmask = 0x0000F800;
 		bmi.gmask = 0x000007E0;
+		bmi.bmask = 0x0000001F;
+	}
+	else if(sbpp == 15)
+	{
+		bmi.bmiHeader.biCompression = BI_BITFIELDS;
+		bmi.rmask = 0x00007C00;
+		bmi.gmask = 0x000003E0;
 		bmi.bmask = 0x0000001F;
 	}
 	else /*if(sbpp == 32) */

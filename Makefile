@@ -326,9 +326,9 @@ else
     CFLAGS       += -flto -fno-fat-lto-objects  -Werror=implicit-function-declaration
     CXXFLAGS     += -flto -fno-fat-lto-objects
     ifdef LLVM
-      LDFLAGS      += $(LLVM_CXXFLAGS) -flto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += $(LLVM_CXXFLAGS) -flto -fno-fat-lto-objects -fno-strict-aliasing
     else
-      LDFLAGS      += -flto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += -flto -fno-fat-lto-objects -fno-strict-aliasing
     endif
     
     CFLAGS_APP   += -flto -fno-fat-lto-objects

@@ -261,6 +261,31 @@ static inline void vramcpy_display_window(struct gdi_sw_displaytarget *gdt, HDC 
 		                 gdt->data, &gdt->bmi, 0, SRCCOPY);
 }
 
+BOOL vramcpy_direct_rendering(HDC hDC)
+{
+	static HDC saved_hDC = INVALID_HANDLE_VALUE;
+	static BOOL saved_result = FALSE;
+	
+	if(saved_hDC == hDC) return saved_result;
+	
+	PIXELFORMATDESCRIPTOR pfd;
+	
+	DescribePixelFormat(hDC, GetPixelFormat(hDC), sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+	if((pfd.dwFlags & PFD_DRAW_TO_WINDOW) == 0)
+	{
+		saved_result = TRUE;
+	}
+	else
+	{
+		saved_result = FALSE;
+	}
+	
+	saved_hDC = hDC;
+	
+	return saved_result;
+}
+
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC)
 {
 	static uint32_t fbhda_ptr;
@@ -295,21 +320,15 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 		
 		if(fbhda != NULL)
 		{
-			vramcpy_rect_t crect;
+			if(!vramcpy_direct_rendering(hDC));
+			{
+				vramcpy_display_window(gdt, hDC);
+				return;
+			}
+			
 			HWND hwnd = WindowFromDC(hDC);
+			vramcpy_rect_t crect;
 			RECT wrect;
-			
-			if(GetTopWindow(GetDesktopWindow()) != hwnd)
-			{
-				vramcpy_display_window(gdt, hDC);
-				return;
-			}
-			
-			if(!IsWindowVisible(hwnd))
-			{
-				vramcpy_display_window(gdt, hDC);
-				return;
-			}
 			
 			if(hwnd && GetWindowRect(hwnd, &wrect))
 			{

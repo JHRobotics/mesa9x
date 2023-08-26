@@ -47,6 +47,8 @@ MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/u_call_once.c \
 	$(MESA_VER)/src/util/u_debug_describe.c \
 	$(MESA_VER)/src/util/u_debug_refcnt.c \
+	$(MESA_VER)/src/util/u_debug_stack.c \
+	$(MESA_VER)/src/util/u_debug_symbol.c \
 	$(MESA_VER)/src/util/u_dl.c \
 	$(MESA_VER)/src/util/u_hash_table.c \
 	$(MESA_VER)/src/util/u_queue.c \
