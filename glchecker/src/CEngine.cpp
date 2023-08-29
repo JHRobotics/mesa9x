@@ -697,8 +697,12 @@ bool CEngine::CSetupEngine(CWindow* attribs) // Creates a fully functional CEngi
 	CMsgBox("Checking available OpenGL functionalities...", "CDEBUG");
 	#endif
 	#if defined(COS_WIN32)
-	if (glv[0] != 1 && glv[1] != 0)
+	//if (glv[0] != 1 && glv[1] != 0)
+	if (glv[0] > 1 || (glv[0] == 1 && glv[1] > 1))
+	{
 		glcorefeature[CGL_VA] = true;
+	}
+	
 	if (glv[0] > 2)
 	{
 		// Mipmap
@@ -707,7 +711,10 @@ bool CEngine::CSetupEngine(CWindow* attribs) // Creates a fully functional CEngi
 			glcorefeature[CGL_MIPMAP] = true; // Use modern way
 	}
 	else if (glv[0] > 1 || (glv[0] == 1 && glv[1] > 3))
+	{
 		glcorefeature[CGL_MIPMAP] = true; // Use legacy method
+	}
+	
 	if (glv[0] > 1 || (glv[0] == 1 && glv[1] > 4))
 	{
 		// VBO

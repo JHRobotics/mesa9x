@@ -248,7 +248,14 @@ bool Init()
 	count = strlen((char*)glGetString(GL_VERSION)) + 1;
 	gldata.glversion = new char[count];
 	strcpy(gldata.glversion, (char*)glGetString(GL_VERSION));
-	count = strlen((char*)glGetString(GL_SHADING_LANGUAGE_VERSION)) + 1;
+	
+	count = 0;
+	const char *shading_language = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+	if(shading_language != NULL)
+	{
+		count = strlen(shading_language) + 1;
+	}
+	
 	if (count > 1)
 	{
 		gldata.glslversion = new char[count];

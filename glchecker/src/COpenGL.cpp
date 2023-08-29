@@ -279,7 +279,7 @@ void CEngine::CSetTexture(CTexture &texnum, char properties)
 	glBindTexture(GL_TEXTURE_2D, texnum);
 	if (properties & CTEX_SPRITE)
 		glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
-	if ((properties & CTEX_MIPMAP) && glcorefeature[CGL_MIPMAP])
+	if ((properties & CTEX_MIPMAP) && glcorefeature[CGL_MIPMAP] && glv[0] > 2)
 	{
 		if (glv[0] > 2)
 			glGenerateMipmap(GL_TEXTURE_2D);
@@ -289,6 +289,7 @@ void CEngine::CSetTexture(CTexture &texnum, char properties)
 	}
 	else
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	if (properties & CTEX_WRAPREPEAT)
 	{
@@ -675,7 +676,8 @@ void CEngine::CRender3D(CModel& mdl)
 		glDrawArrays(GL_TRIANGLES, 0, mdl.vertexcnt);
 		glBindVertexArray(0);
 		glDisableVertexAttribArray(0);
-		/*glBindBuffer(GL_ARRAY_BUFFER, mdl.vbo[0]);
+		/*
+		glBindBuffer(GL_ARRAY_BUFFER, mdl.vbo[0]);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mdl.vbo[1]);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -734,13 +736,14 @@ void CEngine::CRender2D(CModel& mdl)
 {
 	if (glcorefeature[CGL_VBO])
 	{
-		/*glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(0);
 		//glBindVertexArray(mdl.vao);
 		glBindBuffer(GL_ARRAY_BUFFER, mdl.vbo);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 		glDrawArrays(GL_TRIANGLES, 0, mdl.vertexcnt);
 		//glBindVertexArray(0);
 		glDisableVertexAttribArray(0);
+		/*
 		glBindBuffer(GL_ARRAY_BUFFER, mdl.vbo[0]);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mdl.vbo[1]);
 		glEnableClientState(GL_VERTEX_ARRAY);
@@ -756,7 +759,8 @@ void CEngine::CRender2D(CModel& mdl)
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);*/
 	}
-	else if (glcorefeature[CGL_VA])
+	else
+	if (glcorefeature[CGL_VA])
 	{
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(2, GL_FLOAT, 0, mdl.vertex);
