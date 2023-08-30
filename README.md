@@ -1,7 +1,7 @@
 # Mesa3D port for Windows 9x
 This project is simple way to use OpenGL accelerated applications under Windows 98/Me in virtual machine even without real HW acceleration support. OpenGL support can be pure software though Mesa3D library with LLVMpipe driver. This project is also providing some support for accelerated framebuffer support and real hardware acceleration (through VMWare SVGA3D protocol).
 
-There are also some disadvantages - at first, software rendering is much slower and for gaming you need high performance host CPU. Second, the guest system must support SSE instruction set (Windows 98 + Me, but no Windows 95). You also need attach more memory to virtual machine - the library is huge (about 30 MB) and need fit to RAM itself + it's emulation of GPU memory.
+There are also some disadvantages - at first, software rendering is much slower and for gaming you need high performance host CPU. Second, the guest system must support SSE instruction set (Windows 98 + Me, but no Windows 95). You also need attach more memory to virtual machine - the library is huge (about ~30~ 50 MB) and need fit to RAM itself + it's emulation of GPU memory.
 
 ## Full accelerated package
 This is only OpenGL driver, if you need ready-to-use package for running DirectX, OpenglGL, Glide application and games use this: https://github.com/JHRobotics/softgpu
@@ -9,11 +9,15 @@ This is only OpenGL driver, if you need ready-to-use package for running DirectX
 ## Requirements
 Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: [#Optimalizations](#optimalizations)). Binaries also working on all newer Windows (from NT 4 to 11).
 
-Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I don't expect anyone to run it on a *real* Pentium II)
+~Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I don't expect anyone to run it on a *real* Pentium II)~
 
-Mesa 17.x build for Windows 98 require at last Intel Core2 CPU (SSE3 required).
+~Mesa 17.x build for Windows 98 require at last Intel Core2 CPU (SSE3 required).~
 
-Mesa 21.x build for Windows 98 require at last Intel Core-i CPU (SSE4.2 required).
+~Mesa 21.x build for Windows 98 require at last Intel Core-i CPU (SSE4.2 required).~
+
+Current Mesa 23.1.6 is supported on Windows 95/98/Me. **Build for Windows 95** is without SSE instrumentation, so you can use Windows 95 binaries if you want run this on virtual machine/emulator without SSE support.
+
+If you decide to use **98/Me build**, your (virtual) CPU needs support these instructions MMX, SSE, SSE2, SSE3, SSSE3, CX16, SAHF and FXSR (Intel Core2).
 
 
 ## Usage
@@ -90,6 +94,8 @@ Disabling VMSVGA10 is required! But in future I plan to support VMSVGA10 too.
 ## Source code
 This repository contains more projects modified for Win9x:
 - Mesa3D v17.3.9 from VirtualBox (6.1.x) ~~in future plan is support 3D acceleration with VMWARE SVGA II/VirtualBox SVGA virtual cards.~~ (works now!)
+- Mesa3D v21.3.8 from VirtualBox 7.0
+- Mesa3D v23.1.x, mainline version, from https://mesa3d.org/
 - ~~library winpthreads from MinGW, in Windows 9x completly missing `AddVectoredExceptionHandler` (that's why usually `g++` programs refuses to start) and `TryEnterCriticalSection` which exists as entry point in kernel32, but only returns failure - which is very funny in conditional and leads to deadlocks (in better case) or memory/resources leaks (I spend on it some dreamless nights, investigating why OpenGL programs crash about 1 hour of running).~~ moved here: https://github.com/JHRobotics/pthread9x
 - ~~VBox video minidriver, my very light modification adds OpenGL ICD support. (by Michal Necasek, http://www.os2museum.com/wp/windows-9x-video-minidriver-hd/)~~ (Driver moved here https://github.com/JHRobotics/vmdisp9x, the modifications were somewhat more extensive)
 - OpenGLChecker, simple program to benchmark OpenGL (by David Liu, https://sourceforge.net/projects/openglchecker/)
@@ -101,9 +107,11 @@ This repository contains more projects modified for Win9x:
 You need:
 - MinGW that can produce working binary for Windows 9x
 - LLVM source (3.x to 6.x, 6.0.1 recommended)
-- python 2.7 (for LLVM)
+- python 2.7 (or newer, for LLVM, generating Mesa sources)
 - cmake (for LLVM)
 - zlib (for LLVM)
+- flex (generating Mesa sources)
+- bison (generating Mesa sources)
 - GNU patch
 - GNU make (usually packed with MinGW)
 
@@ -152,7 +160,7 @@ mingw32-make -j8
 ```
 
 ### Visual studio
-Microsoft Visual Studio 2005 (at last Professional, not free Express Edition) is last official with Windows 9x target support. And we need at last version 2015 to build this project (required is C++11 support) - Visual Studio IS NOT WAY to produce Windows 95/98/Me binary. But it can be useful at debug. So short description how to build:
+Microsoft Visual Studio 2005 (at last Professional, not free Express Edition) is last official with Windows 9x target support. And we need at last version 2015 to build this project (required is C++11 or C++14 support) - Visual Studio IS NOT WAY to produce Windows 95/98/Me binary. But it can be useful at debug. So short description how to build:
 
 At first, build LLVM:
 ```
