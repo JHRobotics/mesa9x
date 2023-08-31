@@ -320,7 +320,7 @@ static BOOL SVGALockCB(svga_inst_t *svga, void **outPtr)
 		{
 			if(DeviceIoControl(svga->vxd, SVGA_CB_LOCK, NULL, 0, out, sizeof(out), NULL, NULL))
 			{
-				*outPtr = (void*)out[0];;
+				*outPtr = (void*)out[0];
 				rv = TRUE;
 			}
 			SVGAUnlock(svga, LOCK_FIFO);
@@ -1252,9 +1252,9 @@ void SVGACBContextCreate(svga_inst_t *svga)
 			svga->have_cb_context = TRUE;
 			
 			svga_printf(svga, "CB context is ready!");
+			
+			svga->have_cb_context = TRUE;
 		}
-		
-		svga->have_cb_context = TRUE;
 	}
 }
 
