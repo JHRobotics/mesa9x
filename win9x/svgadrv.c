@@ -2516,6 +2516,7 @@ static void refresh_fb(svga_inst_t *svga)
 static uint32_t last_sid_format = -1;
 
 DEBUG_GET_ONCE_BOOL_OPTION(blit_surf_to_screen_enabled, "SVGA_BLIT_SURF_TO_SCREEN", FALSE);
+DEBUG_GET_ONCE_BOOL_OPTION(dma_need_reread, "SVGA_DMA_NEED_REREAD", TRUE);
 
 /**
  * Present render to screen/window using direct vram access if its possible.
@@ -2832,9 +2833,16 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			}
 			else
 			{
-				cb_push(&cbs, &command_update, sizeof(command_update));
-				cb_submit_sync(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
-				refresh_fb(svga);
+				if(debug_get_option_dma_need_reread())
+				{
+					cb_submit_sync(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
+					refresh_fb(svga);
+				}
+				else
+				{
+					cb_push(&cbs, &command_update, sizeof(command_update));
+					cb_submit(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
+				}
 			}
 		}
 		else
