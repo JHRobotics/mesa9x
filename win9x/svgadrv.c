@@ -2598,7 +2598,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	/*
 	 * quick way: surface and screen must have same color depth for HW present
 	 */
-	if(debug_get_option_blit_surf_to_screen_enabled() && (bpp == sinfo->bpp || svga->dx) && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
+	if((debug_get_option_blit_surf_to_screen_enabled() || svga->dx) && (bpp == sinfo->bpp || svga->dx) && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
 	{
 		uint32_t fence;
 	        
