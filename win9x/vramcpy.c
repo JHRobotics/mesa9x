@@ -286,6 +286,18 @@ BOOL vramcpy_direct_rendering(HDC hDC)
 	return saved_result;
 }
 
+BOOL vramcpy_top_window(HWND win)
+{
+	HWND act = GetForegroundWindow();
+	
+	if(act == win)
+	{
+		return TRUE;
+	}
+	
+	return FALSE;
+}
+
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC)
 {
 	static uint32_t fbhda_ptr;
@@ -320,17 +332,27 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 		
 		if(fbhda != NULL)
 		{
-			if(!vramcpy_direct_rendering(hDC));
-			{
-				vramcpy_display_window(gdt, hDC);
-				return;
-			}
-			
 			HWND hwnd = WindowFromDC(hDC);
+			
+			if(hwnd == NULL) return;
+			
+#if 1 /* direct vram disabled! For now... */
+			vramcpy_display_window(gdt, hDC);
+			return;
+#else
+			if(!vramcpy_direct_rendering(hDC))
+			{
+				if(!vramcpy_top_window(hwnd)) /**/
+				{
+					vramcpy_display_window(gdt, hDC);
+					return;
+				}
+			}
+#endif			
 			vramcpy_rect_t crect;
 			RECT wrect;
 			
-			if(hwnd && GetWindowRect(hwnd, &wrect))
+			if(GetWindowRect(hwnd, &wrect))
 			{
 				uint32_t render_width = wrect.right - wrect.left;
 				uint32_t render_height = wrect.bottom - wrect.top;

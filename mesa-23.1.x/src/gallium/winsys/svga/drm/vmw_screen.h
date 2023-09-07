@@ -43,7 +43,11 @@
 #include "util/u_thread.h"
 #include <sys/types.h>
 
+#ifndef VBOX_WITH_MESA3D_DXFIX
 #define VMW_GMR_POOL_SIZE (16*1024*1024)
+#else
+#define VMW_GMR_POOL_SIZE (32*1024*1024)
+#endif
 #define VMW_QUERY_POOL_SIZE (8192)
 #define VMW_DEBUG_FLUSH_STACK 10
 

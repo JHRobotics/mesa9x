@@ -23,6 +23,7 @@ struct sw_winsys;
 void vramcpy(void *dst, void *src, vramcpy_rect_t *rect);
 size_t vramcpy_pointsize(uint32_t bpp);
 BOOL vramcpy_direct_rendering(HDC hDC);
+BOOL vramcpy_top_window(HWND win);
 
 uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp);
 
