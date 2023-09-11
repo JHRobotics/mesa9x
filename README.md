@@ -7,7 +7,7 @@ There are also some disadvantages - at first, software rendering is much slower 
 This is only OpenGL driver, if you need ready-to-use package for running DirectX, OpenglGL, Glide application and games use this: https://github.com/JHRobotics/softgpu
 
 ## Requirements
-Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: [#Optimalizations](#optimalizations)). Binaries also working on all newer Windows (from NT 4 to 11).
+Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: [#Optimalizations](#optimalizations)). Binaries also working on all newer Windows (from NT 3.51 to 11).
 
 ~Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I don't expect anyone to run it on a *real* Pentium II)~
 
@@ -107,11 +107,12 @@ This repository contains more projects modified for Win9x:
 You need:
 - MinGW that can produce working binary for Windows 9x
 - LLVM source (3.x to 6.x, 6.0.1 recommended)
-- python 2.7 (or newer, for LLVM, generating Mesa sources)
+- python 2.7 (or newer, for LLVM, for generating Mesa sources)
 - cmake (for LLVM)
 - zlib (for LLVM)
-- flex (generating Mesa sources)
+- flex  (generating Mesa sources)
 - bison (generating Mesa sources)
+- mako 0.8.0+ (generating Mesa sources)
 - GNU patch
 - GNU make (usually packed with MinGW)
 
