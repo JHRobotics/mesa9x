@@ -107,12 +107,12 @@ This repository contains more projects modified for Win9x:
 You need:
 - MinGW that can produce working binary for Windows 9x
 - LLVM source (3.x to 6.x, 6.0.1 recommended)
-- python 2.7 (or newer, for LLVM, for generating Mesa sources)
+- python 2.7 (or newer, for LLVM, python 3.6+ for generating Mesa sources)
 - cmake (for LLVM)
 - zlib (for LLVM)
-- flex  (generating Mesa sources)
-- bison (generating Mesa sources)
-- mako 0.8.0+ (generating Mesa sources)
+- flex (generating Mesa sources, recommend using msys version)
+- bison (generating Mesa sources, recommend using msys version)
+- mako (generating Mesa sources, install from python or msys)
 - GNU patch
 - GNU make (usually packed with MinGW)
 
