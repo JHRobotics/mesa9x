@@ -58,9 +58,18 @@ stw_tls_lookup_pending_data(DWORD dwThreadId);
 
 static HHOOK CallWndProcHook = NULL;
 
+typedef HANDLE (WINAPI *CreateToolhelp32SnapshotH)(DWORD dwFlags, DWORD th32ProcessID);
+typedef BOOL (WINAPI *Thread32FirstH)(HANDLE hSnapshot, LPTHREADENTRY32 lpte);
+typedef BOOL (WINAPI *Thread32NextH)(HANDLE hSnapshot, LPTHREADENTRY32 lpte);
+
 boolean
 stw_tls_init(HINSTANCE hinstDLL)
 {
+	 CreateToolhelp32SnapshotH CreateToolhelp32SnapshotProc = NULL;
+	 Thread32FirstH Thread32FirstProc = NULL;
+	 Thread32NextH Thread32NextProc = NULL;
+	 HANDLE kernel32;
+	
 	InitializeCriticalSection(&g_mutex);
 	
    tlsIndex = TlsAlloc();
@@ -76,14 +85,22 @@ stw_tls_init(HINSTANCE hinstDLL)
     * XXX: Except for the current thread since it there is an explicit
     * stw_tls_init_thread() call for it later on.
     */
-   if (1) {
+   kernel32 = GetModuleHandleA("Kernel32.dll");
+   if(kernel32)
+   {
+      CreateToolhelp32SnapshotProc = (CreateToolhelp32SnapshotH)GetProcAddress(kernel32, "CreateToolhelp32Snapshot");
+      Thread32FirstProc = (Thread32FirstH)GetProcAddress(kernel32, "Thread32First");
+      Thread32NextProc = (Thread32NextH)GetProcAddress(kernel32, "Thread32Next");
+   }
+
+   if (CreateToolhelp32SnapshotProc && Thread32FirstProc && Thread32NextProc) {
       DWORD dwCurrentProcessId = GetCurrentProcessId();
       DWORD dwCurrentThreadId = GetCurrentThreadId();
-      HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, dwCurrentProcessId);
+      HANDLE hSnapshot = CreateToolhelp32SnapshotProc(TH32CS_SNAPTHREAD, dwCurrentProcessId);
       if (hSnapshot != INVALID_HANDLE_VALUE) {
          THREADENTRY32 te;
          te.dwSize = sizeof te;
-         if (Thread32First(hSnapshot, &te)) {
+         if (Thread32FirstProc(hSnapshot, &te)) {
             do {
                if (te.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) +
                                 sizeof te.th32OwnerProcessID) {
@@ -101,7 +118,7 @@ stw_tls_init(HINSTANCE hinstDLL)
                   }
                }
                te.dwSize = sizeof te;
-            } while (Thread32Next(hSnapshot, &te));
+            } while (Thread32NextProc(hSnapshot, &te));
          }
          CloseHandle(hSnapshot);
       }
