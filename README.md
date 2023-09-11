@@ -119,7 +119,7 @@ You need:
 ### MINGW
 If targeting Windows 98/Me you can use actual MinGW from [MSYS2 project](https://www.msys2.org/), since I replacing *winpthreads* and reimplementing *strtoll* and *strtoull* from CRT.
 
-For targeting WIN95/NT, you need something older, I personally recommending use MinGW 4.8.5 from [this build](https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/4.8.5/threads-posix/sjlj/). Although bit newer versions of MinGW (5.x, 6.x) can usually produce Windows 95 compatible code is bit hard to find not broken build (often broken code with -O3 switch, sometimes even -O2 switch). LLVM require GCC version 4.8 so beware older versions. Mentioned build includes **zlib** and **make** (`mingw32-make`). **One disadvantage with this build:** SSE support in C runtime is broken, so don't use `-march` targeting anything with SSE.
+For targeting WIN95/NT, you need MinGW build without SSE instructions in runtime. Current releases are compiled by [this MinGW build](https://github.com/niXman/mingw-builds-binaries/releases/download/13.1.0-rt_v11-rev1/i686-13.1.0-release-posix-dwarf-msvcrt-rt_v11-rev1.7z) from [this project](https://github.com/niXman/mingw-builds-binaries/).
 
 ### LLVM
 Mesa3D require LLVM 3.9 and later, and 6.0.1 was last one before our Mesa version was released, so newer version may works but additional modification may be required. Usually newer LLVM is faster. 
