@@ -18,6 +18,10 @@
 
 #define OPENGL_GETINFO 0x1101
 
+const GUID IID_NineAdaper = { 0x0b1cfb95, 0x639b, 0x45d3, { 0x87, 0xf7, 0x5f, 0x9e, 0xde, 0xfa, 0xd0, 0x10 } };
+
+#define ADAPTER() ((struct NineAdapter9*)This->adapter9)
+
 typedef struct _opengl_icd_t
 {
 	long Version;
@@ -213,7 +217,7 @@ HRESULT WINAPI NineNine_QueryInterface(INineNine *This, REFIID riid, void **ppvO
 	{
 		NineNine_AddRef(This);
 		*ppvObject = This;
-		return S_OK;
+		return D3D_OK;
 	}
 	
 	*ppvObject = NULL;
@@ -233,65 +237,329 @@ UINT WINAPI NineNine_GetAdapterCount(INineNine *This)
 
 HRESULT WINAPI NineNine_GetAdapterIdentifier(INineNine *This, UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER9 *pIdentifier)
 {
-	if(Adapter >= MESA99_ADAPTER_CNT)
+	if(Adapter > NineNine_GetAdapterCount(This))
 	{
 		return D3DERR_INVALIDCALL;
 	}
 	
+	memset(&pIdentifier->Driver[0], 0, sizeof(pIdentifier->Driver));
+	memset(&pIdentifier->Description[0], 0, sizeof(pIdentifier->Description));
+	memset(&pIdentifier->DeviceName[0], 0, sizeof(pIdentifier->DeviceName));
 	
+	strcpy(pIdentifier->Driver, "Mesa Nine Nine");
+	strcpy(pIdentifier->Description, "Mesa Nine Nine");
+	strcpy(pIdentifier->DeviceName, "\\\\.\\DISPLAY1");
 	
-	return D3DERR_INVALIDCALL;
+	pIdentifier->DriverVersionLowPart = 1;
+	pIdentifier->DriverVersionHighPart = 0;
+	pIdentifier->VendorId = 0x15AD;
+	pIdentifier->DeviceId = 0x0405;
+	pIdentifier->SubSysId = 0x040515AD;
+	pIdentifier->Revision = 0;
+	memcpy(&pIdentifier->DeviceIdentifier, &IID_NineAdaper, sizeof(GUID));
+	pIdentifier->WHQLLevel = 0;
+	
+	return D3D_OK;
 }
 
 UINT WINAPI NineNine_GetAdapterModeCount(INineNine *This, UINT Adapter, D3DFORMAT Format)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return 0;
+	}
+	
+	switch(Format)
+	{
+		case D3DFMT_A8R8G8B8:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_R8G8B8:
+		case D3DFMT_R5G6B5:
+			break;
+		default:
+			return 0;
+			break;
+	}
+	
+	int modes = 0;
+	int iMode;
+	DEVMODEA devMode;
+	
+	for(iMode = 0 ;; iMode++)
+	{
+		memset(&devMode, 0, sizeof(DEVMODE));
+		devMode.dmSize = sizeof(DEVMODE);
+		
+		if(!EnumDisplaySettingsA(NULL, iMode, &devMode))
+		{
+			break;
+		}
+		
+		switch(devMode.dmBitsPerPel)
+		{
+			case 16:
+				if(Format == D3DFMT_R5G6B5)
+				{
+					modes++;
+				}
+				break;
+			case 24:
+				if(Format == D3DFMT_R8G8B8)
+				{
+					modes++;
+				}
+				break;
+			case 32:
+				if(Format == D3DFMT_A8R8G8B8 ||
+					Format == D3DFMT_X8R8G8B8)
+				{
+					modes++;
+				}
+				break;
+		}
+	}
+
+	return modes;
 }
 
 HRESULT WINAPI NineNine_EnumAdapterModes(INineNine *This, UINT Adapter, D3DFORMAT Format, UINT Mode, D3DDISPLAYMODE *pMode)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	int modes = 0;
+	int iMode;
+	DEVMODEA devMode;
+	
+	for(iMode = 0 ;; iMode++)
+	{
+		memset(&devMode, 0, sizeof(DEVMODE));
+		devMode.dmSize = sizeof(DEVMODE);
+		
+		if(!EnumDisplaySettingsA(NULL, iMode, &devMode))
+		{
+			break;
+		}
+		
+		switch(devMode.dmBitsPerPel)
+		{
+			case 16:
+				if(Format == D3DFMT_R5G6B5)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_R5G6B5;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+			case 24:
+				if(Format == D3DFMT_R8G8B8)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_R8G8B8;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+			case 32:
+				if(Format == D3DFMT_A8R8G8B8 ||
+					Format == D3DFMT_X8R8G8B8)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_X8R8G8B8;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+		}
+	}
+	
+	return D3DERR_NOTAVAILABLE;
 }
 
-HRESULT WINAPI GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3DDISPLAYMODE *pMode)
+HRESULT WINAPI NineNine_GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3DDISPLAYMODE *pMode)
 {
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	DEVMODEA devMode = {0};
+	devMode.dmSize = sizeof(DEVMODE);
+	
+	if(EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &devMode))
+	{
+		switch(devMode.dmBitsPerPel)
+		{
+			case 16:
+				pMode->Format = D3DFMT_R5G6B5;
+				break;
+			case 24:
+				pMode->Format = D3DFMT_R8G8B8;
+				break;
+			case 32:
+				pMode->Format = D3DFMT_X8R8G8B8;
+				break;
+			default:
+				return D3DERR_NOTAVAILABLE;
+		}
+		
+		pMode->RefreshRate = 0;
+		pMode->Width       = devMode.dmPelsWidth;
+		pMode->Height      = devMode.dmPelsHeight;
+		return D3D_OK;
+	}
+	
 	return D3DERR_INVALIDCALL;
 }
 
 HRESULT WINAPI NineNine_CheckDeviceType(INineNine *This, UINT Adapter, D3DDEVTYPE DevType, D3DFORMAT AdapterFormat, D3DFORMAT BackBufferFormat, BOOL bWindowed)
 {
-	return D3DERR_INVALIDCALL;
+	HRESULT rc;
+	D3DDISPLAYMODE mode;
+	
+	rc = NineNine_GetAdapterDisplayMode(This, Adapter, &mode);
+	if(rc != D3D_OK) return rc;
+	
+	UINT modes16 = NineNine_GetAdapterModeCount(This, Adapter, D3DFMT_R5G6B5);
+	UINT modes24 = NineNine_GetAdapterModeCount(This, Adapter, D3DFMT_R8G8B8);
+	
+	switch(DevType)
+	{
+		case D3DDEVTYPE_HAL:
+		case D3DDEVTYPE_NULLREF:
+		//case D3DDEVTYPE_REF:
+			break;
+		default:
+			return D3DERR_NOTAVAILABLE;
+	}
+	
+	switch(AdapterFormat)
+	{
+		case D3DFMT_R5G6B5:
+			if(modes16 == 0) return D3DERR_NOTAVAILABLE;
+			break;
+		case D3DFMT_R8G8B8:
+			if(modes24 == 0) return D3DERR_NOTAVAILABLE;
+			break;
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+			return D3DERR_NOTAVAILABLE;
+	}
+	
+	if(bWindowed)
+	{
+		/*
+			https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3d9-checkdevicetype
+			Full-screen applications cannot do color conversion.
+			D3DFMT_UNKNOWN is allowed for windowed mode.*/
+		switch(BackBufferFormat)
+		{
+			case D3DFMT_UNKNOWN:
+			case D3DFMT_R5G6B5:
+			case D3DFMT_R8G8B8:
+			case D3DFMT_X8R8G8B8:
+			case D3DFMT_A8R8G8B8:
+				return D3D_OK;
+		}
+	}
+	else
+	{
+		if(BackBufferFormat == mode.Format)
+		{
+			return D3D_OK;
+		}
+	}
+	
+	return D3DERR_NOTAVAILABLE;
 }
 
 HRESULT WINAPI NineNine_CheckDeviceFormat(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	return NineAdapter9_CheckDeviceFormat(ADAPTER(), DeviceType, AdapterFormat, Usage, RType, CheckFormat);
 }
 
 HRESULT WINAPI NineNine_CheckDeviceMultiSampleType(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SurfaceFormat, BOOL Windowed, D3DMULTISAMPLE_TYPE MultiSampleType, DWORD *pQualityLevels)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	return NineAdapter9_CheckDeviceMultiSampleType(ADAPTER(), DeviceType, SurfaceFormat, Windowed, MultiSampleType, pQualityLevels);
 }
 
 HRESULT WINAPI NineNine_CheckDepthStencilMatch(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, D3DFORMAT RenderTargetFormat, D3DFORMAT DepthStencilFormat)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	return NineAdapter9_CheckDepthStencilMatch(ADAPTER(), DeviceType, AdapterFormat, RenderTargetFormat, DepthStencilFormat);
 }
 
 HRESULT WINAPI NineNine_CheckDeviceFormatConversion(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SourceFormat, D3DFORMAT TargetFormat)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	return NineAdapter9_CheckDeviceFormatConversion(ADAPTER(), DeviceType, SourceFormat, TargetFormat);
 }
 
 HRESULT WINAPI NineNine_GetDeviceCaps(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DCAPS9 *pCaps)
 {
-	return D3DERR_INVALIDCALL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+		
+	return NineAdapter9_GetDeviceCaps(ADAPTER(), DeviceType, pCaps);
+}
+
+/* from: https://devblogs.microsoft.com/oldnewthing/20070809-00/?p=25643 */
+static HMONITOR GetPrimaryMonitorHandle()
+{
+	const POINT ptZero = {0, 0};
+	return MonitorFromPoint(ptZero, MONITOR_DEFAULTTOPRIMARY);
 }
 
 HMONITOR WINAPI NineNine_GetAdapterMonitor(INineNine *This, UINT Adapter)
 {
-//	return D3DERR_INVALIDCALL;
-	return NULL;
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return NULL;
+	}
+
+	return GetPrimaryMonitorHandle();
 }
 
 HRESULT WINAPI NineNine_CreateDevice(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
@@ -306,12 +574,12 @@ HRESULT WINAPI NineNine_CreateDevice(INineNine *This, UINT Adapter, D3DDEVTYPE D
 	}
 	
 	rc = ID3DPresentGroup_new(This, hFocusWindow, &pg);
-	if(rc != S_OK)
+	if(rc !=  D3D_OK)
 	{
 		return rc;
 	}
 	
-	return NineAdapter9_CreateDevice(This->adapter9, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, This, pg, ppReturnedDeviceInterface);
+	return NineAdapter9_CreateDevice(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, (IDirect3D9 *)This, pg, ppReturnedDeviceInterface);
 }
 
 /* IDirect3D9Ex */
@@ -327,11 +595,6 @@ UINT WINAPI NineNine_GetAdapterModeCountEx(INineNine *This, UINT Adapter, const 
 }
 
 HRESULT WINAPI NineNine_EnumAdapterModesEx(INineNine *This, UINT Adapter, const D3DDISPLAYMODEFILTER *pFilter, UINT Mode, D3DDISPLAYMODEEX *pMode)
-{
-	return D3DERR_INVALIDCALL;
-}
-
-HRESULT WINAPI NineNine_GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3DDISPLAYMODE *pMode)
 {
 	return D3DERR_INVALIDCALL;
 }

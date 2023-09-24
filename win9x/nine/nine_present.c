@@ -32,7 +32,23 @@ typedef struct _ID3DPresentM99
 	D3DPRESENT_PARAMETERS params;
 	HWND focus_wnd;
 	HCURSOR hCursor;
+	DEVMODEA initial_mode;
+	DWORD style;
+	DWORD style_ex;
+	struct d3d_drawable *d3d;
 } ID3DPresentM99;
+
+struct d3d_drawable
+{
+//	Drawable drawable; /* X11 drawable */
+	UINT width;
+	UINT height;
+	UINT depth;
+	HDC hdc;
+	HWND wnd; /* HWND (for convenience) */
+	RECT windowRect;
+//	POINT offset; /* offset of the client area compared to the X11 drawable */
+};
 
 const GUID IID_ID3DPresent = { 0x77D60E80, 0xF1E6, 0x11DF, { 0x9E, 0x39, 0x95, 0x0C, 0xDF, 0xD7, 0x20, 0x85 } };
 const GUID IID_ID3DPresentGroup = { 0xB9C3016E, 0xF32A, 0x11DF, { 0x9C, 0x18, 0x92, 0xEA, 0xDE, 0xD7, 0x20, 0x85 } };
@@ -80,11 +96,69 @@ static HRESULT WINAPI DRIPresent_QueryInterface(ID3DPresentM99 *This, REFIID rii
 	return E_NOINTERFACE;
 }
 
+static HRESULT ChangeDisplaySettingsIfNeccessary(ID3DPresentM99 *This, DEVMODEA *pMode)
+{
+	DEVMODEA cur = {0};
+	cur.dmSize = sizeof(DEVMODE);
+	
+	if(EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &cur))
+	{
+		if(cur.dmBitsPerPel != pMode->dmBitsPerPel ||
+			cur.dmPelsWidth   != pMode->dmPelsWidth ||
+			cur.dmPelsHeight  != pMode->dmPelsHeight)
+		{
+			if(ChangeDisplaySettingsA(pMode, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL)
+			{
+				return S_OK;
+			}
+		}
+		
+		return S_OK;
+	}
+	
+	printf("EnumDisplaySettingsA failure\n");
+	
+	return E_NOINTERFACE;
+}
+
+static BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
+{
+	printf("%s\n", __FUNCTION__);
+	// stub
+	return TRUE;
+}
+
+static BOOL nine_unregister_window(HWND window)
+{
+	printf("%s\n", __FUNCTION__);
+	// stub
+	return TRUE;
+}
+
+
+static void setup_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
+{
+	printf("%s\n", __FUNCTION__);
+	// stub
+}
+
+static void move_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
+{
+	printf("%s\n", __FUNCTION__);
+	// stub
+}
+
+static void restore_fullscreen_window(ID3DPresentM99 *This, HWND hwnd)
+{
+	printf("%s\n", __FUNCTION__);
+	// stub
+}
+
 /* ID3DPresent */
 static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESENT_PARAMETERS *params)
 {
 	printf("%s\n", __FUNCTION__);
-#ifdef IMPLEMENT
+	
 	HWND focus_window = This->focus_wnd ? This->focus_wnd : params->hDeviceWindow;
 	RECT rect;
 	DEVMODEA new_mode;
@@ -106,10 +180,9 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 	if(
 		(This->params.BackBufferWidth != params->BackBufferWidth) ||
 		(This->params.BackBufferHeight != params->BackBufferHeight) ||
-		(This->params.Windowed != params->Windowed) || This->reapply_mode
+		(This->params.Windowed != params->Windowed)
 	)
 	{
-		This->reapply_mode = FALSE;
 
 		if(!params->Windowed)
 		{
@@ -124,21 +197,21 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 				new_mode.dmDisplayFrequency = params->FullScreen_RefreshRateInHz;
 			}
 			new_mode.dmSize = sizeof(DEVMODEA);
-			hr = DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &new_mode);
+			hr = ChangeDisplaySettingsIfNeccessary(This, &new_mode);
 			if(FAILED(hr))
 				return hr;
 
 			/* Dirty as BackBufferWidth and BackBufferHeight hasn't been set yet */
-			This->resolution_mismatch = FALSE;
+			//This->resolution_mismatch = FALSE;
 		}
 		else if(!This->params.Windowed && params->Windowed)
 		{
-			hr = DRI3Present_ChangeDisplaySettingsIfNeccessary(This, &This->initial_mode);
+			hr = ChangeDisplaySettingsIfNeccessary(This, &This->initial_mode);
 			if(FAILED(hr))
 				return hr;
 
 			/* Dirty as BackBufferWidth and BackBufferHeight hasn't been set yet */
-			This->resolution_mismatch = FALSE;
+			//This->resolution_mismatch = FALSE;
 		}
 
 		if(This->params.Windowed)
@@ -159,10 +232,10 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			if(!params->Windowed)
 			{
 				/* switch from fullscreen to fullscreen */
-				drop_wnd_messages = This->drop_wnd_messages;
-				This->drop_wnd_messages = TRUE;
+				//drop_wnd_messages = This->drop_wnd_messages;
+				//This->drop_wnd_messages = TRUE;
 				MoveWindow(params->hDeviceWindow, 0, 0, params->BackBufferWidth, params->BackBufferHeight, TRUE);
-				This->drop_wnd_messages = drop_wnd_messages;
+				//This->drop_wnd_messages = drop_wnd_messages;
 			}
 			else if (This->style || This->style_ex)
 			{
@@ -170,7 +243,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			}
 
 			if (params->Windowed && !nine_unregister_window(focus_window))
-				ERR("Window %p is not registered with nine.\n", focus_window);
+				printf("Window %p is not registered with nine.\n", focus_window);
 		}
 		
 		This->params.Windowed = params->Windowed;
@@ -207,13 +280,14 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 	This->params.MultiSampleType = params->MultiSampleType;
 	This->params.MultiSampleQuality = params->MultiSampleQuality;
 
-	DRI3Present_UpdatePresentationInterval(This);
+	//DRI3Present_UpdatePresentationInterval(This);
 
 	if(!params->Windowed)
 	{
 		//
 	}
-#endif
+	
+	printf("%s SUCCESS\n", __FUNCTION__);
 	return D3D_OK;
 }
 
@@ -303,7 +377,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 	else
 		hwnd = This->focus_wnd;
 
-	TRACE("This=%p hwnd=%p\n", This, hwnd);
+	printf("This=%p hwnd=%p\n", This, hwnd);
 
 	d3d = get_d3d_drawable(This->gdi_display, hwnd);
 
@@ -355,7 +429,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 		pSourceRect, pDestRect, pDirtyRegion))
 	{
 		release_d3d_drawable(d3d);
-		TRACE("Present call failed\n");
+		printf("Present call failed\n");
 		return D3DERR_DRIVERINTERNALERROR;
 	}
 	release_d3d_drawable(d3d);
@@ -534,12 +608,11 @@ static HRESULT WINAPI DRIPresent_SetGammaRamp(ID3DPresentM99 *This, const D3DGAM
 static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, int *width, int *height, int *depth)
 {
 	printf("%s\n", __FUNCTION__);
-#ifdef IMPLEMENT
 	HWND draw_window = This->params.hDeviceWindow ? This->params.hDeviceWindow : This->focus_wnd;
 	HRESULT hr;
 	RECT pRect;
 
-	TRACE("This=%p hwnd=%p\n", This, hWnd);
+	printf("This=%p hwnd=%p\n", This, hWnd);
 
 	/* For fullscreen modes, use the dimensions of the X11 window instead of
 	 * the game window. This is for compability with Valve's "fullscreen hack",
@@ -561,11 +634,10 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 	hr = GetClientRect(hWnd, &pRect);
 	if (!hr) return D3DERR_INVALIDCALL;
 	
-	TRACE("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
+	printf("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
 	*width = pRect.right - pRect.left;
 	*height = pRect.bottom - pRect.top;
-	*depth = 24; //TODO
-#endif
+	*depth = 32; //24; //TODO
 	return D3D_OK;
 }
 
@@ -615,11 +687,18 @@ HRESULT WINAPI ID3DPresent_new(INineNine *nine, HWND hFocusWindow, D3DPRESENT_PA
 	res->refcount = 1;
 	res->nine = nine;
 	res->focus_wnd = hFocusWindow;
+	EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &res->initial_mode);
+	
+	res->style = GetWindowLongW(hFocusWindow, GWL_STYLE);
+	res->style_ex = GetWindowLongW(hFocusWindow, GWL_EXSTYLE);
+	res->d3d = NULL;
 	
 	if(params)
 	{
 		memcpy(&(res->params), params, sizeof(D3DPRESENT_PARAMETERS));
 	}
+	
+	nine_register_window(hFocusWindow, res);
 	
 	*pp = (ID3DPresent*)res;
 	return S_OK;
