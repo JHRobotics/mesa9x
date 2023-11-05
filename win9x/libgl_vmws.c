@@ -55,6 +55,8 @@
 #include "svga/svga_winsys.h"
 #include "svga/svga_screen.h"
 
+#include "wrapper/wrapper_sw_winsys.h"
+
 #include "wddm_screen.h"
 #include "svgadrv.h"
 
@@ -263,7 +265,7 @@ wddm_get_name(void)
 #endif
 
 #if defined(MESA_NEW) || defined(MESA23)
-static struct stw_winsys stw_winsys = {
+struct stw_winsys stw_winsys = {
    &wddm_screen_create,
    //&wddm_present_window,
    &wddm_present,
@@ -280,7 +282,7 @@ static struct stw_winsys stw_winsys = {
    &wddm_get_name,
 };
 #else
-static struct stw_winsys stw_winsys = {
+struct stw_winsys stw_winsys = {
    wddm_screen_create,
    //wddm_present_window,
    wddm_present,
@@ -290,15 +292,6 @@ static struct stw_winsys stw_winsys = {
    wddm_compose
 };
 #endif
-
-EXTERN_C BOOL WINAPI MesaGetWinsys(struct stw_winsys *out);
-
-BOOL WINAPI MesaGetWinsys(struct stw_winsys *out)
-{
-	memcpy(out, &stw_winsys, sizeof(stw_winsys));
-	
-	return TRUE;
-}
 
 EXTERN_C BOOL WINAPI
 DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);

@@ -47,8 +47,18 @@ struct d3d_drawable
 	HDC hdc;
 	HWND wnd; /* HWND (for convenience) */
 	RECT windowRect;
-//	POINT offset; /* offset of the client area compared to the X11 drawable */
+	POINT offset; /* offset of the client area compared to the X11 drawable */
 };
+
+struct D3DWindowBuffer
+{
+	int width;
+	int height;
+	int depth;
+	int pitch;
+	uint8_t data[0];
+};
+
 
 const GUID IID_ID3DPresent = { 0x77D60E80, 0xF1E6, 0x11DF, { 0x9E, 0x39, 0x95, 0x0C, 0xDF, 0xD7, 0x20, 0x85 } };
 const GUID IID_ID3DPresentGroup = { 0xB9C3016E, 0xF32A, 0x11DF, { 0x9C, 0x18, 0x92, 0xEA, 0xDE, 0xD7, 0x20, 0x85 } };
@@ -298,42 +308,41 @@ static HRESULT WINAPI DRIPresent_SetPresentParameters(ID3DPresentM99 *This,
 	return DRIPresent_ChangePresentParameters(This, pPresentationParameters);
 }
 
+#define DEPTH_BYTES(_d) (((_d)+7) >> 3)
+
 static HRESULT WINAPI DRIPresent_D3DWindowBufferFromDmaBuf(ID3DPresentM99 *This,
 	int dmaBufFd, int width, int height, int stride, int depth,
 	int bpp, struct D3DWindowBuffer **out)
 {
-	printf("%s\n", __FUNCTION__);
-#ifdef IMPLEMENT
-	Pixmap pixmap;
+	printf("%s, dmaBufFd: %d, stride: %d, xyd: (%d %d %d)\n", __FUNCTION__, dmaBufFd, stride,
+		width, height, depth
+	);
+	
+	struct D3DWindowBuffer *wb = NULL;
+	int pitch = stride > 0 ? stride : width * DEPTH_BYTES(depth);
 
-	if (!DRI3PixmapFromDmaBuf(This->gdi_display, DefaultScreen(This->gdi_display),
-		dmaBufFd, width, height, stride, depth, bpp, &pixmap))
+	wb = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(struct D3DWindowBuffer) + pitch*height);
+	if(wb == NULL)
 	{
-		ERR("DRI3PixmapFromDmaBuf failed\n");
 		return D3DERR_DRIVERINTERNALERROR;
 	}
+	wb->width  = width;
+	wb->height = height;
+	wb->depth  = depth;
+	wb->pitch  = stride;
+	
+	*out = wb;
 
-	*out = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(struct D3DWindowBuffer));
-	if(!PRESENTPixmapInit(This->present_priv, pixmap, &((*out)->present_pixmap_priv)))
-	{
-		ERR("PRESENTPixmapInit failed\n");
-		HeapFree(GetProcessHeap(), 0, *out);
-		return D3DERR_DRIVERINTERNALERROR;
-	}
-#endif
 	return D3D_OK;
 }
 
 static HRESULT WINAPI DRIPresent_DestroyD3DWindowBuffer(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer)
 {
 	printf("%s\n", __FUNCTION__);
-#ifdef IMPLEMENT
     /* the pixmap is managed by the PRESENT backend.
      * But if it can delete it right away, we may have
      * better performance */
-	PRESENTTryFreePixmap(This->gdi_display, buffer->present_pixmap_priv);
 	HeapFree(GetProcessHeap(), 0, buffer);
-#endif
 	return D3D_OK;
 }
 
@@ -360,10 +369,30 @@ static HRESULT WINAPI DRIPresent_FrontBufferCopy(ID3DPresentM99 *This, struct D3
 		return D3DERR_DRIVERINTERNALERROR;
 }
 
+struct d3d_drawable *get_d3d_drawable(HWND hwnd)
+{
+	struct d3d_drawable *d3d = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(struct d3d_drawable));
+	if(d3d != NULL)
+	{
+		d3d->wnd = hwnd;
+		d3d->hdc = GetDC(hwnd);
+		GetClientRect(hwnd, &(d3d->windowRect));
+		d3d->width  = d3d->windowRect.right - d3d->windowRect.left;
+		d3d->height = d3d->windowRect.bottom - d3d->windowRect.top;
+		d3d->depth  = 32;
+	}
+	
+	return d3d;
+}
+
+void release_d3d_drawable(struct d3d_drawable *d3d)
+{
+	HeapFree(GetProcessHeap(), 0, d3d);
+}
+
 static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer, HWND hWndOverride, const RECT *pSourceRect, const RECT *pDestRect, const RGNDATA *pDirtyRegion, DWORD Flags)
 {
 	printf("%s\n", __FUNCTION__);
-#ifdef IMPLEMENT
 	struct d3d_drawable *d3d;
 	RECT dest_translate;
 	RECT windowRect;
@@ -377,16 +406,18 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 	else
 		hwnd = This->focus_wnd;
 
-	printf("This=%p hwnd=%p\n", This, hwnd);
+	printf("%s: This=%p hwnd=%p\n", __FUNCTION__, This, hwnd);
 
-	d3d = get_d3d_drawable(This->gdi_display, hwnd);
+	d3d = get_d3d_drawable(/*This->gdi_display, */hwnd);
 
 	if (!d3d)
 		return D3DERR_DRIVERINTERNALERROR;
 
     /* TODO: should we use a list here instead ? */
 	if (This->d3d && (This->d3d->wnd != d3d->wnd))
-		destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
+	{
+		//destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
+	}
 
 	This->d3d = d3d;
 
@@ -401,7 +432,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 		windowRect.right != d3d->windowRect.right)
 	{
 		d3d->windowRect = windowRect;
-		DRI3Present_FillOffset(This->gdi_display, d3d);
+		//DRI3Present_FillOffset(This->gdi_display, d3d);
 	}
 
 	GetClientRect(d3d->wnd, &offset);
@@ -424,16 +455,22 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 		}
 	}
 
-	if (!PRESENTPixmap(This->gdi_display, d3d->drawable, buffer->present_pixmap_priv,
+	/*if (!PRESENTPixmap(This->gdi_display, d3d->drawable, buffer->present_pixmap_priv,
 		This->present_interval, This->present_async, This->present_swapeffectcopy,
 		pSourceRect, pDestRect, pDirtyRegion))
 	{
 		release_d3d_drawable(d3d);
 		printf("Present call failed\n");
 		return D3DERR_DRIVERINTERNALERROR;
-	}
+	}*/
+	/*{
+		struct sw_displaytarget *dt = softpipe_resource(res)->dt;
+		struct gdi_sw_displaytarget *gdt = gdi_sw_displaytarget(dt);
+		
+	}*/
+	
+	
 	release_d3d_drawable(d3d);
-#endif
 	return D3D_OK;
 }
 
@@ -612,7 +649,7 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 	HRESULT hr;
 	RECT pRect;
 
-	printf("This=%p hwnd=%p\n", This, hWnd);
+	printf("%s: This=%p hwnd=%p draw_window=%p\n", __FUNCTION__, This, hWnd, draw_window);
 
 	/* For fullscreen modes, use the dimensions of the X11 window instead of
 	 * the game window. This is for compability with Valve's "fullscreen hack",

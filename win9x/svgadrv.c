@@ -118,24 +118,7 @@ static BOOL SVGALock(svga_inst_t *svga, uint32_t lock_id)
 	SVGA_ASSERT;
 	
 	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
-	
-	if(ptr)
-	{
-		__asm volatile (
-			"movl %0, %%ecx;"
-			"spinlock_try%=:"
-			"movl $1, %%eax;"
-			"xchgl (%%ecx),%%eax;"
-			"testl %%eax,%%eax;"
-			"jnz spinlock_try%=;"
-			: 
-			: "m" (ptr)
-			: "%eax", "%ecx"
-		);
-		return TRUE;
-	}
-	
-	return FALSE;
+	return vram_lock(ptr);
 }
 
 /* VXD spinlock UNLOCK */
@@ -144,18 +127,7 @@ static void SVGAUnlock(svga_inst_t *svga, uint32_t lock_id)
 	SVGA_ASSERT;
 	
 	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
-	
-	if(ptr)
-	{
-		__asm volatile (
-			"movl   %0, %%ecx;"
-			"xorl   %%eax, %%eax;"
-			"xchgl (%%ecx), %%eax;"
-			: 
-			: "m" (ptr)
-			: "%eax", "%ecx"
-		);
-	}
+	vram_unlock(ptr);
 }
 
 /* Sync vGPU state */
@@ -2863,8 +2835,6 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 				refresh_fb(svga);
 			}
 		}
-
-
 	}
 }
 

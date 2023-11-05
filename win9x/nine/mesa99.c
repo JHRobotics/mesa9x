@@ -12,6 +12,8 @@
 #include "surface9.h"
 #include "pipe/p_screen.h"
 
+#include "target-helpers/inline_sw_helper.h"
+
 #include "mesa99.h"
 
 #define MESA99_ADAPTER_CNT 1
@@ -29,11 +31,16 @@ typedef struct _opengl_icd_t
 	char DLL[262]; /* wchat_t DLL */
 } opengl_icd_t;
 
-static struct stw_winsys stw_winsys = {};
+//static struct stw_winsys stw_winsys = {};
 
 static HMODULE hMesa = NULL;
+struct sw_winsys *winsys = NULL;
 
-typedef BOOL (WINAPI *MesaGetWinsysFunc)(struct stw_winsys *out);
+typedef struct sw_winsys * (WINAPI *MesaNineWinsysFunc)(HDC hdc, struct sw_winsys **pWinsys, struct pipe_screen **pScreen);
+typedef struct stw_context * (WINAPI *MesaNineContextFunc)(HDC hdc, struct pipe_screen *screen);
+
+static MesaNineWinsysFunc MesaNineWinsysProc = NULL;
+static MesaNineContextFunc MesaNineContextProc = NULL;
 
 static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 {
@@ -67,33 +74,25 @@ static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 	return FALSE;
 }
 
+#define TRY_LOAD_FUNC(_fname) \
+	proc = GetProcAddress(hMesaTest, #_fname); \
+	if(proc == NULL){FreeLibrary(hMesaTest); printf("not found %s in %s\n", #_fname, dllname); return FALSE;} \
+	_fname ## Proc = (_fname ## Func)proc;
+
 static BOOL LoadWinsysDLL(char *dllname, HMODULE *OutHMesa)
 {
-	MesaGetWinsysFunc proc;
+	void *proc;
 	HMODULE hMesaTest;
 	
 	hMesaTest = LoadLibraryA(dllname);
 	if(hMesaTest)
 	{
-		proc = (MesaGetWinsysFunc)GetProcAddress(hMesaTest, "MesaGetWinsys");
-		if(proc == NULL)
-		{
-			FreeLibrary(hMesaTest);
-		}
-		else
-		{
-			if(proc(&stw_winsys))
-			{
-				if(stw_winsys.create_screen)
-				{
-					*OutHMesa = hMesaTest;
-					return TRUE;
-				}
-				FreeLibrary(hMesaTest);
-			}
-		}
+		TRY_LOAD_FUNC(MesaNineWinsys)
+		TRY_LOAD_FUNC(MesaNineContext)
 	}
-	return FALSE;
+	
+	*OutHMesa = hMesaTest;
+	return TRUE;
 }
 
 BOOL LoadWinsys()
@@ -639,21 +638,32 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	HRESULT hr;
 	HWND hDesktop = GetDesktopWindow();
 	HDC hdc = GetDC(hDesktop);
+	struct pipe_screen *screen = NULL;
+	
+	if(!MesaNineWinsysProc)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 	
 	printf("Creating screen\n");
 	
-#if !(defined(MESA_NEW) || defined(MESA23))
-	struct pipe_screen *s = stw_winsys.create_screen();
-#else
-	struct pipe_screen *s = stw_winsys.create_screen(hdc);
-#endif
-  printf("screen? %p\n", s);
-	
+	if(!MesaNineWinsysProc(hdc, &winsys, &screen))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+  printf("screen? %p\n", screen);	
 	INineNine *res = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(INineNine));
 	res->base.lpVtbl = &NineNineEx_vtable;
-	res->screen = s;
+	res->screen = screen;
 	
-	hr = d3dadapter9_context_create(&res->ctx, s);
+	res->gdi_ctx = MesaNineContextProc(hdc, screen);
+	printf("gdi_ctx? %p\n", res->gdi_ctx);
+	if(!res->gdi_ctx)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	hr = d3dadapter9_context_create(&res->ctx, screen);
 	if (SUCCEEDED(hr))
 	{
 		hr = NineAdapter9_new(&res->ctx, (struct NineAdapter9 **)&res->adapter9);
@@ -662,6 +672,8 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
             /// @todo NineAdapter9_new calls this as ctx->base.destroy,
             //       and will not call if memory allocation fails.
             // wddm_destroy(&pCtx->base);
+      printf("d3dadapter9_context_create FAILED\n");
+    	return D3DERR_INVALIDCALL;
 		}
 	}
 	

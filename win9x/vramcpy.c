@@ -35,18 +35,14 @@
 
 #include "gdi/gdi_sw_winsys.h"
 
-/* sse vector types */
-#if defined(__GNUC__) && defined(__SSE__)
-typedef unsigned int   v4ui __attribute__ ((vector_size(16)));
-typedef unsigned short v4us __attribute__ ((vector_size(8)));
-#endif
-
 
 #define QUERYESCSUPPORT 8
 #define OPENGL_GETINFO 0x1101
 #define FBHDA_REQ      0x110A
 #define FBHDA_UPDATE   0x110C
 #define FBHDA_NEED_UPDATE 1
+#define FBHDA_LOCKING 2
+#define FBHDA_FLIPING 4
 
 #pragma pack(push)
 #pragma pack(1)
@@ -59,6 +55,10 @@ typedef struct _FBHDA
 	void *       fb_pm32;
 	DWORD        fb_pm16;
 	DWORD        flags;
+	volatile DWORD lock;
+	void *       vram_pm32;
+	DWORD        vram_pm16;
+	DWORD        vram_size;
 } FBHDA;
 #pragma pack(pop)
 
@@ -68,161 +68,6 @@ typedef struct _FBHDA
 size_t vramcpy_pointsize(uint32_t bpp)
 {
 	return vramcpy_pointsize_fast(bpp);
-}
-
-/* read pixel from buffer as 32bit XRGB */
-static inline uint32_t pixel_read(uint8_t *src, size_t ps)
-{
-	uint32_t pixel = 0;
-	switch(ps)
-	{
-		case 1:
-			pixel = (src[0] << 16) | (src[0] << 8) | src[1]; // TODO: placeholder only!
-			break;
-		case 2:
-			{
-				uint16_t tmp = *((uint16_t*)src);
-				pixel = (tmp & 0x1F) << 3;
-				tmp >>= 5;
-				pixel |= (tmp & 0x3F) << (8 + 2);
-				tmp >>= 6;
-				pixel |= tmp << (16 + 3);
-			}
-			break;
-		case 3:
-			pixel = (src[0] << 16) | (src[1] << 8) | src[2];
-			break;
-		case 4:
-			pixel = *((uint32_t*)src);
-			break;
-	}
-	
-	return pixel;
-}
-
-/* write 32bit pixel to buffer */
-static inline void pixel_write(uint8_t *dst, size_t ps, uint32_t pixel)
-{
-	switch(ps)
-	{
-		case 1:
-			*dst = (pixel >> 8) & 0xFF; // TODO: placeholder only!
-			break;
-		case 2:
-			{
-			uint16_t tmp;
-			tmp  =  (pixel >> ( 0 + 3)) & 0x1F;
-			tmp |= ((pixel >> ( 8 + 2)) & 0x3F) << 5;
-			tmp |= ((pixel >> (16 + 3)) & 0x1F) << (5+6);
-			*((uint16_t*)dst) = tmp;
-			}
-			break;
-		case 3:
-			dst[0] = (pixel >> 16) & 0xFF;
-			dst[1] = (pixel >> 8) & 0xFF;
-			dst[2] = pixel & 0xFF;
-			break;
-		case 4:
-			*((uint32_t*)dst) = pixel;
-			break;
-	}
-}
-
-/* rectagle src to dst */
-void vramcpy(void *dst, void *src, vramcpy_rect_t *rect)
-{
-	uint8_t *psrc = src;
-	uint8_t *pdst = dst;
-	uint32_t y, x;
-	
-	if(rect->src_bpp == rect->dst_bpp)
-	{
-		const size_t ps = vramcpy_pointsize_fast(rect->src_bpp);
-		
-		psrc += rect->src_pitch * rect->src_y;
-		pdst += rect->dst_pitch * rect->dst_y;
-			
-		for(y = 0; y < rect->dst_h; y++)
-		{
-			memcpy(pdst + (rect->dst_x * ps), psrc + (rect->src_x * ps), rect->dst_w*ps);
-			psrc += rect->src_pitch;
-			pdst += rect->dst_pitch;
-		}
-	}
-	else if(rect->src_bpp == 32 && rect->dst_bpp == 16) /* accelerated 32b rendering to 16b screen */
-	{
-		psrc += rect->src_pitch * rect->src_y;
-		pdst += rect->dst_pitch * rect->dst_y;
-			
-		for(y = 0; y < rect->dst_h; y++)
-		{
-			uint8_t *src_pix = psrc + (rect->src_x * 4);
-			uint8_t *dst_pix = pdst + (rect->dst_x * 2);
-			int i = rect->dst_w;
-#if defined(__GNUC__) && defined(__SSE__)
-			for(; i >= 4; i -= 4)
-			{
-				v4us v1;
-				v4ui r, g, b;
-				v4ui v = *((v4ui*)src_pix);
-				r = v & 0x00F80000;
-				g = v & 0x0000FC00;
-				b = v & 0x000000F8;
-				r = r >> 8;
-				g = g >> 5;
-				b = b >> 3;
-				v = r | g | b;
-				v1 = __builtin_convertvector(v, v4us);
-				*((v4us*)dst_pix) = v1;
-				
-				src_pix += 4*4;
-				dst_pix += 2*4;
-			}
-#endif
-			for(; i > 0; i--)
-			{
-				uint32_t r, g, b;
-				uint32_t p = *((uint32_t*)src_pix);
-				r = p & 0x00F80000;
-				g = p & 0x0000FC00;
-				b = p & 0x000000F8;
-				r = r >> 8;
-				g = g >> 5;
-				b = b >> 3;
-				p = r | g | b;
-				*((uint16_t*)dst_pix) = (uint16_t)p;
-				
-				src_pix += 4;
-				dst_pix += 2;
-			}
-			
-			psrc += rect->src_pitch;
-			pdst += rect->dst_pitch;
-		}
-	}
-	else
-	{
-		const size_t ps = vramcpy_pointsize_fast(rect->src_bpp);
-		const size_t pd = vramcpy_pointsize_fast(rect->dst_bpp);
-		
-		psrc += rect->src_pitch * rect->src_y;
-		pdst += rect->dst_pitch * rect->dst_y;
-			
-		for(y = 0; y < rect->dst_h; y++)
-		{
-			uint8_t *ppsrc = psrc + (rect->src_x * ps);
-			uint8_t *ppdst = pdst + (rect->dst_x * pd);
-			for(x = 0; x < rect->dst_w; x++)
-			{
-				const uint32_t px = pixel_read(ppsrc, ps);
-				pixel_write(ppdst, pd, px);
-				ppsrc += ps;
-				ppdst += pd;
-			}
-			psrc += rect->src_pitch;
-			pdst += rect->dst_pitch;
-		}
-	}
 }
 
 /* calculate framebuffer size and round up it to MB */
@@ -298,6 +143,9 @@ BOOL vramcpy_top_window(HWND win)
 	return FALSE;
 }
 
+#define fbhda_need_update (fbhda_have_flags && (fbhda->flags & FBHDA_NEED_UPDATE))
+#define fbhda_locking     (fbhda_have_flags && (fbhda->flags & FBHDA_LOCKING))
+
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC)
 {
 	static uint32_t fbhda_ptr;
@@ -330,37 +178,35 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 			}
 		}
 		
-		if(fbhda != NULL)
+		if(fbhda != NULL && fbhda->bpp > 8)
 		{
 			HWND hwnd = WindowFromDC(hDC);
 			
 			if(hwnd == NULL) return;
 			
-#if 1 /* direct vram disabled! For now... */
-			vramcpy_display_window(gdt, hDC);
-			return;
-#else
 			if(!vramcpy_direct_rendering(hDC))
 			{
-				if(!vramcpy_top_window(hwnd)) /**/
+				if(!vramcpy_top_window(hwnd))
 				{
 					vramcpy_display_window(gdt, hDC);
 					return;
 				}
 			}
-#endif			
+
 			vramcpy_rect_t crect;
 			RECT wrect;
 			
-			if(GetWindowRect(hwnd, &wrect))
+			if(GetClientRect(hwnd, &wrect))
 			{
-				uint32_t render_width = wrect.right - wrect.left;
-				uint32_t render_height = wrect.bottom - wrect.top;
-				
-				crect.dst_x     = wrect.left;
-				crect.dst_y     = wrect.top;
-				crect.dst_w     = render_width;
-				crect.dst_h     = render_height;
+				POINT p1 = {wrect.left, wrect.top};
+				POINT p2 = {wrect.right, wrect.bottom};
+				ClientToScreen(hwnd, &p1);
+				ClientToScreen(hwnd, &p2);
+								
+				crect.dst_x     = p1.x;
+				crect.dst_y     = p1.y;
+				crect.dst_w     = p2.x - p1.x;
+				crect.dst_h     = p2.y - p1.y;
 				crect.dst_bpp   = fbhda->bpp;
 				crect.dst_pitch = fbhda->pitch;
 				crect.src_x     = 0;
@@ -368,13 +214,13 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 				crect.src_bpp   = gdt->bmi.bmiHeader.biBitCount;
 				crect.src_pitch = gdt->stride;//gdt->width * vramcpy_pointsize_fast(crect.src_bpp);
 				
+				if(fbhda_locking) vram_lock(&fbhda->lock);
 				vramcpy(fbhda->fb_pm32, gdt->data, &crect);
-				if(fbhda_have_flags)
+				if(fbhda_locking)	vram_unlock(&fbhda->lock);
+				
+				if(fbhda_need_update)
 				{
-					if(fbhda->flags & FBHDA_NEED_UPDATE)
-					{
-						ExtEscape(hDC, FBHDA_UPDATE, sizeof(RECT), (LPCSTR)&wrect, 0, NULL);
-					}
+					ExtEscape(hDC, FBHDA_UPDATE, sizeof(RECT), (LPCSTR)&wrect, 0, NULL);
 				}
 								
 				return;

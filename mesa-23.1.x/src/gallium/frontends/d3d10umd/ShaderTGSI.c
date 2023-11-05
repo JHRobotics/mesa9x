@@ -30,6 +30,9 @@
  *    Functions for translating shaders.
  */
 
+#define _D3D10_CONSTANTS
+#define _D3D10_1_CONSTANTS
+
 #include "Debug.h"
 #include "ShaderParse.h"
 

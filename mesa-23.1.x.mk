@@ -967,6 +967,7 @@ MesaSVGAWinsysLib_SRC  = \
 	
 MesaGdiLib_SRC = \
   $(MESA_VER)/src/gallium/winsys/sw/gdi/gdi_sw_winsys.c \
+  $(MESA_VER)/src/gallium/winsys/sw/wrapper/wrapper_sw_winsys.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_buffer.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_clear.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_context.c \
@@ -999,19 +1000,24 @@ MesaGdiLib_SRC = \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_tile_cache.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_texture.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c \
-  win9x/vramcpy.c
+  win9x/vramlock.c \
+  win9x/vramconv.c \
+  win9x/vramcpy.c \
 
 MesaGdiLibGL_SRC = \
   $(MesaGdiLib_SRC) \
-  $(MESA_VER)/src/gallium/targets/wgl/wgl.c
+  $(MESA_VER)/src/gallium/targets/wgl/wgl.c \
+  win9x/wgl/wglpipe.c
   
 MesaGdiLibICD_SRC = \
   $(MesaGdiLib_SRC) \
-  $(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c
+  $(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c \
+  win9x/wgl/wglpipe.c
   
 MesaGdiLibVMW_SRC = \
   $(MesaGdiLib_SRC) \
-  win9x/libgl_vmws.c
+  win9x/libgl_vmws.c \
+  win9x/wgl/wglpipe.c
 
 MesaGalliumLLVMPipe_SRC += \
   $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_alpha.c \
@@ -1077,3 +1083,22 @@ MesaGalliumLLVMPipe_SRC += \
   $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_printf.c \
   $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_texture.c \
   $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_tex_sample.c \
+
+MesaD3D10Lib_SRC = \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Adapter.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Debug.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Device.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Draw.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/DxgiFns.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Format.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/InputAssembly.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/OutputMerger.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Query.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Rasterizer.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Resource.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/Shader.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderDump.cpp \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderParse.c \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderTGSI.c \
+  $(MESA_VER)/src/gallium/frontends/d3d10umd/D3DKMT.cpp \
+  $(MESA_VER)/src/gallium/targets/d3d10sw/d3d10_gdi.c

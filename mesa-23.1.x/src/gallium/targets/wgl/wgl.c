@@ -43,6 +43,8 @@
 #include "pipe/p_screen.h"
 #include "pipe/p_context.h"
 
+#include "stw_context.h"
+
 #ifdef GALLIUM_SOFTPIPE
 #include "softpipe/sp_texture.h"
 #include "softpipe/sp_screen.h"
@@ -76,6 +78,8 @@ static boolean use_zink = FALSE;
 #ifdef WIN9X
 #include "vramcpy.h"
 #endif
+
+#include "wrapper/wrapper_sw_winsys.h"
 
 #ifdef HAVE_CRTEX
 void crt_enable_sse2();
@@ -234,8 +238,8 @@ wgl_present(struct pipe_screen *screen,
 #endif
 
 #ifdef GALLIUM_SOFTPIPE
-   winsys = softpipe_screen(screen)->winsys,
-   dt = softpipe_resource(res)->dt,
+   winsys = softpipe_screen(screen)->winsys;
+   dt = softpipe_resource(res)->dt;
 # ifndef WIN9X
    gdi_sw_display(winsys, dt, hDC);
 # else
@@ -290,7 +294,7 @@ wgl_get_name(void)
 }
 
 
-static const struct stw_winsys stw_winsys = {
+/*static const*/ struct stw_winsys stw_winsys = {
    &wgl_screen_create,
    &wgl_present,
 #if WINVER >= 0xA00
@@ -305,16 +309,6 @@ static const struct stw_winsys stw_winsys = {
    &wgl_create_framebuffer,
    &wgl_get_name,
 };
-
-EXTERN_C BOOL WINAPI MesaGetWinsys(struct stw_winsys *out);
-
-BOOL WINAPI MesaGetWinsys(struct stw_winsys *out)
-{
-	memcpy(out, &stw_winsys, sizeof(stw_winsys));
-	
-	return TRUE;
-}
-
 
 EXTERN_C BOOL WINAPI
 DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);

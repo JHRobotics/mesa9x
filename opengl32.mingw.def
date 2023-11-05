@@ -387,4 +387,5 @@ EXPORTS
 	DrvSwapLayerBuffers = DrvSwapLayerBuffers@8
 	DrvValidateVersion = DrvValidateVersion@4
 ;	wglSwapIntervalEXT = wglSwapIntervalEXT@4
-	MesaGetWinsys = MesaGetWinsys@4
+	MesaGetSTW = MesaGetSTW@4
+	MesaNineWinsys = MesaNineWinsys@12

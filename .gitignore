@@ -22,6 +22,7 @@ config.mk-msc
 
 # non-working tests
 test99.c
+fbtest.c
 
 # generated files
 mesa-23.1.x/src/compiler/nir/nir_builder_opcodes.h

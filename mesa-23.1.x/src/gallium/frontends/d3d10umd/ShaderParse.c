@@ -30,6 +30,9 @@
  *    Functions for parsing shader tokens.
  */
 
+#define _D3D10_CONSTANTS
+#define _D3D10_1_CONSTANTS
+
 #include "Debug.h"
 #include "ShaderParse.h"
 

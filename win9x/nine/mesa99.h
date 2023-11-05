@@ -8,6 +8,7 @@ typedef struct _INineNine
 	struct d3dadapter9_context ctx;
 	ID3DAdapter9 *adapter9;
 	struct pipe_screen *screen;
+	struct stw_context *gdi_ctx;
 } INineNine;
 
 HRESULT ID3DPresentGroup_new(INineNine *nine, HWND hFocusWindow, ID3DPresentGroup **pp);

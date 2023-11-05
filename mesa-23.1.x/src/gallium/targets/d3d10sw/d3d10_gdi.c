@@ -31,7 +31,7 @@
 #include "target-helpers/inline_debug_helper.h"
 #include "llvmpipe/lp_public.h"
 #include "softpipe/sp_public.h"
-#include "sw/gdi/gdi_sw_winsys.h"
+#include "gdi/gdi_sw_winsys.h"
 
 
 extern struct pipe_screen *
