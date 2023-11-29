@@ -390,7 +390,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
         This->dummy_vbo = pScreen->resource_create(pScreen, &tmpl);
 
         if (!This->dummy_vbo)
-            return D3DERR_OUTOFVIDEOMEMORY;
+          return D3DERR_OUTOFVIDEOMEMORY;
 
         u_box_1d(0, 16, &box);
         data = This->context.pipe->buffer_map(This->context.pipe, This->dummy_vbo, 0,
@@ -430,12 +430,12 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
         This->cursor.image = pScreen->resource_create(pScreen, &tmpl);
         if (!This->cursor.image)
-            return D3DERR_OUTOFVIDEOMEMORY;
+          return D3DERR_OUTOFVIDEOMEMORY;
 
         /* For uploading 32x32 (argb) cursor */
         This->cursor.hw_upload_temp = MALLOC(32 * 4 * 32);
         if (!This->cursor.hw_upload_temp)
-            return D3DERR_OUTOFVIDEOMEMORY;
+          return D3DERR_OUTOFVIDEOMEMORY;
     }
 
     /* Create constant buffers. */

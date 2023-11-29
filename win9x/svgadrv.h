@@ -124,6 +124,7 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 void SVGACBContextCreate(svga_inst_t *svga);
 
 BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
+BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch);
 
 #ifdef DEBUG
 void svga_printf(svga_inst_t *svga, const char *fmt, ...);

@@ -379,3 +379,25 @@ HRESULT WINAPI DllCanUnloadNow()
 {
 	return S_FALSE;
 }
+
+BOOL WINAPI MesaDimensions(struct pipe_screen *screen, struct pipe_context *ctx, struct pipe_resource *res, 
+	int *pWidth, int *pHeight, int *pBpp, int *pPitch)
+{
+	const char *type_name = screen->get_name(screen);
+	
+	if(type_name == "SVGA3D")
+	{
+		const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
+		
+    if (pEnv)
+    {
+    	svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
+    	assert(svga);
+    	  
+      uint32_t sid = GaDrvGetSurfaceId(screen, res);
+      return SVGASurfaceInfo(svga, sid, pWidth, pHeight, pBpp, pPitch);
+		}			
+	}
+	
+	return FALSE;
+}

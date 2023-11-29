@@ -16,6 +16,8 @@
 
 #include "mesa99.h"
 
+#include "../../mesa9x.h"
+
 #define MESA99_ADAPTER_CNT 1
 
 #define OPENGL_GETINFO 0x1101
@@ -34,13 +36,11 @@ typedef struct _opengl_icd_t
 //static struct stw_winsys stw_winsys = {};
 
 static HMODULE hMesa = NULL;
-struct sw_winsys *winsys = NULL;
 
-typedef struct sw_winsys * (WINAPI *MesaNineWinsysFunc)(HDC hdc, struct sw_winsys **pWinsys, struct pipe_screen **pScreen);
-typedef struct stw_context * (WINAPI *MesaNineContextFunc)(HDC hdc, struct pipe_screen *screen);
+MesaScreenCreateH MesaScreenCreate = NULL;
+MesaPresentH MesaPresent = NULL;
+MesaDimensionsH MesaDimensions = NULL;
 
-static MesaNineWinsysFunc MesaNineWinsysProc = NULL;
-static MesaNineContextFunc MesaNineContextProc = NULL;
 
 static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 {
@@ -77,7 +77,7 @@ static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 #define TRY_LOAD_FUNC(_fname) \
 	proc = GetProcAddress(hMesaTest, #_fname); \
 	if(proc == NULL){FreeLibrary(hMesaTest); printf("not found %s in %s\n", #_fname, dllname); return FALSE;} \
-	_fname ## Proc = (_fname ## Func)proc;
+	_fname = (_fname ## H)proc;
 
 static BOOL LoadWinsysDLL(char *dllname, HMODULE *OutHMesa)
 {
@@ -87,8 +87,9 @@ static BOOL LoadWinsysDLL(char *dllname, HMODULE *OutHMesa)
 	hMesaTest = LoadLibraryA(dllname);
 	if(hMesaTest)
 	{
-		TRY_LOAD_FUNC(MesaNineWinsys)
-		TRY_LOAD_FUNC(MesaNineContext)
+		TRY_LOAD_FUNC(MesaScreenCreate)
+		TRY_LOAD_FUNC(MesaPresent)
+		TRY_LOAD_FUNC(MesaDimensions)
 	}
 	
 	*OutHMesa = hMesaTest;
@@ -119,8 +120,8 @@ BOOL LoadWinsys()
 	/* debug */
 	if(!hMesa)
 	{
-		printf("mesa99: try mesa3d.w95.dll\n");
-		LoadWinsysDLL("mesa3d.w95.dll", &hMesa);
+		printf("mesa99: try mesa3d.w98me.dll\n");
+		LoadWinsysDLL("mesa3d.w98me.dll", &hMesa);
 	}
 	
 	printf("mesa99: loader = %p\n", hMesa);
@@ -150,7 +151,7 @@ static HRESULT d3dadapter9_context_create(struct d3dadapter9_context *ctx, struc
 	ctx->dynamic_texture_workaround = FALSE;
 	ctx->shader_inline_constants    = FALSE;
 	ctx->memfd_virtualsizelimit     = -1;
-	ctx->override_vram_size         = -1;
+	ctx->override_vram_size         = 128*1024*1024;
 	ctx->destroy                    = d3dadapter9_context_destroy;
 
 	return D3D_OK;
@@ -200,7 +201,7 @@ ULONG WINAPI NineNine_Release(INineNine *This)
 	ULONG cnt = InterlockedDecrement(&This->refcount);
 	if(cnt == 0)
 	{
-		HeapFree(GetProcessHeap(), 0, This);
+		//HeapFree(GetProcessHeap(), 0, This);
 	}
 	
 	return cnt;
@@ -245,12 +246,12 @@ HRESULT WINAPI NineNine_GetAdapterIdentifier(INineNine *This, UINT Adapter, DWOR
 	memset(&pIdentifier->Description[0], 0, sizeof(pIdentifier->Description));
 	memset(&pIdentifier->DeviceName[0], 0, sizeof(pIdentifier->DeviceName));
 	
-	strcpy(pIdentifier->Driver, "Mesa Nine Nine");
-	strcpy(pIdentifier->Description, "Mesa Nine Nine");
+	strcpy(pIdentifier->Driver, "mesa99.dll");
+	strcpy(pIdentifier->Description, "Mesa Nine-Nine");
 	strcpy(pIdentifier->DeviceName, "\\\\.\\DISPLAY1");
 	
-	pIdentifier->DriverVersionLowPart = 1;
-	pIdentifier->DriverVersionHighPart = 0;
+	pIdentifier->DriverVersionLowPart  = (MESA9X_PATCH << 16) | MESA9X_BUILD;
+	pIdentifier->DriverVersionHighPart = (MESA9X_MAJOR << 16) | MESA9X_MINOR;
 	pIdentifier->VendorId = 0x15AD;
 	pIdentifier->DeviceId = 0x0405;
 	pIdentifier->SubSysId = 0x040515AD;
@@ -575,31 +576,240 @@ HRESULT WINAPI NineNine_CreateDevice(INineNine *This, UINT Adapter, D3DDEVTYPE D
 	rc = ID3DPresentGroup_new(This, hFocusWindow, &pg);
 	if(rc !=  D3D_OK)
 	{
+		printf("ID3DPresentGroup_new FAIL\n");
 		return rc;
 	}
 	
-	return NineAdapter9_CreateDevice(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, (IDirect3D9 *)This, pg, ppReturnedDeviceInterface);
+	rc = NineAdapter9_CreateDevice(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, (IDirect3D9 *)This, pg, ppReturnedDeviceInterface);
+	if(FAILED(rc))
+	{
+		printf("FAILED NineAdapter9_CreateDevice\n");
+	}
+	
+	return rc;
 }
 
 /* IDirect3D9Ex */
 HRESULT WINAPI NineNine_CreateDeviceEx(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
 	D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
-	return D3DERR_INVALIDCALL;
+	HRESULT rc;
+	ID3DPresentGroup *pg = NULL;
+	
+	if(Adapter > MESA99_ADAPTER_CNT)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	rc = ID3DPresentGroup_new(This, hFocusWindow, &pg);
+	if(rc !=  D3D_OK)
+	{
+		return rc;
+	}
+	
+	return NineAdapter9_CreateDeviceEx(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
+		pFullscreenDisplayMode, (IDirect3D9Ex *)This, pg, ppReturnedDeviceInterface
+	);
 }
 
 UINT WINAPI NineNine_GetAdapterModeCountEx(INineNine *This, UINT Adapter, const D3DDISPLAYMODEFILTER *pFilter)
 {
-	return D3DERR_INVALIDCALL;
+	if(pFilter->Size != sizeof(D3DDISPLAYMODEFILTER))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return 0;
+	}
+	
+	if(pFilter->ScanLineOrdering == D3DSCANLINEORDERING_INTERLACED)
+	{
+		return 0;
+	}
+	
+	switch(pFilter->Format)
+	{
+		case D3DFMT_A8R8G8B8:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_R8G8B8:
+		case D3DFMT_R5G6B5:
+			break;
+		default:
+			return 0;
+			break;
+	}
+	
+	int modes = 0;
+	int iMode;
+	DEVMODEA devMode;
+	
+	for(iMode = 0 ;; iMode++)
+	{
+		memset(&devMode, 0, sizeof(DEVMODE));
+		devMode.dmSize = sizeof(DEVMODE);
+		
+		if(!EnumDisplaySettingsA(NULL, iMode, &devMode))
+		{
+			break;
+		}
+		
+		switch(devMode.dmBitsPerPel)
+		{
+			case 16:
+				if(pFilter->Format == D3DFMT_R5G6B5)
+				{
+					modes++;
+				}
+				break;
+			case 24:
+				if(pFilter->Format == D3DFMT_R8G8B8)
+				{
+					modes++;
+				}
+				break;
+			case 32:
+				if(pFilter->Format == D3DFMT_A8R8G8B8 ||
+					pFilter->Format == D3DFMT_X8R8G8B8)
+				{
+					modes++;
+				}
+				break;
+		}
+	}
+
+	return modes;
 }
 
 HRESULT WINAPI NineNine_EnumAdapterModesEx(INineNine *This, UINT Adapter, const D3DDISPLAYMODEFILTER *pFilter, UINT Mode, D3DDISPLAYMODEEX *pMode)
 {
-	return D3DERR_INVALIDCALL;
+	if(pFilter->Size != sizeof(D3DDISPLAYMODEFILTER))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_NOTAVAILABLE;
+	}
+	
+	if(pFilter->ScanLineOrdering == D3DSCANLINEORDERING_INTERLACED)
+	{
+		return D3DERR_NOTAVAILABLE;
+	}
+	
+	int modes = 0;
+	int iMode;
+	DEVMODEA devMode;
+	
+	for(iMode = 0 ;; iMode++)
+	{
+		memset(&devMode, 0, sizeof(DEVMODE));
+		devMode.dmSize = sizeof(DEVMODE);
+		
+		if(!EnumDisplaySettingsA(NULL, iMode, &devMode))
+		{
+			break;
+		}
+		
+		switch(devMode.dmBitsPerPel)
+		{
+			case 16:
+				if(pFilter->Format == D3DFMT_R5G6B5)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_R5G6B5;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+			case 24:
+				if(pFilter->Format == D3DFMT_R8G8B8)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_R8G8B8;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+			case 32:
+				if(pFilter->Format == D3DFMT_A8R8G8B8 ||
+					pFilter->Format == D3DFMT_X8R8G8B8)
+				{
+					if(modes == Mode)
+					{
+						pMode->Format      = D3DFMT_X8R8G8B8;
+						pMode->RefreshRate = 0;
+						pMode->Width       = devMode.dmPelsWidth;
+						pMode->Height      = devMode.dmPelsHeight;
+						
+						return D3D_OK;
+					}
+					modes++;
+				}
+				break;
+		}
+	}
+	
+	return D3DERR_NOTAVAILABLE;
 }
 
 HRESULT WINAPI NineNine_GetAdapterDisplayModeEx(INineNine *This, UINT Adapter, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation)
 {
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	DEVMODEA devMode = {0};
+	devMode.dmSize = sizeof(DEVMODE);
+	
+	if(EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &devMode))
+	{
+		if(pMode != NULL)
+		{
+			switch(devMode.dmBitsPerPel)
+			{
+				case 16:
+					pMode->Format = D3DFMT_R5G6B5;
+					break;
+				case 24:
+					pMode->Format = D3DFMT_R8G8B8;
+					break;
+				case 32:
+					pMode->Format = D3DFMT_X8R8G8B8;
+					break;
+				default:
+					return D3DERR_NOTAVAILABLE;
+			}
+			
+			pMode->RefreshRate = 0;
+			pMode->Width       = devMode.dmPelsWidth;
+			pMode->Height      = devMode.dmPelsHeight;
+			pMode->ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+		}
+		
+		if(pRotation)
+		{
+			*pRotation = D3DDISPLAYROTATION_IDENTITY;
+		}
+		
+		return D3D_OK;
+	}
+	
 	return D3DERR_INVALIDCALL;
 }
 
@@ -640,14 +850,14 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	HDC hdc = GetDC(hDesktop);
 	struct pipe_screen *screen = NULL;
 	
-	if(!MesaNineWinsysProc)
+	if(!MesaScreenCreate)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 	
 	printf("Creating screen\n");
 	
-	if(!MesaNineWinsysProc(hdc, &winsys, &screen))
+	if(!MesaScreenCreate(hdc, &screen))
 	{
 		return D3DERR_INVALIDCALL;
 	}
@@ -655,14 +865,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	INineNine *res = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(INineNine));
 	res->base.lpVtbl = &NineNineEx_vtable;
 	res->screen = screen;
-	
-	res->gdi_ctx = MesaNineContextProc(hdc, screen);
-	printf("gdi_ctx? %p\n", res->gdi_ctx);
-	if(!res->gdi_ctx)
-	{
-		return D3DERR_INVALIDCALL;
-	}
-	
+
 	hr = d3dadapter9_context_create(&res->ctx, screen);
 	if (SUCCEEDED(hr))
 	{
@@ -682,4 +885,96 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	return hr;
 }
 
+/* d3d9.dll like interface
+ * (mostly )from Wine
+ */
+#define DECLSPEC_HOTPATCH
+
+void WINAPI DebugSetMute(void) {
+    /* nothing to do */
+}
+
+IDirect3D9 * WINAPI DECLSPEC_HOTPATCH Direct3DCreate9(UINT sdk_version)
+{
+	IDirect3D9 *out = NULL;
+	
+	if(NineNine_new((INineNine **)&out) == D3D_OK)
+	{
+		return out;
+	}
+		
+	return NULL;
+}
+
+HRESULT WINAPI DECLSPEC_HOTPATCH Direct3DCreate9Ex(UINT sdk_version, IDirect3D9Ex **d3d9ex)
+{
+	return NineNine_new((INineNine **)d3d9ex);
+}
+
+/*******************************************************************
+ *       Direct3DShaderValidatorCreate9 (D3D9.@)
+ *
+ * No documentation available for this function.
+ * SDK only says it is internal and shouldn't be used.
+ */
+void* WINAPI Direct3DShaderValidatorCreate9(void)
+{
+    return NULL;
+}
+
+static int D3DPERF_event_level = 0;
+
+/***********************************************************************
+ *              D3DPERF_BeginEvent (D3D9.@)
+ */
+int WINAPI D3DPERF_BeginEvent(D3DCOLOR color, const WCHAR *name)
+{
+    return D3DPERF_event_level++;
+}
+
+/***********************************************************************
+ *              D3DPERF_EndEvent (D3D9.@)
+ */
+int WINAPI D3DPERF_EndEvent(void) {
+    return --D3DPERF_event_level;
+}
+
+/***********************************************************************
+ *              D3DPERF_GetStatus (D3D9.@)
+ */
+DWORD WINAPI D3DPERF_GetStatus(void) {
+    return 0;
+}
+
+/***********************************************************************
+ *              D3DPERF_SetOptions (D3D9.@)
+ *
+ */
+void WINAPI D3DPERF_SetOptions(DWORD options)
+{
+
+}
+
+/***********************************************************************
+ *              D3DPERF_QueryRepeatFrame (D3D9.@)
+ */
+BOOL WINAPI D3DPERF_QueryRepeatFrame(void) {
+    return FALSE;
+}
+
+/***********************************************************************
+ *              D3DPERF_SetMarker (D3D9.@)
+ */
+void WINAPI D3DPERF_SetMarker(D3DCOLOR color, const WCHAR *name)
+{
+
+}
+
+/***********************************************************************
+ *              D3DPERF_SetRegion (D3D9.@)
+ */
+void WINAPI D3DPERF_SetRegion(D3DCOLOR color, const WCHAR *name)
+{
+	
+}
 

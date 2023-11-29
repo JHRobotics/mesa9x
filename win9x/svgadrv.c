@@ -3388,3 +3388,21 @@ BOOL cb_full(cb_state_t *cbs, size_t cbNeed)
 	return cbs->cb_pos + cbNeed > SVGA_CB_MAX_SIZE ||
 		cbs->cmd_count >=  SVGA_CB_MAX_QUEUED_PER_CONTEXT;
 }
+
+BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch)
+{
+	svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
+
+	if(sinfo == NULL || (sinfo->size.width * sinfo->size.height) == 0)
+	{
+		return FALSE;
+	}
+	
+	*pWidth  = sinfo->size.width;
+	*pHeight = sinfo->size.height;
+	*pBpp    = sinfo->bpp;
+	*pPitch  = sinfo->size.width * vramcpy_pointsize(sinfo->bpp);
+	
+	return TRUE;
+}
+

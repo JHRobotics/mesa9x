@@ -64,7 +64,7 @@ ifeq ($(GIT_IS),true)
   VERSION_BUILD := $(shell $(GIT) rev-list --count main)
 endif
 
-TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe icdtest.exe wgltest.exe
+TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe icdtest.exe wgltest.exe mesa99.dll
 ifdef LLVM
   TARGETS += opengl32.w98me.dll mesa3d.w98me.dll
 endif

@@ -117,9 +117,6 @@ D3DWindowBuffer_create(struct NineSwapChain9 *This,
         ERR("Failed to get handle for resource\n");
         return NULL;
     }
-#else
-		whandle.handle = NULL;
-#endif
     nine_context_get_pipe_release(This->base.device);
     stride = whandle.stride;
     dmaBufFd = whandle.handle;
@@ -131,6 +128,10 @@ D3DWindowBuffer_create(struct NineSwapChain9 *This,
                                                   depth,
                                                   32,
                                                   &ret);
+#else
+		hr = ID3DPresent_NewD3DWindowBufferFromRes(This->present, This->screen, pipe, resource, &ret);
+    nine_context_get_pipe_release(This->base.device);
+#endif
     assert (SUCCEEDED(hr));
 
     if (FAILED(hr)) {

@@ -29,6 +29,10 @@
 #define D3DOK_WINDOW_OCCLUDED MAKE_D3DSTATUS(2531)
 #endif /* D3DOK_WINDOW_OCCLUDED */
 
+struct pipe_screen;
+struct pipe_resource;
+struct pipe_context;
+
 #ifndef __cplusplus
 typedef struct ID3DPresent ID3DPresent;
 typedef struct ID3DPresentGroup ID3DPresentGroup;
@@ -67,6 +71,8 @@ typedef struct ID3DPresentVtbl
     /* Make a buffer visible to the window system via dma-buf fd.
      * For better compatibility, it must be 32bpp and format ARGB/XRGB */
     HRESULT (WINAPI *NewD3DWindowBufferFromDmaBuf)(ID3DPresent *This, int dmaBufFd, int width, int height, int stride, int depth, int bpp, D3DWindowBuffer **out);
+    /* Windows hasn't descriptors, pass directly pipe_context + pipe_resource  */
+    HRESULT (WINAPI *NewD3DWindowBufferFromRes)(ID3DPresent *This, struct pipe_screen *screen, struct pipe_context *ctx, struct pipe_resource *res, D3DWindowBuffer **out);
     HRESULT (WINAPI *DestroyD3DWindowBuffer)(ID3DPresent *This, D3DWindowBuffer *buffer);
     /* After presenting a buffer to the window system, the buffer
      * may be used as is (no copy of the content) by the window system.
@@ -114,6 +120,7 @@ struct ID3DPresent
 #define ID3DPresent_GetPresentParameters(p,a) (p)->lpVtbl->GetPresentParameters(p,a)
 #define ID3DPresent_SetPresentParameters(p,a,b) (p)->lpVtbl->SetPresentParameters(p,a,b)
 #define ID3DPresent_NewD3DWindowBufferFromDmaBuf(p,a,b,c,d,e,f,g) (p)->lpVtbl->NewD3DWindowBufferFromDmaBuf(p,a,b,c,d,e,f,g)
+#define ID3DPresent_NewD3DWindowBufferFromRes(p,a,b,c,d) (p)->lpVtbl->NewD3DWindowBufferFromRes(p,a,b,c,d)
 #define ID3DPresent_DestroyD3DWindowBuffer(p,a) (p)->lpVtbl->DestroyD3DWindowBuffer(p,a)
 #define ID3DPresent_WaitBufferReleased(p,a) (p)->lpVtbl->WaitBufferReleased(p,a)
 #define ID3DPresent_FrontBufferCopy(p,a) (p)->lpVtbl->FrontBufferCopy(p,a)

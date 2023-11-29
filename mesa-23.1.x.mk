@@ -1007,12 +1007,14 @@ MesaGdiLib_SRC = \
 MesaGdiLibGL_SRC = \
   $(MesaGdiLib_SRC) \
   $(MESA_VER)/src/gallium/targets/wgl/wgl.c \
-  win9x/wgl/wglpipe.c
+  win9x/wgl/wglpipe.c \
+  win9x/wgl/wglpipe_splp.c
   
 MesaGdiLibICD_SRC = \
   $(MesaGdiLib_SRC) \
   $(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c \
-  win9x/wgl/wglpipe.c
+  win9x/wgl/wglpipe.c \
+  win9x/wgl/wglpipe_splp.c
   
 MesaGdiLibVMW_SRC = \
   $(MesaGdiLib_SRC) \

@@ -13,4 +13,12 @@ typedef struct _INineNine
 
 HRESULT ID3DPresentGroup_new(INineNine *nine, HWND hFocusWindow, ID3DPresentGroup **pp);
 
+typedef BOOL (WINAPI *MesaScreenCreateH)(HDC hdc, struct pipe_screen **pScreen);
+typedef BOOL (WINAPI *MesaPresentH)(struct pipe_screen *screen, struct pipe_context *ctx, struct pipe_resource *res, HDC dc, const RECT *pSrcRest, const RECT *pDstRect);
+typedef BOOL (WINAPI *MesaDimensionsH)(struct pipe_screen *screen, struct pipe_context *ctx, struct pipe_resource *res, int *pWidth, int *pHeight, int *pBpp, int *pPitch);
+
+extern MesaScreenCreateH MesaScreenCreate;
+extern MesaPresentH MesaPresent;
+extern MesaDimensionsH MesaDimensions;
+
 #endif /* __MESA99_H__INCLUDED__ */
