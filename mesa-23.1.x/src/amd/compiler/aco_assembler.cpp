@@ -858,7 +858,7 @@ emit_instruction(asm_context& ctx, std::vector<uint32_t>& out, Instruction* inst
          encoding |= dpp.abs[0] << 21;
          encoding |= dpp.neg[0] << 20;
          if (ctx.gfx_level >= GFX10)
-            encoding |= 1 << 18; /* set Fetch Inactive to match GFX9 behaviour */
+            encoding |= 1 << 18; /* set Fetch Inactive */
          encoding |= dpp.bound_ctrl << 19;
          encoding |= dpp.dpp_ctrl << 8;
          encoding |= reg(ctx, dpp_op, 8);

@@ -971,7 +971,13 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .lower_invalid_implicit_lod = true,
    };
 
-   OPT(nir_lower_tex, &tex_options);
+   /* In the case where TG4 coords are lowered to offsets and we have a
+    * lower_xehp_tg4_offset_filter lowering those offsets further, we need to
+    * rerun the pass because the instructions inserted by the first lowering
+    * are not visible during that first pass.
+    */
+   if (OPT(nir_lower_tex, &tex_options))
+      OPT(nir_lower_tex, &tex_options);
    OPT(nir_normalize_cubemap_coords);
 
    OPT(nir_lower_global_vars_to_local);

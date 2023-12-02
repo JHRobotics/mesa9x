@@ -85,7 +85,12 @@ nir_collect_src_uniforms(const nir_src *src, int component,
       nir_alu_instr *alu = nir_instr_as_alu(instr);
 
       /* Vector ops only need to check the corresponding component. */
-      if (nir_op_is_vec(alu->op)) {
+      if (alu->op == nir_op_mov) {
+         return nir_collect_src_uniforms(&alu->src[0].src,
+                                         alu->src[0].swizzle[component],
+                                         uni_offsets, num_offsets,
+                                         max_num_bo, max_offset);
+      } else if (nir_op_is_vec(alu->op)) {
          nir_alu_src *alu_src = alu->src + component;
          return nir_collect_src_uniforms(&alu_src->src, alu_src->swizzle[0],
                                          uni_offsets, num_offsets,
@@ -367,7 +372,7 @@ void
 nir_find_inlinable_uniforms(nir_shader *shader)
 {
    uint32_t uni_offsets[MAX_INLINABLE_UNIFORMS];
-   uint8_t num_offsets = 0;
+   uint8_t num_offsets[MAX_NUM_BO] = {0};
 
    nir_foreach_function(function, shader) {
       if (function->impl) {
@@ -375,13 +380,13 @@ nir_find_inlinable_uniforms(nir_shader *shader)
                               nir_var_all, false);
 
          foreach_list_typed(nir_cf_node, node, node, &function->impl->body)
-            process_node(node, NULL, uni_offsets, &num_offsets);
+            process_node(node, NULL, uni_offsets, num_offsets);
       }
    }
 
-   for (int i = 0; i < num_offsets; i++)
+   for (int i = 0; i < num_offsets[0]; i++)
       shader->info.inlinable_uniform_dw_offsets[i] = uni_offsets[i] / 4;
-   shader->info.num_inlinable_uniforms = num_offsets;
+   shader->info.num_inlinable_uniforms = num_offsets[0];
 }
 
 void

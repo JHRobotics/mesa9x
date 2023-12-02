@@ -6122,7 +6122,10 @@ iris_preemption_streamout_wa(struct iris_context *ice,
                              struct iris_batch *batch,
                              bool enable)
 {
-#if GFX_VERx10 >= 120
+#if INTEL_NEEDS_WA_16013994831
+   if (!intel_needs_workaround(batch->screen->devinfo, 16013994831))
+      return;
+
    iris_emit_reg(batch, GENX(CS_CHICKEN1), reg) {
       reg.DisablePreemptionandHighPriorityPausingdueto3DPRIMITIVECommand = !enable;
       reg.DisablePreemptionandHighPriorityPausingdueto3DPRIMITIVECommandMask = true;
@@ -7041,6 +7044,17 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    if (dirty & IRIS_DIRTY_LINE_STIPPLE) {
       struct iris_rasterizer_state *cso = ice->state.cso_rast;
       iris_batch_emit(batch, cso->line_stipple, sizeof(cso->line_stipple));
+#if GFX_VER >= 11
+      /* ICL PRMs, Volume 2a - Command Reference: Instructions,
+       * 3DSTATE_LINE_STIPPLE:
+       *
+       *    "Workaround: This command must be followed by a PIPE_CONTROL with
+       *     CS Stall bit set."
+       */
+      iris_emit_pipe_control_flush(batch,
+                                   "workaround: post 3DSTATE_LINE_STIPPLE",
+                                   PIPE_CONTROL_CS_STALL);
+#endif
    }
 
    if (dirty & IRIS_DIRTY_VF_TOPOLOGY) {
@@ -8464,6 +8478,14 @@ iris_emit_raw_pipe_control(struct iris_batch *batch,
        */
       assert(flags & PIPE_CONTROL_WRITE_IMMEDIATE);
    }
+
+   /* Emulate a HDC flush with a full Data Cache Flush on older hardware which
+    * doesn't support the new lightweight flush.
+    */
+#if GFX_VER < 12
+      if (flags & PIPE_CONTROL_FLUSH_HDC)
+         flags |= PIPE_CONTROL_DATA_CACHE_FLUSH;
+#endif
 
    /* "Post-Sync Operation" workarounds -------------------------------- */
 

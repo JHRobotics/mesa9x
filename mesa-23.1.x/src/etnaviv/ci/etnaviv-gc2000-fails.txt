@@ -9,16 +9,6 @@ dEQP-GLES2.functional.draw.draw_elements.triangle_fan.single_attribute,Fail
 dEQP-GLES2.functional.fbo.render.color_clear.rbo_rgba4_depth_component16,Fail
 dEQP-GLES2.functional.fbo.render.color_clear.rbo_rgba4,Fail
 dEQP-GLES2.functional.fbo.render.color_clear.rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.no_rebind_rbo_rgb565_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.no_rebind_rbo_rgb5_a1_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.no_rebind_rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.no_rebind_tex2d_rgba_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.no_rebind_tex2d_rgb_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.rebind_rbo_rgb565_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.rebind_rbo_rgb5_a1_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.rebind_rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.rebind_tex2d_rgba_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.recreate_colorbuffer.rebind_tex2d_rgb_stencil_index8,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgb565_depth_component16,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgb565,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgb565_stencil_index8,Fail
@@ -28,18 +18,6 @@ dEQP-GLES2.functional.fbo.render.resize.rbo_rgb5_a1_stencil_index8,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgba4_depth_component16,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgba4,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.resize.tex2d_rgba_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.resize.tex2d_rgb_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgb565_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgb5_a1_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.shared_colorbuffer.tex2d_rgba_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.shared_colorbuffer.tex2d_rgb_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.stencil_clear.rbo_rgb565_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.stencil_clear.rbo_rgb5_a1_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.stencil_clear.rbo_rgba4_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.stencil_clear.tex2d_rgba_stencil_index8,Fail
-dEQP-GLES2.functional.fbo.render.stencil_clear.tex2d_rgb_stencil_index8,Fail
 dEQP-GLES2.functional.fbo.render.texsubimage.after_render_tex2d_rgba,Fail
 dEQP-GLES2.functional.fbo.render.texsubimage.after_render_tex2d_rgb,Fail
 dEQP-GLES2.functional.fbo.render.texsubimage.between_render_tex2d_rgba,Fail
@@ -365,9 +343,6 @@ spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y216,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y412,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_y416,Fail
 spec@ext_packed_depth_stencil@depth_stencil texture,Fail
-spec@ext_packed_depth_stencil@fbo-clear-formats stencil,Fail
-spec@ext_packed_depth_stencil@fbo-clear-formats stencil@GL_DEPTH24_STENCIL8,Fail
-spec@ext_packed_depth_stencil@fbo-clear-formats stencil@GL_DEPTH_STENCIL,Fail
 spec@ext_packed_depth_stencil@fbo-depth-gl_depth24_stencil8-copypixels,Fail
 spec@ext_packed_depth_stencil@fbo-stencil-gl_depth24_stencil8-blit,Fail
 spec@ext_packed_depth_stencil@texwrap formats bordercolor,Fail
@@ -593,7 +568,6 @@ spec@!opengl 1.0@gl-1.0-logicop@GL_SET,Fail
 spec@!opengl 1.0@gl-1.0-logicop@GL_XOR,Fail
 spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
 spec@!opengl 1.0@gl-1.0-ortho-pos,Fail
-spec@!opengl 1.0@gl-1.0-scissor-stencil-clear,Fail
 spec@!opengl 1.0@gl-1.0-spot-light,Fail
 spec@!opengl 1.0@gl-1.0-swapbuffers-behavior,Fail
 spec@!opengl 1.0@gl-1.0-user-clip-all-planes,Fail

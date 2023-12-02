@@ -216,6 +216,8 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
       compiler->max_const_safe = 256;
    }
 
+   compiler->has_isam_ssbo = compiler->gen >= 6;
+
    if (compiler->gen >= 6) {
       compiler->reg_size_vec4 = dev_info->a6xx.reg_size_vec4;
    } else if (compiler->gen >= 4) {

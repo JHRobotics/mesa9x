@@ -329,8 +329,6 @@ KHR-GLES31.core.shader_atomic_counters.advanced-usage-multidim-array-large,Fail
 # Several "Byte at index <n> is 0x00 should be 0x<ab>"
 KHR-GLES31.core.shader_storage_buffer_object.basic-stdLayout_UBO_SSBO-case2-cs,Fail
 
-KHR-GLES31.core.shader_storage_buffer_object.basic-syntax-cs,Fail
-
 KHR-GLES31.core.texture_border_clamp.Texture2DArrayCompressed,Fail
 KHR-GLES31.core.texture_border_clamp.Texture2DArrayR32I,Fail
 KHR-GLES31.core.texture_border_clamp.Texture2DArrayR32UI,Fail
@@ -639,24 +637,6 @@ spec@arb_uniform_buffer_object@execution@std140-struct-array-array-array-struct,
 spec@arb_uniform_buffer_object@execution@shared-array-struct-array-struct,Fail
 spec@arb_uniform_buffer_object@execution@std140-array-struct-array-struct,Fail
 
-dEQP-GLES31.functional.compute.basic.copy_ssbo_to_image_large,Fail
-dEQP-GLES31.functional.compute.basic.copy_ssbo_to_image_small,Fail
-dEQP-GLES31.functional.compute.basic.image_atomic_op_local_size_1,Fail
-dEQP-GLES31.functional.compute.basic.image_atomic_op_local_size_8,Fail
-dEQP-GLES31.functional.layout_binding.ssbo.fragment_binding_max,Fail
-dEQP-GLES31.functional.shaders.opaque_type_indexing.ssbo.const_expression_fragment,Fail
-dEQP-GLES31.functional.shaders.opaque_type_indexing.ssbo.const_literal_fragment,Fail
-dEQP-GLES31.functional.ssbo.layout.random.all_per_block_buffers.11,Fail
-dEQP-GLES31.functional.ssbo.layout.random.all_per_block_buffers.19,Fail
-dEQP-GLES31.functional.ssbo.layout.random.all_per_block_buffers.24,Fail
-dEQP-GLES31.functional.ssbo.layout.random.all_per_block_buffers.45,Fail
-dEQP-GLES31.functional.ssbo.layout.random.basic_arrays.18,Fail
-dEQP-GLES31.functional.ssbo.layout.random.basic_instance_arrays.1,Fail
-dEQP-GLES31.functional.ssbo.layout.random.basic_instance_arrays.19,Fail
-dEQP-GLES31.functional.ssbo.layout.random.basic_instance_arrays.23,Fail
-dEQP-GLES31.functional.ssbo.layout.random.nested_structs.7,Fail
-dEQP-GLES31.functional.ssbo.layout.random.nested_structs.9,Fail
-dEQP-GLES31.functional.ssbo.layout.random.vector_types.3,Fail
 dEQP-GLES31.functional.ssbo.layout.single_struct_array.per_block_buffer.packed_instance_array,Fail
 dEQP-GLES31.functional.ssbo.layout.single_struct_array.per_block_buffer.std430_instance_array,Fail
 dEQP-GLES31.functional.ssbo.layout.single_struct_array.single_buffer.packed_instance_array,Fail
@@ -1080,9 +1060,6 @@ KHR-GLES31.core.pixelstoragemodes.teximage3d.rgba8ui.16_16_0,Fail
 KHR-GLES31.core.pixelstoragemodes.teximage3d.rgba8ui.16_16_1,Fail
 KHR-GLES31.core.polygon_offset_clamp.PolygonOffsetClampMinMax,Fail
 KHR-GLES31.core.polygon_offset_clamp.PolygonOffsetClampZeroInfinity,Fail
-KHR-GLES31.core.shader_storage_buffer_object.advanced-usage-operators-cs,Fail
-KHR-GLES31.core.shader_storage_buffer_object.basic-std140Layout-case3-cs,Fail
-KHR-GLES31.core.shader_storage_buffer_object.basic-std430Layout-case2-cs,Fail
 KHR-GLES31.core.texture_buffer.texture_buffer_conv_int_to_float,Fail
 KHR-GLES31.core.texture_buffer.texture_buffer_operations_ssbo_writes,Fail
 KHR-GLES31.shaders.layout_location.isampler_2d_array,Fail

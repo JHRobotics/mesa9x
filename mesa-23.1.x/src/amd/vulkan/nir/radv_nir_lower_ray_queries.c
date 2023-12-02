@@ -391,6 +391,11 @@ lower_rq_initialize(nir_builder *b, nir_ssa_def *index, nir_intrinsic_instr *ins
 
    nir_ssa_def *accel_struct = instr->src[1].ssa;
 
+   /* Make sure that instance data loads don't hang in case of a miss by setting a valid initial
+    * address. */
+   rq_store_var(b, index, vars->closest.instance_addr, accel_struct, 1);
+   rq_store_var(b, index, vars->candidate.instance_addr, accel_struct, 1);
+
    nir_ssa_def *bvh_offset = nir_build_load_global(
       b, 1, 32,
       nir_iadd_imm(b, accel_struct, offsetof(struct radv_accel_struct_header, bvh_offset)),

@@ -2258,7 +2258,7 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
       .SharedLocalMemorySize = encode_slm_size(GFX_VER,
                                                prog_data->total_shared),
       .BarrierEnable = cs_prog_data->uses_barrier,
-#if GFX_VER >= 8 || GEN_IS_HASWELL
+#if GFX_VER >= 8 || GFX_VERx10 == 75
       .CrossThreadConstantDataReadLength =
          cs_prog_data->push.cross_thread.regs,
 #endif

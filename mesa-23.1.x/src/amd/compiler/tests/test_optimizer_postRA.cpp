@@ -468,6 +468,34 @@ BEGIN_TEST(optimizer_postRA.dpp)
    finish_optimizer_postRA_test();
 END_TEST
 
+BEGIN_TEST(optimizer_postRA.dpp_across_exec)
+   for (amd_gfx_level gfx : {GFX9, GFX10}) {
+      //>> v1: %a:v[0], v1: %b:v[1] = p_startpgm
+      if (!setup_cs("v1 v1", gfx))
+         continue;
+
+      bld.instructions->at(0)->definitions[0].setFixed(PhysReg(256));
+      bld.instructions->at(0)->definitions[1].setFixed(PhysReg(257));
+
+      PhysReg reg_v2(258);
+      Operand a(inputs[0], PhysReg(256));
+      Operand b(inputs[1], PhysReg(257));
+
+      //~gfx9! v1: %tmp0:v[2] = v_mov_b32 %a:v[0] row_mirror bound_ctrl:1
+      //! s2: %0:exec,  s1: %0:scc = s_not_b64 %0:exec
+      //~gfx9! v1: %res0:v[2] = v_add_f32 %tmp0:v[2], %b:v[1]
+      //~gfx10! v1: %res0:v[2] = v_add_f32 %a:v[0], %b:v[1] row_mirror bound_ctrl:1
+      //! p_unit_test 0, %res0:v[2]
+      Temp tmp0 = bld.vop1_dpp(aco_opcode::v_mov_b32, bld.def(v1, reg_v2), a, dpp_row_mirror);
+      bld.sop1(Builder::s_not, Definition(exec, bld.lm), Definition(scc, s1),
+               Operand(exec, bld.lm));
+      Temp res0 = bld.vop2(aco_opcode::v_add_f32, bld.def(v1, reg_v2), Operand(tmp0, reg_v2), b);
+      writeout(0, Operand(res0, reg_v2));
+
+      finish_optimizer_postRA_test();
+   }
+END_TEST
+
 BEGIN_TEST(optimizer_postRA.dpp_across_cf)
    //>> v1: %a:v[0], v1: %b:v[1], v1: %c:v[2], v1: %d:v[3], s2: %e:s[0-1] = p_startpgm
    if (!setup_cs("v1 v1 v1 v1 s2", GFX10_3))

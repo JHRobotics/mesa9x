@@ -852,6 +852,33 @@ Gallium environment variables
 Clover environment variables
 ----------------------------
 
+.. envvar:: CLOVER_DEVICE_TYPE
+
+   allows to overwrite the device type of devices. Possible values are
+   ``accelerator``, ``cpu``, ``custom`` and ``gpu``
+
+.. envvar:: CLOVER_DEVICE_VERSION_OVERRIDE
+
+   overwrites the auto detected OpenCL version of a device. Possible values:
+   ``1.0``
+   ``1.1``
+   ``1.2``
+   ``2.0``
+   ``2.1``
+   ``2.2``
+   ``3.0``
+
+.. envvar:: CLOVER_DEVICE_CLC_VERSION_OVERRIDE
+
+   overwrites the auto detected CLC version. Possible values:
+   ``1.0``
+   ``1.1``
+   ``1.2``
+   ``2.0``
+   ``2.1``
+   ``2.2``
+   ``3.0``
+
 .. envvar:: CLOVER_EXTRA_BUILD_OPTIONS
 
    allows specifying additional compiler and linker options. Specified
@@ -869,6 +896,11 @@ Clover environment variables
    allows specifying additional linker options. Specified options are
    appended after the options set by the OpenCL program in
    ``clLinkProgram``.
+
+.. envvar:: IRIS_ENABLE_CLOVER
+
+   allows to enable experimental Clover NIR support with the iris driver if
+   set to 1 or true.
 
 Rusticl environment variables
 -----------------------------

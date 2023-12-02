@@ -37,13 +37,15 @@ ir3_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
                              nir_intrinsic_instr *low,
                              nir_intrinsic_instr *high, void *data)
 {
+   struct ir3_compiler *compiler = data;
    unsigned byte_size = bit_size / 8;
 
    /* Don't vectorize load_ssbo's that we could otherwise lower to isam,
     * as the tex cache benefit outweighs the benefit of vectorizing
     */
    if ((low->intrinsic == nir_intrinsic_load_ssbo) &&
-       (nir_intrinsic_access(low) & ACCESS_CAN_REORDER)) {
+       (nir_intrinsic_access(low) & ACCESS_CAN_REORDER) &&
+       compiler->has_isam_ssbo) {
       return false;
    }
 
@@ -156,6 +158,7 @@ ir3_optimize_loop(struct ir3_compiler *compiler, nir_shader *s)
          .callback = ir3_nir_should_vectorize_mem,
          .robust_modes = compiler->options.robust_buffer_access2 ?
                nir_var_mem_ubo | nir_var_mem_ssbo : 0,
+         .cb_data = compiler,
       };
       progress |= OPT(s, nir_opt_load_store_vectorize, &vectorize_opts);
 

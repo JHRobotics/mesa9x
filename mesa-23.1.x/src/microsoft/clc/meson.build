@@ -34,7 +34,7 @@ libclc_compiler = shared_library(
   name_prefix : ''  # otherwise mingw will create libclon12compiler.dll
 )
 
-if dep_dxheaders.found() and host_machine.system() == 'windows'
+if dep_dxheaders.found() and host_machine.system() == 'windows' and with_tests
   clc_compiler_test = executable('clc_compiler_test',
     ['clc_compiler_test.cpp', 'compute_test.cpp'],
     link_with : [libclc_compiler],

@@ -795,7 +795,7 @@ radv_physical_device_get_format_properties(struct radv_physical_device *physical
             linear &= ~VK_FORMAT_FEATURE_2_BLIT_SRC_BIT;
          }
       }
-      if (radv_is_colorbuffer_format_supported(physical_device, format, &blendable)) {
+      if (radv_is_colorbuffer_format_supported(physical_device, format, &blendable) && desc->channel[0].size != 64) {
          linear |= VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_2_BLIT_DST_BIT;
          tiled |= VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_2_BLIT_DST_BIT;
          if (blendable) {
@@ -833,6 +833,12 @@ radv_physical_device_get_format_properties(struct radv_physical_device *physical
          ~(VK_FORMAT_FEATURE_2_UNIFORM_TEXEL_BUFFER_BIT | VK_FORMAT_FEATURE_2_STORAGE_TEXEL_BUFFER_BIT);
       linear = 0;
       tiled = 0;
+      break;
+   case VK_FORMAT_R64_UINT:
+   case VK_FORMAT_R64_SINT:
+   case VK_FORMAT_R64_SFLOAT:
+      tiled |= VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT;
+      linear |= VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT;
       break;
    default:
       break;
@@ -1700,30 +1706,19 @@ get_external_image_format_properties(struct radv_physical_device *physical_devic
    case VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT:
       if (pImageFormatInfo->tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
          break;
-
-      switch (pImageFormatInfo->type) {
-      case VK_IMAGE_TYPE_2D:
-         flags =
-            VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
-
-         compat_flags = export_flags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-         break;
-      default:
-         break;
-      }
-      break;
+      FALLTHROUGH;
    case VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT:
-      switch (pImageFormatInfo->type) {
-      case VK_IMAGE_TYPE_2D:
-         flags =
-            VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
-         if (pImageFormatInfo->tiling != VK_IMAGE_TILING_LINEAR)
-            flags |= VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT;
+      if (pImageFormatInfo->type != VK_IMAGE_TYPE_2D)
+         break;
+      flags = VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
+      if (handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT &&
+          pImageFormatInfo->tiling != VK_IMAGE_TILING_LINEAR)
+         flags |= VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT;
 
-         compat_flags = export_flags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-         break;
-      default:
-         break;
+      compat_flags = export_flags = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+      if (pImageFormatInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+         compat_flags |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+         export_flags |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
       }
       break;
    case VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID:

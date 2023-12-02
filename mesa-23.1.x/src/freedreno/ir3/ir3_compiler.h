@@ -191,6 +191,9 @@ struct ir3_compiler {
    /* Whether private memory is supported */
    bool has_pvtmem;
 
+   /* Whether SSBOs have descriptors for sampling with ISAM */
+   bool has_isam_ssbo;
+
    /* True if 16-bit descriptors are used for both 16-bit and 32-bit access. */
    bool storage_16bit;
 

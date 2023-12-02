@@ -629,9 +629,6 @@ radv_pipeline_needed_dynamic_state(const struct radv_device *device,
    if (!has_color_att || !radv_pipeline_is_blend_enabled(pipeline, state->cb))
       states &= ~RADV_DYNAMIC_BLEND_CONSTANTS;
 
-   if (!has_color_att)
-      states &= ~RADV_DYNAMIC_CB_STATES;
-
    if (!(pipeline->active_stages & VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT))
       states &= ~(RADV_DYNAMIC_PATCH_CONTROL_POINTS | RADV_DYNAMIC_TESS_DOMAIN_ORIGIN);
 
@@ -1135,42 +1132,44 @@ radv_pipeline_init_dynamic_state(const struct radv_device *device,
       typed_memcpy(dynamic->vk.cb.blend_constants, state->cb->blend_constants, 4);
    }
 
-   if (states & RADV_DYNAMIC_LOGIC_OP) {
-      if ((pipeline->dynamic_states & RADV_DYNAMIC_LOGIC_OP_ENABLE) || state->cb->logic_op_enable) {
-         dynamic->vk.cb.logic_op = si_translate_blend_logic_op(state->cb->logic_op);
+   if (radv_pipeline_has_color_attachments(state->rp)) {
+      if (states & RADV_DYNAMIC_LOGIC_OP) {
+         if ((pipeline->dynamic_states & RADV_DYNAMIC_LOGIC_OP_ENABLE) || state->cb->logic_op_enable) {
+            dynamic->vk.cb.logic_op = si_translate_blend_logic_op(state->cb->logic_op);
+         }
       }
-   }
 
-   if (states & RADV_DYNAMIC_COLOR_WRITE_ENABLE) {
-      dynamic->vk.cb.color_write_enables = state->cb->color_write_enables;
-   }
-
-   if (states & RADV_DYNAMIC_LOGIC_OP_ENABLE) {
-      dynamic->vk.cb.logic_op_enable = state->cb->logic_op_enable;
-   }
-
-   if (states & RADV_DYNAMIC_COLOR_WRITE_MASK) {
-      for (unsigned i = 0; i < state->cb->attachment_count; i++) {
-         dynamic->vk.cb.attachments[i].write_mask = state->cb->attachments[i].write_mask;
+      if (states & RADV_DYNAMIC_COLOR_WRITE_ENABLE) {
+         dynamic->vk.cb.color_write_enables = state->cb->color_write_enables;
       }
-   }
 
-   if (states & RADV_DYNAMIC_COLOR_BLEND_ENABLE) {
-      for (unsigned i = 0; i < state->cb->attachment_count; i++) {
-         dynamic->vk.cb.attachments[i].blend_enable = state->cb->attachments[i].blend_enable;
+      if (states & RADV_DYNAMIC_LOGIC_OP_ENABLE) {
+         dynamic->vk.cb.logic_op_enable = state->cb->logic_op_enable;
       }
-   }
 
-   if (states & RADV_DYNAMIC_COLOR_BLEND_EQUATION) {
-      for (unsigned i = 0; i < state->cb->attachment_count; i++) {
-         const struct vk_color_blend_attachment_state *att = &state->cb->attachments[i];
+      if (states & RADV_DYNAMIC_COLOR_WRITE_MASK) {
+         for (unsigned i = 0; i < state->cb->attachment_count; i++) {
+            dynamic->vk.cb.attachments[i].write_mask = state->cb->attachments[i].write_mask;
+         }
+      }
 
-         dynamic->vk.cb.attachments[i].src_color_blend_factor = att->src_color_blend_factor;
-         dynamic->vk.cb.attachments[i].dst_color_blend_factor = att->dst_color_blend_factor;
-         dynamic->vk.cb.attachments[i].color_blend_op = att->color_blend_op;
-         dynamic->vk.cb.attachments[i].src_alpha_blend_factor = att->src_alpha_blend_factor;
-         dynamic->vk.cb.attachments[i].dst_alpha_blend_factor = att->dst_alpha_blend_factor;
-         dynamic->vk.cb.attachments[i].alpha_blend_op = att->alpha_blend_op;
+      if (states & RADV_DYNAMIC_COLOR_BLEND_ENABLE) {
+         for (unsigned i = 0; i < state->cb->attachment_count; i++) {
+            dynamic->vk.cb.attachments[i].blend_enable = state->cb->attachments[i].blend_enable;
+         }
+      }
+
+      if (states & RADV_DYNAMIC_COLOR_BLEND_EQUATION) {
+         for (unsigned i = 0; i < state->cb->attachment_count; i++) {
+            const struct vk_color_blend_attachment_state *att = &state->cb->attachments[i];
+
+            dynamic->vk.cb.attachments[i].src_color_blend_factor = att->src_color_blend_factor;
+            dynamic->vk.cb.attachments[i].dst_color_blend_factor = att->dst_color_blend_factor;
+            dynamic->vk.cb.attachments[i].color_blend_op = att->color_blend_op;
+            dynamic->vk.cb.attachments[i].src_alpha_blend_factor = att->src_alpha_blend_factor;
+            dynamic->vk.cb.attachments[i].dst_alpha_blend_factor = att->dst_alpha_blend_factor;
+            dynamic->vk.cb.attachments[i].alpha_blend_op = att->alpha_blend_op;
+         }
       }
    }
 

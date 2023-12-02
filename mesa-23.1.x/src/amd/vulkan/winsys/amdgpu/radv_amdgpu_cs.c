@@ -739,20 +739,6 @@ radv_amdgpu_add_cs_to_bo_list(struct radv_amdgpu_cs *cs, struct drm_amdgpu_bo_li
       for (unsigned k = 0; k < virtual_bo->bo_count; ++k) {
          struct radv_amdgpu_winsys_bo *bo = virtual_bo->bos[k];
          bool found = false;
-
-         /* Do not add the BO to the virtual BO list if it's already in the global list to avoid
-          * dangling BO references because it might have been destroyed without being previously
-          * unbound. Resetting it to NULL clears the old BO ranges if present.
-          *
-          * This is going to be clarified in the Vulkan spec:
-          * https://gitlab.khronos.org/vulkan/vulkan/-/issues/3125
-          *
-          * The issue still exists for non-global BO but it will be addressed later, once we are
-          * 100% it's RADV fault (mostly because the solution looks more complicated).
-          */
-         if (bo->base.use_global_list)
-            continue;
-
          for (unsigned m = 0; m < num_handles; ++m) {
             if (handles[m].bo_handle == bo->bo_handle) {
                found = true;

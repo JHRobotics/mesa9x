@@ -649,6 +649,8 @@ fn lower_and_optimize_nir_late(
         Some(glsl_get_cl_type_size_align),
     );
 
+    opt_nir(nir, dev);
+
     let global_address_format;
     let shared_address_format;
     if dev.address_bits() == 32 {

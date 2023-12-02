@@ -1017,6 +1017,15 @@ emit_gfx6_bpermute(Program* program, aco_ptr<Instruction>& instr, Builder& bld)
       /* Restore original EXEC */
       bld.sop1(aco_opcode::s_mov_b64, Definition(exec, s2), Operand(temp_exec.physReg(), s2));
    }
+
+   /* RA assumes that the result is always in the low part of the register, so we have to shift,
+    * if it's not there already.
+    */
+   if (input.physReg().byte()) {
+      unsigned right_shift = input.physReg().byte() * 8;
+      bld.vop2(aco_opcode::v_lshrrev_b32, dst, Operand::c32(right_shift),
+               Operand(dst.physReg(), v1));
+   }
 }
 
 struct copy_operation {
@@ -2376,7 +2385,7 @@ lower_to_hw_instr(Program* program)
                      bld.sop2(signext ? aco_opcode::s_bfe_i32 : aco_opcode::s_bfe_u32, dst,
                               bld.def(s1, scc), op, Operand::c32((bits << 16) | offset));
                   }
-               } else if ((dst.regClass() == v1 && op.regClass() == v1) ||
+               } else if ((dst.regClass() == v1 && op.physReg().byte() == 0) ||
                           ctx.program->gfx_level <= GFX7) {
                   assert(op.physReg().byte() == 0 && dst.physReg().byte() == 0);
                   if (offset == (32 - bits) && op.regClass() != s1) {

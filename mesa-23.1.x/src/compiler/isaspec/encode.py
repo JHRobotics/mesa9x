@@ -134,7 +134,7 @@ class Case(object):
         self.expr = None
         if case.expr is not None:
             self.expr = bitset.isa.expressions[case.expr]
-        self.fieldnames = re.findall(r"{([a-zA-Z0-9_:]+)}", case.display)
+        self.fieldnames = re.findall(r"{([a-zA-Z0-9_:=]+)}", case.display)
         self.append_forced(bitset)
 
         # remove special fieldname properties e.g. :align=

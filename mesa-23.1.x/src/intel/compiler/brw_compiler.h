@@ -1124,9 +1124,13 @@ wm_prog_data_barycentric_modes(const struct brw_wm_prog_data *prog_data,
 {
    uint32_t modes = prog_data->barycentric_interp_modes;
 
-   if (pushed_msaa_flags & BRW_WM_MSAA_FLAG_PERSAMPLE_INTERP) {
-      assert(pushed_msaa_flags & BRW_WM_MSAA_FLAG_ENABLE_DYNAMIC);
+   /* In the non dynamic case, we can just return the computed modes from
+    * compilation time.
+    */
+   if (!(pushed_msaa_flags & BRW_WM_MSAA_FLAG_ENABLE_DYNAMIC))
+      return modes;
 
+   if (pushed_msaa_flags & BRW_WM_MSAA_FLAG_PERSAMPLE_INTERP) {
       assert(prog_data->persample_dispatch == BRW_ALWAYS ||
              (pushed_msaa_flags & BRW_WM_MSAA_FLAG_PERSAMPLE_DISPATCH));
 
@@ -1163,6 +1167,18 @@ wm_prog_data_barycentric_modes(const struct brw_wm_prog_data *prog_data,
          modes &= ~BITFIELD_BIT(sample_mode);
          modes |= BITFIELD_BIT(BRW_BARYCENTRIC_NONPERSPECTIVE_SAMPLE);
       }
+   } else {
+      /* If we're not using per-sample interpolation, we need to disable the
+       * per-sample bits.
+       *
+       * SKL PRMs, Volume 2a: Command Reference: Instructions,
+       * 3DSTATE_WM:Barycentric Interpolation Mode:
+
+       *    "MSDISPMODE_PERSAMPLE is required in order to select Perspective
+       *     Sample or Non-perspective Sample barycentric coordinates."
+       */
+      modes &= ~(BITFIELD_BIT(BRW_BARYCENTRIC_PERSPECTIVE_SAMPLE) |
+                 BITFIELD_BIT(BRW_BARYCENTRIC_NONPERSPECTIVE_SAMPLE));
    }
 
    return modes;

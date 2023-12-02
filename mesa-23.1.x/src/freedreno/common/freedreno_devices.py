@@ -466,6 +466,7 @@ add_gpus([
 
 add_gpus([
         GPUId(690),
+        GPUId(chip_id=0xffff06090000, name="FD690"), # Default no-speedbin fallback
     ], A6xxGPUInfo(
         a6xx_gen4,
         num_ccu = 8,

@@ -46,6 +46,8 @@ traces:
       checksum: 5b96333495b794691e4ed071ae92ff19
   godot/Material Testers.x86_64_2020.04.08_13.38_frame799.rdc:
     gl-radeonsi-stoney:
+      label: [skip]
+      text: Nothing wrong with it, proxy issues. Revert ASAP.
       checksum: 0e7441a7f2c86c75eeac72269786e7a1
   gputest/gimark-v2.trace:
     gl-radeonsi-stoney:

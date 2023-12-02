@@ -1120,8 +1120,7 @@ kgsl_queue_submit(struct tu_queue *queue, struct vk_queue_submit *vk_submit)
    if (ret) {
       result = vk_device_set_lost(&queue->device->vk, "submit failed: %s\n",
                                   strerror(errno));
-      pthread_mutex_unlock(&queue->device->submit_mutex);
-      return result;
+      goto fail_submit;
    }
 
    queue->last_submit_timestamp = req.timestamp;
@@ -1139,6 +1138,21 @@ kgsl_queue_submit(struct tu_queue *queue, struct vk_queue_submit *vk_submit)
 
    pthread_mutex_unlock(&queue->device->submit_mutex);
    pthread_cond_broadcast(&queue->device->timeline_cond);
+
+   if (cmd_buffers != (struct tu_cmd_buffer **) vk_submit->command_buffers)
+      vk_free(&queue->device->vk.alloc, cmd_buffers);
+
+   vk_free(&queue->device->vk.alloc, cmds);
+
+   return VK_SUCCESS;
+
+fail_submit:
+   pthread_mutex_unlock(&queue->device->submit_mutex);
+
+   if (cmd_buffers != (struct tu_cmd_buffer **) vk_submit->command_buffers)
+      vk_free(&queue->device->vk.alloc, cmd_buffers);
+
+   vk_free(&queue->device->vk.alloc, cmds);
 
    return result;
 }

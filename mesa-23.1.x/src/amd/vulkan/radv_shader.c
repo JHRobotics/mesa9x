@@ -334,8 +334,45 @@ is_not_xfb_output(nir_variable *var, void *data)
    if (var->data.mode != nir_var_shader_out)
       return true;
 
-   return !var->data.explicit_xfb_buffer &&
-          !var->data.explicit_xfb_stride;
+   /* From the Vulkan 1.3.259 spec:
+    *
+    *    VUID-StandaloneSpirv-Offset-04716
+    *
+    *    "Only variables or block members in the output interface decorated
+    *    with Offset can be captured for transform feedback, and those
+    *    variables or block members must also be decorated with XfbBuffer
+    *    and XfbStride, or inherit XfbBuffer and XfbStride decorations from
+    *    a block containing them"
+    *
+    * glslang generates gl_PerVertex builtins when they are not declared,
+    * enabled XFB should not prevent them from being DCE'd.
+    *
+    * The logic should match nir_gather_xfb_info_with_varyings
+    */
+
+   if (!var->data.explicit_xfb_buffer)
+      return true;
+
+   bool is_array_block = var->interface_type != NULL &&
+      glsl_type_is_array(var->type) &&
+      glsl_without_array(var->type) == var->interface_type;
+
+   if (!is_array_block) {
+      return !var->data.explicit_offset;
+   } else {
+      /* For array of blocks we have to check each element */
+      unsigned aoa_size = glsl_get_aoa_size(var->type);
+      const struct glsl_type *itype = var->interface_type;
+      unsigned nfields = glsl_get_length(itype);
+      for (unsigned b = 0; b < aoa_size; b++) {
+         for (unsigned f = 0; f < nfields; f++) {
+            if (glsl_get_struct_field_offset(itype, f) >= 0)
+               return false;
+         }
+      }
+
+      return true;
+   }
 }
 
 nir_shader *

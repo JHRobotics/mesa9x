@@ -85,6 +85,10 @@ coord_offset(nir_ssa_def *ssa)
    if (!input->src[0].is_ssa)
       return -1;
 
+   /* Happens with lowered load_barycentric_at_offset */
+   if (input->src[0].ssa->parent_instr->type != nir_instr_type_intrinsic)
+      return -1;
+
    nir_intrinsic_instr *interp =
       nir_instr_as_intrinsic(input->src[0].ssa->parent_instr);
 

@@ -7620,7 +7620,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
       } else {
          const performance &perf = v32->performance_analysis.require();
 
-         if (!INTEL_DEBUG(DEBUG_DO32) && throughput > perf.throughput) {
+         if (!INTEL_DEBUG(DEBUG_DO32) && throughput >= perf.throughput) {
             brw_shader_perf_log(compiler, params->log_data,
                                 "SIMD32 shader inefficient\n");
          } else {

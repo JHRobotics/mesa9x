@@ -82,6 +82,7 @@ static const driOptionDescription anv_dri_options[] = {
    DRI_CONF_SECTION_DEBUG
       DRI_CONF_ALWAYS_FLUSH_CACHE(false)
       DRI_CONF_VK_WSI_FORCE_BGRA8_UNORM_FIRST(false)
+      DRI_CONF_VK_WSI_FORCE_SWAPCHAIN_TO_CURRENT_EXTENT(false)
       DRI_CONF_LIMIT_TRIG_INPUT_RANGE(false)
       DRI_CONF_ANV_MESH_CONV_PRIM_ATTRS_TO_VERT_ATTRS(-2)
    DRI_CONF_SECTION_END
@@ -3550,6 +3551,8 @@ void anv_DestroyDevice(
    for (uint32_t i = 0; i < device->queue_count; i++)
       anv_queue_finish(&device->queues[i]);
    vk_free(&device->vk.alloc, device->queues);
+
+   ralloc_free(device->fp64_nir);
 
    anv_device_destroy_context_or_vm(device);
 
