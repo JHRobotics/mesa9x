@@ -1,5 +1,5 @@
 #
-# This is GNU make file DON'T use it with nmake/wmake of whatever even if you
+# This is GNU make file DON'T use it with nmake/wmake or whatever even if you
 # plan to use MS compiler!
 #
 
@@ -7,7 +7,7 @@
 # Copyright (c) 2022-2023 Jaroslav Hensl                                       #
 #                                                                              #
 # See LICENCE file for law informations                                        #
-# See README.md file for more build instructions                               #
+# See README.md file for more detailed build instructions                      #
 #                                                                              #
 ################################################################################
 
@@ -51,6 +51,7 @@ BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
 BASE_mesa99.dll         := 0x10000000
+BASE_mesa89.dll         := 0x10000000
 BASE_mesad3d10.w95.dll  := 0x10000000
 BASE_mesad3d10.w98me.dll  := 0x10000000
 
@@ -64,7 +65,7 @@ ifeq ($(GIT_IS),true)
   VERSION_BUILD := $(shell $(GIT) rev-list --count main)
 endif
 
-TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe icdtest.exe wgltest.exe mesa99.dll
+TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe icdtest.exe wgltest.exe mesa99.dll mesa89.dll
 ifdef LLVM
   TARGETS += opengl32.w98me.dll mesa3d.w98me.dll
 endif
@@ -223,6 +224,7 @@ else
   OPENGL_DEF = opengl32.mingw.def
   MESA3D_DEF = mesa3d.mingw.def
   MESA99_DEF = mesa99.mingw.def
+  MESA89_DEF = mesa89.mingw.def
   D3D10_DEF  = d3d10_sw.def
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
@@ -252,6 +254,7 @@ else
 	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
 	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
   MESA_LIBS  := winpthreads/crtfix.o -static -Lwinpthreads -lpthread -lkernel32 -luser32 -lgdi32
+  MESA89_LIBS := -lgdi32
   
   ifdef DEBUG
     DD_DEFS = -DDEBUG
@@ -394,6 +397,19 @@ glchecked_SRC = \
   glchecker/src/glchecker.cpp \
   glchecker/src/parser.cpp
 
+eight_SRC = \
+  win9x/eight/d3d8to9.cpp \
+  win9x/eight/d3d8to9_base.cpp \
+  win9x/eight/d3d8to9_device.cpp \
+  win9x/eight/d3d8to9_index_buffer.cpp \
+  win9x/eight/d3d8to9_surface.cpp \
+  win9x/eight/d3d8to9_swap_chain.cpp \
+  win9x/eight/d3d8to9_texture.cpp \
+  win9x/eight/d3d8to9_vertex_buffer.cpp \
+  win9x/eight/d3d8to9_volume.cpp \
+  win9x/eight/d3d8types.cpp \
+  win9x/eight/interface_query.cpp
+
 MesaUtilLib_OBJS := $(MesaUtilLib_SRC:.c=.c_gen$(OBJ))
 MesaUtilLib_OBJS := $(MesaUtilLib_OBJS:.cpp=.cpp_gen$(OBJ))
 $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX): $(MesaUtilLib_OBJS)
@@ -498,6 +514,9 @@ MesaD3D10Lib_OBJS := $(MesaD3D10Lib_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaD3D10LibSimd_OBJS := $(MesaD3D10Lib_SRC:.c=.c_simd$(OBJ))
 MesaD3D10LibSimd_OBJS := $(MesaD3D10LibSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
+eight_OBJS := $(eight_SRC:.c=.c_gen$(OBJ))
+eight_OBJS := $(eight_OBJS:.cpp=.cpp_gen$(OBJ))
+
 # software opengl32 replacement
 opengl32.w95.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
@@ -516,8 +535,11 @@ mesa3d.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) mesa3d.res $(LD_DEPS)
 vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWgl_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
-mesa99.dll: $(MesaNineLib_OBJS)
+mesa99.dll: mesa3d.w95.dll $(MesaNineLib_OBJS)
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(MESA99_DEF)
+
+mesa89.dll: mesa99.dll $(eight_OBJS)
+	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(eight_OBJS) $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
 
 mesad3d10.w95.dll: $(LIBS_TO_BUILD) $(DEPS) $(LD_DEPS) $(MesaD3D10Lib_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10Lib_OBJS) $(MesaGdiLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(D3D10_DEF)
@@ -570,6 +592,7 @@ clean:
 	-$(RM) $(MesaNineLib_OBJS)
 	-$(RM) $(MesaD3D10Lib_OBJS)
 	-$(RM) $(MesaD3D10LibSimd_OBJS)
+	-$(RM) $(eight_OBJS)
 	-$(RM) icdtest.c_app$(OBJ)
 	-$(RM) wgltest.c_app$(OBJ)
 	-$(RM) $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX)
@@ -588,6 +611,8 @@ clean:
 	-$(RM) $(LIBPREFIX)MesaGdiLibSimd$(LIBSUFFIX)
 	-$(RM) $(LIBPREFIX)MesaWglLib$(LIBSUFFIX)
 	-$(RM) $(LIBPREFIX)MesaWglLibSimd$(LIBSUFFIX)
+	-$(RM) $(LIBPREFIX)mesa99$(LIBSUFFIX)
+	-$(RM) $(LIBPREFIX)mesa89$(LIBSUFFIX)
 	-$(RM) vmwsgl32.res
 	-$(RM) opengl32.res
 	-$(RM) mesa3d.res
@@ -604,6 +629,7 @@ clean:
 	-$(RM) mesad3d10.w95.dll
 	-$(RM) mesad3d10.w98me.dll
 	-$(RM) mesa99.dll
+	-$(RM) mesa89.dll
 	-$(RM) glchecker.exe
 	-$(RM) icdtest.exe
 	-$(RM) wgltest.exe

@@ -151,7 +151,7 @@ static HRESULT d3dadapter9_context_create(struct d3dadapter9_context *ctx, struc
 	ctx->dynamic_texture_workaround = FALSE;
 	ctx->shader_inline_constants    = FALSE;
 	ctx->memfd_virtualsizelimit     = -1;
-	ctx->override_vram_size         = 128*1024*1024;
+	ctx->override_vram_size         = 128; /* in MB (!) */
 	ctx->destroy                    = d3dadapter9_context_destroy;
 
 	return D3D_OK;
