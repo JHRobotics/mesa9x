@@ -1,6 +1,6 @@
 diff -ru llvm-6.0.1.orig/CMakeLists.txt llvm-6.0.1.src/CMakeLists.txt
 --- llvm-6.0.1.orig/CMakeLists.txt	2018-04-07 02:33:40.000000000 +0200
-+++ llvm-6.0.1.src/CMakeLists.txt	2022-12-26 16:54:11.194750900 +0100
++++ llvm-6.0.1.src/CMakeLists.txt	2023-12-25 00:27:55.691065700 +0100
 @@ -832,7 +832,13 @@
  if( MINGW )
    # People report that -O3 is unreliable on MinGW. The traditional
@@ -9,10 +9,10 @@ diff -ru llvm-6.0.1.orig/CMakeLists.txt llvm-6.0.1.src/CMakeLists.txt
 +  # llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
 +  # JH: ^ many mingw versions are broken, but my not! :-)
 +  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.0)
-+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=core2")
-+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=core2")
++    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=pentium2 -mtune=core2")
++    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=pentium2 -mtune=core2")
 +  endif()
-+  # JH: ^ llvm in llvmpipe won't run without SSE anyway so we can little tune up
++  # JH: ^safe flags for W95, you can use -march=core2 (SSSE3) or -march=westmere (SSE4) for faster code for W98/Me
  endif()
  
  # Put this before tblgen. Else we have a circular dependence.
@@ -537,3 +537,22 @@ diff -ru llvm-6.0.1.orig/lib/Support/Windows/WindowsSupport.h llvm-6.0.1.src/lib
    }
  
    static bool IsValid(handle_type h) {
+diff -ru llvm-6.0.1.orig/lib/Target/X86/X86ISelLowering.cpp llvm-6.0.1.src/lib/Target/X86/X86ISelLowering.cpp
+--- llvm-6.0.1.orig/lib/Target/X86/X86ISelLowering.cpp	2018-05-22 04:50:20.000000000 +0200
++++ llvm-6.0.1.src/lib/Target/X86/X86ISelLowering.cpp	2023-12-25 00:14:45.229177700 +0100
+@@ -38828,6 +38828,15 @@
+   // We need a stack probe to conform to the Windows ABI. Choose the right
+   // symbol.
+   if (Subtarget.is64Bit())
++#if 0
+     return Subtarget.isTargetCygMing() ? "___chkstk_ms" : "__chkstk";
++#else
++    return "___chkstk_ms";
++#endif
++
++#if 0
+   return Subtarget.isTargetCygMing() ? "_alloca" : "_chkstk";
++#else
++  return "_alloca";
++#endif
+ }
