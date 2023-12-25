@@ -50,8 +50,8 @@ BASE_mesa3d.w95.dll     := 0x69500000
 BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
-BASE_mesa99.dll         := 0x10000000
-BASE_mesa89.dll         := 0x10000000
+BASE_mesa99.dll         := 0x00700000
+BASE_mesa89.dll         := 0x00700000
 BASE_mesad3d10.w95.dll  := 0x10000000
 BASE_mesad3d10.w98me.dll  := 0x10000000
 
@@ -259,7 +259,7 @@ else
   ifdef DEBUG
     DD_DEFS = -DDEBUG
   else
-    DD_DEFS = -DNDEBUG
+    DD_DEFS = -DNDEBUG -DD3D8TO9NOLOG
   endif
   
   ifdef MESA_NEW
@@ -296,8 +296,8 @@ else
     LLVM_CFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cflags)
     LLVM_CXXFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cxxflags)
     ifndef LP_DEBUG
-      SIMD_CFLAGS   = -std=$(CSTD) $(filter-out -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS)
-      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS)
+      SIMD_CFLAGS   = -std=$(CSTD) $(filter-out -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
+      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
     else
       SIMD_CFLAGS = -std=$(CSTD) -O1 -g  $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)
       SIMD_CXXFLAGS = -std=$(CXXSTD) -O1 -g $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)
@@ -306,8 +306,8 @@ else
   endif
   
   ifdef SPEED
-    CFLAGS = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions $(TUNE) $(INCLUDE) -DNDEBUG $(DEFS)
-    CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(TUNE) $(INCLUDE) -DNDEBUG $(DEFS)
+    CFLAGS = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
+    CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
     LDFLAGS = -std=$(CXXSTD) -O3 -fno-exceptions
   else
     CFLAGS = -std=$(CSTD) -O0 -g $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
@@ -316,8 +316,8 @@ else
   endif
 
   ifdef SPEED
-    APP_CFLAGS   = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions -I. -Iglchecker $(TUNE) $(INCLUDE) -DNDEBUG $(DEFS)
-    APP_CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(INCLUDE) -DNDEBUG $(DEFS)
+    APP_CFLAGS   = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions -I. -Iglchecker $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
+    APP_CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(INCLUDE) $(DD_DEFS) $(DEFS)
     APP_LDFLAGS  = -std=$(CXXSTD) -O3 -fno-exceptions 
   else
     APP_CFLAGS   = -std=$(CSTD) -O0 -g -I. -Iglchecker $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)

@@ -13,55 +13,7 @@
 #include "pipe/p_screen.h"
 
 #include "mesa99.h"
-
-typedef struct _ID3DPresentGroupM99
-{
-	ID3DPresentGroupVtbl *lpVtbl;
-	ULONG refcount;
-	ULONG major;
-	ULONG minor;
-	HWND focus_wnd;
-	INineNine *nine;
-} ID3DPresentGroupM99;
-
-typedef struct _ID3DPresentM99
-{
-	ID3DPresentVtbl *lpVtbl;
-	ULONG refcount;
-	INineNine *nine;
-	D3DPRESENT_PARAMETERS params;
-	HWND focus_wnd;
-	HCURSOR hCursor;
-	DEVMODEA initial_mode;
-	DWORD style;
-	DWORD style_ex;
-	struct d3d_drawable *d3d;
-} ID3DPresentM99;
-
-struct d3d_drawable
-{
-//	Drawable drawable; /* X11 drawable */
-	UINT width;
-	UINT height;
-	UINT depth;
-	HDC hdc;
-	HWND wnd; /* HWND (for convenience) */
-	RECT windowRect;
-	POINT offset; /* offset of the client area compared to the X11 drawable */
-};
-
-struct D3DWindowBuffer
-{
-	int width;
-	int height;
-	int bpp;
-	int pitch;
-	struct pipe_screen *screen;
-	struct pipe_resource *res;
-	struct pipe_context *ctx;
-//	uint8_t data[0];
-};
-
+#include "nine_present.h"
 
 const GUID IID_ID3DPresent = { 0x77D60E80, 0xF1E6, 0x11DF, { 0x9E, 0x39, 0x95, 0x0C, 0xDF, 0xD7, 0x20, 0x85 } };
 const GUID IID_ID3DPresentGroup = { 0xB9C3016E, 0xF32A, 0x11DF, { 0x9C, 0x18, 0x92, 0xEA, 0xDE, 0xD7, 0x20, 0x85 } };
@@ -96,7 +48,7 @@ static HRESULT WINAPI DRIPresent_QueryInterface(ID3DPresentM99 *This, REFIID rii
 {
 	if(!ppvObject)
 		return E_POINTER;
-        
+
 	if(IsEqualGUID(&IID_ID3DPresent, riid) || IsEqualGUID(&IID_IUnknown, riid))
 	{
 		*ppvObject = This;
@@ -112,7 +64,7 @@ static HRESULT WINAPI DRIPresent_QueryInterface(ID3DPresentM99 *This, REFIID rii
 static HRESULT ChangeDisplaySettingsIfNeccessary(ID3DPresentM99 *This, DEVMODEA *pMode)
 {
 	DEVMODEA cur = {0};
-	cur.dmSize = sizeof(DEVMODE);
+	cur.dmSize = sizeof(DEVMODEA);
 	
 	if(EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &cur))
 	{
@@ -134,39 +86,6 @@ static HRESULT ChangeDisplaySettingsIfNeccessary(ID3DPresentM99 *This, DEVMODEA 
 	return E_NOINTERFACE;
 }
 
-static BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
-{
-	printf("%s\n", __FUNCTION__);
-	// stub
-	return TRUE;
-}
-
-static BOOL nine_unregister_window(HWND window)
-{
-	printf("%s\n", __FUNCTION__);
-	// stub
-	return TRUE;
-}
-
-
-static void setup_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
-{
-	printf("%s\n", __FUNCTION__);
-	// stub
-}
-
-static void move_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
-{
-	printf("%s\n", __FUNCTION__);
-	// stub
-}
-
-static void restore_fullscreen_window(ID3DPresentM99 *This, HWND hwnd)
-{
-	printf("%s\n", __FUNCTION__);
-	// stub
-}
-
 /* ID3DPresent */
 static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESENT_PARAMETERS *params)
 {
@@ -176,7 +95,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 	RECT rect;
 	DEVMODEA new_mode;
 	HRESULT hr;
-	boolean drop_wnd_messages;
+	BOOL filter_messages;
 
 	This->params.SwapEffect = params->SwapEffect;
 	This->params.AutoDepthStencilFormat = params->AutoDepthStencilFormat;
@@ -196,7 +115,6 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 		(This->params.Windowed != params->Windowed)
 	)
 	{
-
 		if(!params->Windowed)
 		{
 			/* switch display mode */
@@ -216,9 +134,11 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 				printf(" FAILED ChangeDisplaySettingsIfNeccessary\n");
 				return hr;
 			}
+			
+			setup_fullscreen_window(This, focus_window, params->BackBufferWidth, params->BackBufferHeight);
 
 			/* Dirty as BackBufferWidth and BackBufferHeight hasn't been set yet */
-			//This->resolution_mismatch = FALSE;
+			This->resolution_mismatch = FALSE;
 		}
 		else if(!This->params.Windowed && params->Windowed)
 		{
@@ -230,7 +150,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			}
 
 			/* Dirty as BackBufferWidth and BackBufferHeight hasn't been set yet */
-			//This->resolution_mismatch = FALSE;
+			This->resolution_mismatch = FALSE;
 		}
 
 		if(This->params.Windowed)
@@ -254,10 +174,10 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			if(!params->Windowed)
 			{
 				/* switch from fullscreen to fullscreen */
-				//drop_wnd_messages = This->drop_wnd_messages;
-				//This->drop_wnd_messages = TRUE;
+				filter_messages = This->filter_messages;
+				This->filter_messages = TRUE;
 				MoveWindow(params->hDeviceWindow, 0, 0, params->BackBufferWidth, params->BackBufferHeight, TRUE);
-				//This->drop_wnd_messages = drop_wnd_messages;
+				This->filter_messages = filter_messages;
 			}
 			else if (This->style || This->style_ex)
 			{
@@ -490,17 +410,8 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 	HDC dc = GetDC(d3d->wnd);
 	if(dc != NULL)
 	{
-		/*
-		const size_t ps = buffer->height * buffer->pitch;
-		if(MesaNineRenderProc(buffer->screen, buffer->res, &buffer->data[0], ps))
-		{
-			StretchDIBits(dc, 0, 0, buffer->width, buffer->height,
-	                    0, 0, buffer->width, buffer->height,
-			                &(buffer->data[0]), (BITMAPINFO *)&bmi, 0, SRCCOPY);
-		}*/
 		MesaPresent(buffer->screen, buffer->ctx, buffer->res, dc, pSourceRect, pDestRect);
 	}
-	
 	
 	release_d3d_drawable(d3d);
 	return D3D_OK;

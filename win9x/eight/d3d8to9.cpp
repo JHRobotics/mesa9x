@@ -18,6 +18,7 @@ std::ofstream LOG;
 #ifdef WIN9X
 struct INineNine;
 extern "C" HRESULT WINAPI NineNine_new(INineNine **ppOut);
+typedef IDirect3D9 * (WINAPI *Direct3DCreate9f)(UINT sdk_version);
 #endif
 
 extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
@@ -42,7 +43,28 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 
 #ifdef WIN9X
 	IDirect3D9 *d3d = nullptr;
-	NineNine_new((INineNine**)&d3d);
+	char *use_msdx_str = getenv("D8TOD9_MSDX");
+	if(use_msdx_str != NULL)
+	{
+		int use_msdx = atoi(use_msdx_str);
+		if(use_msdx > 0)
+		{
+			HMODULE dll = LoadLibraryA("d3d9.dll");
+			if(dll)
+			{
+				Direct3DCreate9f Direct3DCreate9h = (Direct3DCreate9f)GetProcAddress(dll, "Direct3DCreate9");
+				if(Direct3DCreate9h)
+				{
+					d3d = Direct3DCreate9h(D3D_SDK_VERSION);
+				}
+			}
+		}
+	}
+	
+	if(d3d == nullptr)
+	{
+		NineNine_new((INineNine**)&d3d);
+	}
 #else
 	IDirect3D9 *const d3d = Direct3DCreate9(D3D_SDK_VERSION);
 #endif
@@ -63,11 +85,12 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 			D3DXDisassembleShader = reinterpret_cast<PFN_D3DXDisassembleShader>(GetProcAddress(module, "D3DXDisassembleShader"));
 			D3DXLoadSurfaceFromSurface = reinterpret_cast<PFN_D3DXLoadSurfaceFromSurface>(GetProcAddress(module, "D3DXLoadSurfaceFromSurface"));
 		}
+#ifndef WIN9X /* JH: shader probably won't work anyway... */
 		else
 		{
-#ifndef D3D8TO9NOLOG
+# ifndef D3D8TO9NOLOG
 			LOG << "Failed to load d3dx9_43.dll! Some features will not work correctly." << std::endl;
-#endif
+# endif
 			if (MessageBox(nullptr, TEXT(
 					"Failed to load d3dx9_43.dll! Some features will not work correctly.\n\n"
 					"It's required to install the \"Microsoft DirectX End-User Runtime\" in order to use d3d8to9, or alternatively get the DLLs from this NuGet package:\nhttps://www.nuget.org/packages/Microsoft.DXSDK.D3DX\n\n"
@@ -78,6 +101,7 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 				return nullptr;
 			}
 		}
+#endif
 	}
 
 	return new Direct3D8(d3d);

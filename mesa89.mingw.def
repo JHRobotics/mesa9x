@@ -1,7 +1,7 @@
 
 EXPORTS
 ;  D3D8GetSWInfo
-;  DebugSetMute
-  Direct3DCreate8@4
+  DebugSetMute = DebugSetMute@0
+  Direct3DCreate8 = Direct3DCreate8@4
 ;  ValidatePixelShader
 ;  ValidateVertexShader

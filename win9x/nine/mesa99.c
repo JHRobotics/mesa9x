@@ -165,20 +165,26 @@ BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID lpvReserved)
 	{
 		case DLL_PROCESS_ATTACH:
 			fReturn = LoadWinsys();
+			if(fReturn)
+			{
+				nine_init();
+			}
 			break;
 	
 		case DLL_PROCESS_DETACH:
+			if(hMesa)
+			{
+				FreeLibrary(hMesa);
+				hMesa = NULL;
+			}
+			
+			nine_deinit();
 			break;
 	
 		case DLL_THREAD_ATTACH:
 			break;
 	
 		case DLL_THREAD_DETACH:
-			if(hMesa)
-			{
-				FreeLibrary(hMesa);
-				hMesa = NULL;
-			}
 			break;
 	
 		default:
@@ -247,7 +253,15 @@ HRESULT WINAPI NineNine_GetAdapterIdentifier(INineNine *This, UINT Adapter, DWOR
 	memset(&pIdentifier->DeviceName[0], 0, sizeof(pIdentifier->DeviceName));
 	
 	strcpy(pIdentifier->Driver, "mesa99.dll");
-	strcpy(pIdentifier->Description, "Mesa Nine-Nine");
+	strcpy(pIdentifier->Description, "Mesa Nine Adapter");
+	
+	if(This->screen)
+	{
+		strcat(pIdentifier->Description, " (");
+		strcat(pIdentifier->Description, This->screen->get_name(This->screen));
+		strcat(pIdentifier->Description, ")");
+	}
+	
 	strcpy(pIdentifier->DeviceName, "\\\\.\\DISPLAY1");
 	
 	pIdentifier->DriverVersionLowPart  = (MESA9X_PATCH << 16) | MESA9X_BUILD;

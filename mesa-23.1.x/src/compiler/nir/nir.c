@@ -2099,6 +2099,12 @@ nir_block_get_predecessors_sorted(const nir_block *block, void *mem_ctx)
    unsigned i = 0;
    set_foreach(block->predecessors, entry)
       preds[i++] = (nir_block *) entry->key;
+   
+   if(i != block->predecessors->entries)
+   {
+   	printf("%u != %u\n", i, block->predecessors->entries);
+  }
+   
    assert(i == block->predecessors->entries);
 
    qsort(preds, block->predecessors->entries, sizeof(nir_block *),

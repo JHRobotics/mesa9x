@@ -21,4 +21,7 @@ extern MesaScreenCreateH MesaScreenCreate;
 extern MesaPresentH MesaPresent;
 extern MesaDimensionsH MesaDimensions;
 
+void nine_init();
+void nine_deinit();
+
 #endif /* __MESA99_H__INCLUDED__ */
