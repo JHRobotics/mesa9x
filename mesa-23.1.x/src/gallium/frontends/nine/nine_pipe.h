@@ -353,6 +353,7 @@ d3d9_to_pipe_format_checked(struct pipe_screen *screen,
                 return PIPE_FORMAT_Z24X8_UNORM;
             if (format_check_internal(PIPE_FORMAT_X8Z24_UNORM))
                 return PIPE_FORMAT_X8Z24_UNORM;
+            return PIPE_FORMAT_Z16_UNORM;
             break;
         case D3DFMT_INTZ:
         case D3DFMT_D24S8:

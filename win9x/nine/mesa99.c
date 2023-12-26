@@ -449,6 +449,7 @@ HRESULT WINAPI NineNine_GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3D
 
 HRESULT WINAPI NineNine_CheckDeviceType(INineNine *This, UINT Adapter, D3DDEVTYPE DevType, D3DFORMAT AdapterFormat, D3DFORMAT BackBufferFormat, BOOL bWindowed)
 {
+#if 0
 	HRESULT rc;
 	D3DDISPLAYMODE mode;
 	
@@ -507,6 +508,14 @@ HRESULT WINAPI NineNine_CheckDeviceType(INineNine *This, UINT Adapter, D3DDEVTYP
 	}
 	
 	return D3DERR_NOTAVAILABLE;
+#else
+	if(Adapter > NineNine_GetAdapterCount(This))
+	{
+		return D3DERR_INVALIDCALL;
+	}
+	
+	return NineAdapter9_CheckDeviceType(ADAPTER(), DevType, AdapterFormat, BackBufferFormat, bWindowed);
+#endif
 }
 
 HRESULT WINAPI NineNine_CheckDeviceFormat(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat)

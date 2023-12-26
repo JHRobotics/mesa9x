@@ -385,18 +385,18 @@ BOOL WINAPI MesaDimensions(struct pipe_screen *screen, struct pipe_context *ctx,
 {
 	const char *type_name = screen->get_name(screen);
 	
-	if(type_name == "SVGA3D")
+	if(strncmp(type_name, "SVGA3D", sizeof("SVGA3D")-1) == 0)
 	{
 		const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
 		
-    if (pEnv)
+    if(pEnv)
     {
     	svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
     	assert(svga);
     	  
       uint32_t sid = GaDrvGetSurfaceId(screen, res);
       return SVGASurfaceInfo(svga, sid, pWidth, pHeight, pBpp, pPitch);
-		}			
+		}
 	}
 	
 	return FALSE;

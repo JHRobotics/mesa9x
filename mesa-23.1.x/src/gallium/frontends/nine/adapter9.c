@@ -299,21 +299,28 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     /* Wine tests, but suspicious. Needs more tests. */
     user_assert(adapter_format(AdapterFormat), D3DERR_INVALIDCALL);
     user_assert(display_format(AdapterFormat, FALSE), D3DERR_NOTAVAILABLE);
+    
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr))
         return hr;
+
     pf = d3d9_to_pipe_format_checked(screen, AdapterFormat, PIPE_TEXTURE_2D, 0,
                                      PIPE_BIND_DISPLAY_TARGET |
                                      PIPE_BIND_SHARED, FALSE, FALSE);
     if (pf == PIPE_FORMAT_NONE) {
-        DBG("AdapterFormat %s not available.\n",
-            d3dformat_to_string(AdapterFormat));
-        return D3DERR_NOTAVAILABLE;
+    	  if(AdapterFormat == D3DFMT_R5G6B5)
+    	  {
+    	      pf = PIPE_FORMAT_B8G8R8A8_UNORM;
+    	  }
+    	  else
+    	  {
+            DBG("AdapterFormat %s not available.\n", d3dformat_to_string(AdapterFormat));
+            return D3DERR_NOTAVAILABLE;
+      	}
     }
 
     /* Check actual format. */
-
     switch (RType) {
     case D3DRTYPE_SURFACE:       target = PIPE_TEXTURE_2D; break;
     case D3DRTYPE_TEXTURE:       target = PIPE_TEXTURE_2D; break;
@@ -389,7 +396,6 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     default:
         break;
     }
-
 
     srgb = (Usage & (D3DUSAGE_QUERY_SRGBREAD | D3DUSAGE_QUERY_SRGBWRITE)) != 0;
     pf = d3d9_to_pipe_format_checked(screen, CheckFormat, target,
