@@ -366,9 +366,10 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 		return D3DERR_DRIVERINTERNALERROR;
 
     /* TODO: should we use a list here instead ? */
-	if (This->d3d && (This->d3d->wnd != d3d->wnd))
+	if (This->d3d/* && (This->d3d->wnd != d3d->wnd)*/)
 	{
 		//destroy_d3dadapter_drawable(This->gdi_display, This->d3d->wnd);
+		release_d3d_drawable(This->d3d);
 	}
 
 	This->d3d = d3d;
@@ -413,7 +414,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 		MesaPresent(buffer->screen, buffer->ctx, buffer->res, dc, pSourceRect, pDestRect);
 	}
 	
-	release_d3d_drawable(d3d);
+	//release_d3d_drawable(d3d);
 	return D3D_OK;
 }
 
@@ -586,7 +587,6 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 {
 	//printf("%s\n", __FUNCTION__);
 	HWND draw_window = This->params.hDeviceWindow ? This->params.hDeviceWindow : This->focus_wnd;
-	HRESULT hr;
 	RECT pRect;
 
 	//printf("%s: This=%p hwnd=%p draw_window=%p\n", __FUNCTION__, This, hWnd, draw_window);
@@ -600,21 +600,22 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 	{
 		if (This->d3d->width > 0 && This->d3d->height > 0 && This->d3d->depth > 0)
 		{
-			*width = This->d3d->width;
-			*height = This->d3d->height;
-			*depth = This->d3d->depth;
+			if(width != NULL)  *width = This->d3d->width;
+			if(height != NULL) *height = This->d3d->height;
+			if(depth != NULL)  *depth = This->d3d->depth;
 			return D3D_OK;
 		}
 	}
 
 	if (!hWnd) hWnd = draw_window;
-	hr = GetClientRect(hWnd, &pRect);
-	if (!hr) return D3DERR_INVALIDCALL;
+		
+	if(!GetClientRect(hWnd, &pRect))
+		return D3DERR_INVALIDCALL;
 	
 	//printf("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
-	*width = pRect.right - pRect.left;
-	*height = pRect.bottom - pRect.top;
-	*depth = 32; //24; //TODO
+	if(width != NULL)  *width = pRect.right - pRect.left;
+	if(height != NULL) *height = pRect.bottom - pRect.top;
+	if(depth != NULL)  *depth = 32; //24; //TODO
 	return D3D_OK;
 }
 
@@ -668,8 +669,8 @@ HRESULT WINAPI ID3DPresent_new(INineNine *nine, HWND hFocusWindow, D3DPRESENT_PA
 	res->focus_wnd = hFocusWindow;
 	EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &res->initial_mode);
 	
-	res->style = GetWindowLongW(hFocusWindow, GWL_STYLE);
-	res->style_ex = GetWindowLongW(hFocusWindow, GWL_EXSTYLE);
+	res->style = GetWindowLongA(hFocusWindow, GWL_STYLE);
+	res->style_ex = GetWindowLongA(hFocusWindow, GWL_EXSTYLE);
 	res->d3d = NULL;
 	
 	if(params)

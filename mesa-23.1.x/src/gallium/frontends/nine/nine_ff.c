@@ -29,6 +29,12 @@
 #define NINE_FF_NUM_VS_CONST 196
 #define NINE_FF_NUM_PS_CONST 24
 
+/* JHR: I'm afraid that ff program for light is broken and cannot
+   be compiled when some lights are actived.
+   Comment next line, if I'm wrong:
+ */
+#define NINE_LIGHT_FIX
+
 struct fvec4
 {
     float x, y, z, w;
@@ -777,7 +783,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      * diffuse += light.diffuse * atten * nDotHit;
      * specular += light.specular * atten * powFact;
      */
-#if 1
     if (key->lighting) {
         struct ureg_dst tmp = ureg_DECL_temporary(ureg);
         struct ureg_dst tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
@@ -814,7 +819,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         struct ureg_src cLSDiv = _ZZZZ(LIGHT_CONST(6));
         struct ureg_src cLLast = _WWWW(LIGHT_CONST(7));
 
-        //const unsigned loop_label = l++;
+#ifndef NINE_LIGHT_FIX
+        const unsigned loop_label = l++;
+#endif
 
         /* Declare all light constants to allow indirect adressing */
         for (i = 32; i < 96; i++)
@@ -826,8 +833,11 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MOV(ureg, rS, ureg_imm1f(ureg, 0.0f));
 
         /* loop management */
-        //ureg_BGNLOOP(ureg, &label[loop_label]);
+#ifndef NINE_LIGHT_FIX
+        ureg_BGNLOOP(ureg, &label[loop_label]);
+#else
         for(unsigned cL = 0; ; cL++){
+#endif
         ureg_ARL(ureg, AL, _W(rCtr));
 
         /* if (not DIRECTIONAL light): */
@@ -917,16 +927,22 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MAD(ureg, rA, cLColA, _W(rAtt), ureg_src(rA)); /* accumulate ambient */
 
         /* break if this was the last light */
-        //ureg_IF(ureg, cLLast, &label[l++]);
-        //ureg_BRK(ureg);
-        //ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));        
-        //ureg_ENDIF(ureg);
-        if(cL == 7) break;
+#ifndef NINE_LIGHT_FIX
+        ureg_IF(ureg, cLLast, &label[l++]);
+        ureg_BRK(ureg);
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));        
+        ureg_ENDIF(ureg);
+#else
+        if(cL == device->context.ff.num_lights_active) break;
+#endif
 
         ureg_ADD(ureg, rCtr, _W(rCtr), ureg_imm1f(ureg, 8.0f));
-        //ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
-        //ureg_ENDLOOP(ureg, &label[loop_label]);
+#ifndef NINE_LIGHT_FIX
+        ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
+        ureg_ENDLOOP(ureg, &label[loop_label]);
+#else
       	} // for
+#endif
 
         /* Apply to material:
          *
@@ -955,7 +971,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_release_temporary(ureg, rAtt);
         ureg_release_temporary(ureg, tmp);
     } else
-#endif
     /* COLOR */
     if (key->darkness) {
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0)
