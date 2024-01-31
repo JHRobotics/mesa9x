@@ -8,11 +8,15 @@
 #define uint64 uint64_t
 
 #include "wddm_screen.h"
+
+#define SVGA
+#include "3d_accel.h"
 #include "svgadrv.h"
 #include "vramcpy.h"
 
 /* frame buffer */
 #include "stw_framebuffer.h"
+
 
 /* sometimes missing */
 #ifndef MIN
@@ -28,53 +32,15 @@
 #define PAGE_SHIFT 12
 #endif
 
-/* supported functions: */
-#ifndef QUERYESCSUPPORT
-#define QUERYESCSUPPORT 8
+#define SVGA_ASSERT assert(svga != NULL)
+
+#ifndef SVGA_CB_FLAG_DX_CONTEXT
+#define SVGA_CB_FLAG_DX_CONTEXT SVGA_CB_DX_FLAG_DX_CONTEXT
 #endif
 
-#define OPENGL_GETINFO 0x1101
-
-/* neighbor 'known' functions */
-#define OPENGL_CMD     0x1100
-#define WNDOBJ_SETUP   0x1102
-
-/* debug output from ring-3 application */
-#define SVGA_DBG             0x110B
-
-/* new escape codes */
-#define SVGA_API             0x110F
-#define SVGA_READ_REG        0x1110
-#define SVGA_HDA_REQ         0x1112
-#define SVGA_REGION_CREATE   0x1114
-#define SVGA_REGION_FREE     0x1115
-#define SVGA_SYNC            0x1116
-#define SVGA_RING            0x1117
-
-#define SVGA_HWINFO_REGS   0x1121
-#define SVGA_HWINFO_FIFO   0x1122
-#define SVGA_HWINFO_CAPS   0x1123
-
-/* VXD only */
-#define SVGA_ALLOCPHY        0x1200
-#define SVGA_FREEPHY         0x1201
-#define SVGA_OTABLE_QUERY    0x1202
-#define SVGA_OTABLE_FLAGS    0x1203
-
-#define SVGA_CB_LOCK         0x1204
-#define SVGA_CB_SUBMIT       0x1205
-#define SVGA_CB_SYNC         0x1206
-#define SVGA_CB_SUBMIT_SYNC  0x1207
-
-#define FLAG_ALLOCATED 1
-#define FLAG_ACTIVE    2
-
-/* Actual driver api */
-#define DRV_API_LEVEL 20230907UL
-
-#define SVGA_ASSERT assert(svga)
-#define VXD_ASSERT assert(svga->vxd)
-
+/*
+ * GUI (errors...)
+ */
 #ifdef GUI_ERRORS
 void GUIError(svga_inst_t *svga, const char *msg, ...)
 {
@@ -102,575 +68,69 @@ void GUIError(svga_inst_t *svga, const char *msg, ...)
 #define GUIError(...)
 #endif
 
-/* get desktop DC */
-static HDC SVGAGetDesktopCTX()
-{
-	HWND hDesktop = GetDesktopWindow();
-	return GetDC(hDesktop);
-}
-
-#define LOCK_FIFO ULF_LOCK_FIFO
-#define LOCK_UL   ULF_LOCK_UL
-
-/* VXD spinlock LOCK */
-static BOOL SVGALock(svga_inst_t *svga, uint32_t lock_id)
-{
-	SVGA_ASSERT;
-	
-	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
-	return vram_lock(ptr);
-}
-
-/* VXD spinlock UNLOCK */
-static void SVGAUnlock(svga_inst_t *svga, uint32_t lock_id)
-{
-	SVGA_ASSERT;
-	
-	volatile uint32_t *ptr = svga->hda.userlist_linear + lock_id;
-	vram_unlock(ptr);
-}
-
-/* Sync vGPU state */
-static void SVGACMDSync(svga_inst_t *svga)
-{
-	SVGA_ASSERT;
-	
-	/* try 32bit call */
-	if(svga->vxd)
-	{
-		if(DeviceIoControl(svga->vxd, SVGA_SYNC, NULL, 0, NULL, 0, NULL, NULL))
-		{
-			return;
-		}
-	}
-	
-	/* 16bit call */
-	ExtEscape(svga->dc, SVGA_SYNC, 0, NULL, 0, NULL);
-}
-
-/* Tell the vGPU that is time to do something */
-static void SVGACMDRing(svga_inst_t *svga)
-{
-	SVGA_ASSERT;
-	
-	/* try 32bit call */
-	if(svga->vxd)
-	{
-		if(DeviceIoControl(svga->vxd, SVGA_RING, NULL, 0, NULL, 0, NULL, NULL))
-		{
-			return;
-		}
-	}
-	
-	/* 16bit call */
-	ExtEscape(svga->dc, SVGA_RING, 0, NULL, 0, NULL);
-}
-
-#ifdef DEBUG
-//#if 1
-/* Send debug message to driver */
-static void SVGACMDDebug(svga_inst_t *svga, const char *msg)
-{
-	DWORD len = strlen(msg);
-	if(svga->vxd)
-	{
-		if(DeviceIoControl(svga->vxd, SVGA_DBG, (LPVOID)msg, len+1, NULL, 0, NULL, NULL))
-		{
-			return;
-		}
-	}
-}
-
-/* send debug info to VXD */
-void svga_printf(svga_inst_t *svga, const char *fmt, ...)
-{
-	char strbuf[512];
-  va_list args;
-  
-  va_start(args, fmt);
-  vsprintf(strbuf, fmt, args);
-  SVGACMDDebug(svga, strbuf);
-  va_end(args);
-}
-#endif
-
-#if 0
-/* These function are here for developing purposes, in release is much better
- * to manipulate with physical memory in RING-0 driver.
+/*
+ * Database (shared between processes)
  */
-static BOOL SVGAAllocPhysical(svga_inst_t *svga, DWORD nPages, void **linear, DWORD *physical)
-{
-	DWORD in[1] = {nPages};
-	DWORD out[2] = {0, 0};
-	
-	if(svga->vxd)
-	{
-		if(DeviceIoControl(svga->vxd, SVGA_ALLOCPHY, (LPVOID)in, sizeof(in), (LPVOID)out, sizeof(out), NULL, NULL))
-		{
-			*linear = (void*)out[0];
-			*physical = out[1];
-			return TRUE;
-		}
-	}
-	
-	return FALSE;
-}
+#define DB_IDNext(_t, _tname, _fname) \
+	static uint32_t SVGA ## _fname ## IDNext(svga_inst_t *svga, int start_index){ \
+	uint32_t sel_id = 0; \
+	SVGA_ASSERT; \
+	SVGA_DB_lock(); \
+	for(uint32_t id = start_index-1; id < svga->db->_tname ## _cnt; id++) { \
+		if(svga->db->_tname[id].pid == 0) { \
+			memset(&(svga->db->_tname[id]), 0, sizeof(_t)); \
+			svga->db->_tname[id].pid = svga->pid; \
+			sel_id = id+1; \
+			break; \
+	} } \
+	SVGA_DB_unlock(); \
+	return sel_id; }
 
-static BOOL SVGAFreePhysical(svga_inst_t *svga, void *linear)
-{
-	DWORD in[1] = {(DWORD)linear};
-	
-	if(svga->vxd)
-	{
-		DeviceIoControl(svga->vxd, SVGA_ALLOCPHY, (LPVOID)in, sizeof(in), NULL, 0, NULL, NULL);
-	}
-}
-#endif
+#define DB_IDPop(_t, _tname, _fname) \
+	static uint32_t SVGA ## _fname ## IDPop(svga_inst_t *svga, uint32_t ident){ \
+	uint32_t sel_id = 0; \
+	SVGA_ASSERT; \
+	if(ident == 0) { \
+		ident = svga->pid; } \
+	SVGA_DB_lock(); \
+	for(uint32_t id = 0; id < svga->db->_tname ## _cnt; id++) { \
+		if(svga->db->_tname[id].pid == ident) { \
+			svga->db->_tname[id].pid = svga->pid; \
+			sel_id = id+1; \
+			break; \
+	} } \
+	SVGA_DB_unlock(); \
+	return sel_id; }
 
-/* OTable manipulation */
-typedef struct _otinfo_entry_t
-{
-	DWORD   phy;
-	void   *lin;
-	DWORD   size;
-	DWORD   flags;
-} otinfo_entry_t;
+#define DB_IDFree(_t, _tname, _fname) \
+	static void SVGA ## _fname ## IDFree(svga_inst_t *svga, uint32_t sid){ \
+	SVGA_ASSERT; \
+	if(sid == 0) return; \
+	SVGA_DB_lock(); \
+	svga->db->_tname[sid-1].pid = 0; \
+	SVGA_DB_unlock(); }
 
-/* 
-	input:
-	 - id 
-	output:
-	 - linear
-	 - physical
-	 - size
-	 - flags
- */
-static BOOL SVGAOTableQuery(svga_inst_t *svga, DWORD id, otinfo_entry_t *outEntry)
-{
-	DWORD in[1] = {id};
-	DWORD out[4] = {0, 0, 0, 0};
-	
-	if(svga->vxd)
-	{
-		if(DeviceIoControl(svga->vxd, SVGA_OTABLE_QUERY, (LPVOID)in, sizeof(in), (LPVOID)out, sizeof(out), NULL, NULL))
-		{
-			outEntry->lin   = (void*)out[0];
-			outEntry->phy   = out[1];
-			outEntry->size  = out[2];
-			outEntry->flags = out[3];
-			
-			return TRUE;
-		}
-	}
-	
-	return FALSE;
-}
-
-/* input:
-	- id
-	- new flags
-*/
-static void SVGAOTableFlags(svga_inst_t *svga, DWORD id, DWORD flags)
-{
-	DWORD in[2] = {id, flags};
-	
-	if(svga->vxd)
-	{
-		DeviceIoControl(svga->vxd, SVGA_OTABLE_FLAGS, (LPVOID)in, sizeof(in), NULL, 0, NULL, NULL);
-	}
-}
+#define DB_IDInfo(_t, _tname, _fname) \
+	static _t *SVGA ## _fname ## IDInfo(svga_inst_t *svga, uint32_t sid){ \
+	SVGA_ASSERT; \
+	if(sid == 0) return NULL; \
+	return &(svga->db->_tname[sid-1]); }
 
 
-static BOOL SVGALockCB(svga_inst_t *svga, void **outPtr)
-{
-	DWORD out[1] = {0};
-	
-	if(svga->vxd)
-	{
-		BOOL rv = FALSE;
-		if(SVGALock(svga, ULF_LOCK_CB))
-		{
-			if(DeviceIoControl(svga->vxd, SVGA_CB_LOCK, NULL, 0, out, sizeof(out), NULL, NULL))
-			{
-				*outPtr = (void*)out[0];
-				rv = TRUE;
-			}
-			SVGAUnlock(svga, ULF_LOCK_CB);
-		}
-		return rv;
-	}
-	
-	return FALSE;
-}
+DB_IDNext(SVGA_DB_surface_t, surfaces, Surface);
+DB_IDPop(SVGA_DB_surface_t,  surfaces, Surface);
+DB_IDFree(SVGA_DB_surface_t, surfaces, Surface);
+DB_IDInfo(SVGA_DB_surface_t, surfaces, Surface);
 
-static BOOL SVGASubmitCB(svga_inst_t *svga, void *ptr, uint32_t cbctx_id, BOOL sync)
-{
-	DWORD in[2] = {(DWORD)ptr, cbctx_id};
-	DWORD ctl_id = SVGA_CB_SUBMIT;
-	
-	if(sync)
-	{
-		ctl_id = SVGA_CB_SUBMIT_SYNC;
-	}
-	
-	if(svga->vxd)
-	{
-		BOOL rv;
-		
-		if(SVGALock(svga, ULF_LOCK_CB))
-		{
-			rv = DeviceIoControl(svga->vxd, ctl_id, (LPVOID)in, sizeof(in), NULL, 0, NULL, NULL);
-			SVGAUnlock(svga, ULF_LOCK_CB);
-		}
-		
-		return rv;
-	}
-	
-	return FALSE;
-}
+DB_IDNext(SVGA_DB_context_t, contexts, Context);
+DB_IDPop(SVGA_DB_context_t,  contexts, Context);
+DB_IDFree(SVGA_DB_context_t, contexts, Context);
+DB_IDInfo(SVGA_DB_context_t, contexts, Context);
 
-static void SVGASyncCB(svga_inst_t *svga)
-{
-	if(svga->vxd)
-	{
-		if(SVGALock(svga, ULF_LOCK_CB))
-		{
-			DeviceIoControl(svga->vxd, SVGA_CB_SYNC, NULL, 0, NULL, 0, NULL, NULL);
-			SVGAUnlock(svga, ULF_LOCK_CB);
-		}
-	}
-}
-
-/* return and allocate first free surface ID */
-uint32_t SVGASurfaceIDNext(svga_inst_t *svga)
-{
-	uint32_t surf_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_surf_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_surf_start + id];
-			if(*id_ptr == 0)
-			{
-				*id_ptr = svga->pid;
-				surf_id = id;
-				
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return surf_id;
-}
-
-/* return first surface ID allocated by 'ident' */
-uint32_t SVGASurfaceIDPop(svga_inst_t *svga, uint32_t ident)
-{
-	uint32_t surf_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(ident == 0)
-	{
-		ident = svga->pid;
-	}
-		
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_surf_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_surf_start + id];
-			if(*id_ptr == ident)
-			{
-				surf_id = id;
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return surf_id;
-}
-
-/* free surface ID */
-void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t sid)
-{
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		svga->hda.userlist_linear[svga->hda.ul_surf_start + sid] = 0;
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-}
-
-#define CTX_INDEX_PID     0
-#define CTX_INDEX_COTABLE 1
-#define CTX_INDEX_CNT     2
-
-/* return and allocate first free context ID  */
-uint32_t SVGAContextIDNext(svga_inst_t *svga)
-{
-	uint32_t ctx_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_ctx_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_ctx_start + CTX_INDEX_CNT*id];
-			if(*id_ptr == 0)
-			{
-				*id_ptr = svga->pid;
-				ctx_id = id;
-				
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return ctx_id;
-}
-
-/* free context ID */
-void SVGAContextIDFree(svga_inst_t *svga, uint32_t ctx_id)
-{
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		svga->hda.userlist_linear[svga->hda.ul_ctx_start + ctx_id*CTX_INDEX_CNT] = 0;
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-}
-
-/* return first context ID identified by 'ident' */
-uint32_t SVGAContextIDPop(svga_inst_t *svga, uint32_t ident)
-{
-	uint32_t ctx_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(ident == 0)
-	{
-		ident = svga->pid;
-	}
-		
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_ctx_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_ctx_start + id*CTX_INDEX_CNT];
-			if(*id_ptr == ident)
-			{
-				ctx_id = id;
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return ctx_id;
-}
-
-/* set extra data for context */
-void SVGAContextInfoSet(svga_inst_t *svga, uint32_t cid, uint32_t index, uint32_t data)
-{
-	SVGA_ASSERT;
-	
-	assert(index >= 1 && index < CTX_INDEX_CNT);
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_ctx_start + cid*CTX_INDEX_CNT];
-		id_ptr[index] = data;
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-}
-
-/* get extra data for context */
-uint32_t SVGAContextInfoGet(svga_inst_t *svga, uint32_t cid, uint32_t index)
-{
-	uint32_t data = 0;
-	
-	SVGA_ASSERT;
-	
-	assert(index >= 0 && index < CTX_INDEX_CNT);
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_ctx_start + cid*CTX_INDEX_CNT];
-		data = id_ptr[index];
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return data;
-}
-
-#define GMR_INDEX_PID     0
-#define GMR_INDEX_ADDRESS 1
-#define GMR_INDEX_SIZE    2
-#define GMR_INDEX_PGBLK   3
-#define GMR_INDEX_MOBADDR 4
-#define GMR_INDEX_MOBPPN  5
-#define GMR_INDEX_CNT     6
-
-
-/* return and allocate first free GMR (graphic memory region) ID */
-uint32_t SVGAGMRIDNext(svga_inst_t *svga)
-{
-	uint32_t gmr_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_gmr_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*GMR_INDEX_CNT];
-			if(*id_ptr == 0)
-			{
-				*id_ptr = svga->pid;
-				gmr_id = id;
-				
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return gmr_id;
-}
-
-/* set memory address for GMR ID */
-void SVGAGMRInfoSet(svga_inst_t *svga, uint32_t rid, uint32_t index, uint32_t data)
-{
-	SVGA_ASSERT;
-	
-	assert(index >= 1 && index < GMR_INDEX_CNT);
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*GMR_INDEX_CNT];
-		id_ptr[index] = data;
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-}
-
-/* get memory address for GMR ID */
-uint32_t SVGAGMRInfoGet(svga_inst_t *svga, uint32_t rid, uint32_t index)
-{
-	uint32_t data = 0;
-	
-	SVGA_ASSERT;
-	
-	assert(index >= 0 && index < GMR_INDEX_CNT);
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*GMR_INDEX_CNT];
-		data = id_ptr[index];
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return data;
-}
-
-/* free GMR ID */
-void SVGAGMRIDFree(svga_inst_t *svga, uint32_t rid)
-{
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		svga->hda.userlist_linear[svga->hda.ul_gmr_start + rid*GMR_INDEX_CNT] = 0;
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-}
-
-/* return first GMR ID identified by 'ident' */
-uint32_t SVGAGMRIDPop(svga_inst_t *svga, uint32_t ident)
-{
-	uint32_t gmr_id = 0;
-	
-	SVGA_ASSERT;
-	
-	if(ident == 0)
-	{
-		ident = svga->pid;
-	}
-		
-	if(SVGALock(svga, LOCK_UL))
-	{
-		uint32_t id = 0;
-		for(id = 1; id < svga->hda.ul_gmr_count; id++)
-		{
-			volatile uint32_t *id_ptr = &svga->hda.userlist_linear[svga->hda.ul_gmr_start + id*GMR_INDEX_CNT];
-			if(*id_ptr == ident)
-			{
-				gmr_id = id;
-				break;
-			}
-		}
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return gmr_id;
-}
-
-/* return last used fence ID, 0 if no fence ever used */
-uint32_t SVGAFenceIDCur(svga_inst_t *svga)
-{
-	uint32_t fence_id;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		fence_id = svga->hda.userlist_linear[svga->hda.ul_fence_index];
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return fence_id;
-}
-
-/* allocate next fence id */
-uint32_t SVGAFenceIDNext(svga_inst_t *svga)
-{
-	uint32_t fence_id;
-	
-	if(SVGALock(svga, LOCK_UL))
-	{
-		volatile uint32_t *ptr = &svga->hda.userlist_linear[svga->hda.ul_fence_index];
-		(*ptr)++;
-		if(*ptr == 0)
-		{
-			*ptr = fence_id = 1;
-		}
-		else
-		{
-			fence_id = *ptr;
-		}
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
-	
-	return fence_id;
-}
+DB_IDNext(SVGA_DB_region_t, regions, GMR);
+DB_IDPop(SVGA_DB_region_t,  regions, GMR);
+DB_IDFree(SVGA_DB_region_t, regions, GMR);
+DB_IDInfo(SVGA_DB_region_t, regions, GMR);
 
 /* lookup for ident/PID, position in buffer is stored in state */
 BOOL SVGAGetNextPid(svga_inst_t *svga, uint32_t *pid, uint32_t *state)
@@ -678,26 +138,21 @@ BOOL SVGAGetNextPid(svga_inst_t *svga, uint32_t *pid, uint32_t *state)
 	uint32_t fpid = 0;
 	do
 	{
-		if(*state >= svga->hda.userlist_length)
+		if((*state) < svga->db->regions_cnt)
+		{
+			fpid = svga->db->regions[(*state)].pid;
+		}
+		else if((*state) < svga->db->regions_cnt + svga->db->contexts_cnt)
+		{
+			fpid = svga->db->contexts[(*state) - svga->db->regions_cnt].pid;;
+		}
+		else if((*state) < svga->db->regions_cnt + svga->db->contexts_cnt + svga->db->surfaces_cnt)
+		{
+			fpid = svga->db->surfaces[(*state) - (svga->db->regions_cnt + svga->db->contexts_cnt)].pid;
+		}
+		else
 		{
 			break;
-		}
-		
-		if((*state) >= svga->hda.ul_gmr_start &&
-			(*state) < (svga->hda.ul_gmr_start+svga->hda.ul_gmr_count*GMR_INDEX_CNT) &&
-			(((*state)-svga->hda.ul_gmr_start) % GMR_INDEX_CNT) == 0)
-		{
-			fpid = svga->hda.userlist_linear[(*state)];
-		}
-		else if((*state) >= svga->hda.ul_ctx_start &&
-			(*state) < (svga->hda.ul_ctx_start+svga->hda.ul_ctx_count*CTX_INDEX_CNT) &&
-			(((*state)-svga->hda.ul_ctx_start) % CTX_INDEX_CNT) == 0)
-		{
-			fpid = svga->hda.userlist_linear[(*state)];
-		}
-		else if((*state) >= svga->hda.ul_surf_start && (*state) < (svga->hda.ul_surf_start+svga->hda.ul_surf_count))
-		{
-			fpid = svga->hda.userlist_linear[(*state)];
 		}
 		
 		(*state)++;
@@ -712,285 +167,143 @@ BOOL SVGAGetNextPid(svga_inst_t *svga, uint32_t *pid, uint32_t *state)
 	return FALSE;
 }
 
-/* inicialize user list if needed
- * Because of non linear addresing in PM16 is easier (and much faster) do here
- * in user mode
+/*
+ * HW registry
  */
-void SVGAUserlistInit(svga_inst_t *svga)
+/* read hardware register */
+BOOL SVGAReadReg(svga_inst_t *svga, uint32_t reg, uint32_t *val)
 {
-	if(SVGALock(svga, LOCK_UL))
-	{
-		/* check if uset list is dirty */
-		if(svga->hda.userlist_linear[ULF_DIRTY] == 0xFFFFFFFFUL)
-		{
-			/* is dirty, zero it! */
-			memset((void*)&svga->hda.userlist_linear[svga->hda.ul_fence_index], 0, 
-				(svga->hda.userlist_length - svga->hda.ul_fence_index) * sizeof(uint32_t));
-			
-			svga->hda.userlist_linear[ULF_DIRTY] = 0;
-		}
-		
-		SVGAUnlock(svga, LOCK_UL);
-	} // lock
+	*val = SVGA_query(SVGA_QUERY_REGS, reg);
 	
-	debug_printf("userlist:\n  ul_flags_index: %d\n  ul_fence_index: %d\n  ul_gmr_start: %d\n  ul_gmr_count: %d\n"
-	  "  ul_ctx_start: %d\n  ul_ctx_count: %d\n  ul_surf_start %d\n  ul_surf_count: %d\n userlist_length: %d\n", 
-	  svga->hda.ul_flags_index, 
-	  svga->hda.ul_fence_index,
-	  svga->hda.ul_gmr_start,
-	  svga->hda.ul_gmr_count,
-	  svga->hda.ul_ctx_start,
-	  svga->hda.ul_ctx_count,
-	  svga->hda.ul_surf_start,
-	  svga->hda.ul_surf_count,
-	  svga->hda.userlist_length
-	);	
+	return TRUE;
 }
 
-/* sync hardware state = drain FIFO and re-read all registers */
-void SVGAFullSync(svga_inst_t *svga)
-{
-	SVGACMDSync(svga);
-}
-
-/* called when is FIFO full, so this full sync to drain it
- * TODO: is full sync necessarily? Maybe we could send 'RING' and wait for while
+/*
+ * Fences
  */
-static void FIFOFull(svga_inst_t *svga)
+/* wait to given fence */
+void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
 {
-	SVGAFullSync(svga);
-}
-
-/* check fifo campatibility */
-static BOOL HasFIFOCap(volatile uint32_t *fifo, uint32_t cap)
-{
-	return (fifo[SVGA_FIFO_CAPABILITIES] & cap) != 0;
-}
-
-/* physical write command to fifo, don't call this directly */
-static void FifoWriteCopy(volatile uint32_t *fifo, uint32_t *cmd_buf, size_t cmd_bytes)
-{
-	BOOL reserveable = HasFIFOCap(fifo, SVGA_FIFO_CAP_RESERVE);
-	BOOL commited = FALSE;
-	
-	uint32_t max = fifo[SVGA_FIFO_MAX];
-	uint32_t min = fifo[SVGA_FIFO_MIN];
-	uint32_t nextCmd = fifo[SVGA_FIFO_NEXT_CMD];
-	uint32_t stop = fifo[SVGA_FIFO_STOP];
-	
-	if(reserveable)
-	{
-		/* copy as two chunks */
-		uint32 chunkSize = MIN(cmd_bytes, max - nextCmd);
-		fifo[SVGA_FIFO_RESERVED] = cmd_bytes;
-
-		if(chunkSize > 0)
-		{
-			memcpy(((uint8_t *)fifo) + nextCmd, cmd_buf, chunkSize);
-		}
-		
-		if(cmd_bytes - chunkSize > 0)
-		{
-			memcpy(((uint8_t *)fifo) + min, ((uint8_t *)cmd_buf) + chunkSize, cmd_bytes - chunkSize);
-		}
-		
-		nextCmd += cmd_bytes;
-		if(nextCmd >= max)
-		{
-			nextCmd -= max - min;
-		}
-	}
-	else
-	{
-		/* copy word by word */
-		uint32_t *dword = cmd_buf;
-						
-		while(cmd_bytes > 0)
-		{
-			fifo[nextCmd / sizeof(uint32)] = *dword++;
-			nextCmd += sizeof(uint32);
-			if (nextCmd >= max)
-			{
-				nextCmd = min;
-			}
-			fifo[SVGA_FIFO_NEXT_CMD] = nextCmd;
-			cmd_bytes -= sizeof(uint32);
-			break;
-		}
-		commited = TRUE;
-	}
-	
-	if(!commited)
-	{
-		fifo[SVGA_FIFO_NEXT_CMD] = nextCmd;
-		fifo[SVGA_FIFO_RESERVED] = 0;
-	}
-}
-
-/* write command to fifo */
-static BOOL FifoWrite(svga_inst_t *svga, uint32_t *cmd_buf, size_t cmd_bytes)
-{
-	DWORD wait_rc;
-	
 	SVGA_ASSERT;
-	assert((cmd_bytes % 4) == 0);
 	
-	if(SVGALock(svga, LOCK_FIFO))
+	if(fence > svga->last_seen_fence)
 	{
-		volatile uint32 *fifo = svga->hda.fifo_linear;
-		uint32_t max = fifo[SVGA_FIFO_MAX];
-		uint32_t min = fifo[SVGA_FIFO_MIN];
-		uint32_t nextCmd = fifo[SVGA_FIFO_NEXT_CMD];
-//		BOOL reserveable = SVGA_HasFIFOCap(SVGA_FIFO_CAP_RESERVE);
-//		BOOL commited = FALSE;
+		// fence id overrun
+	}
+	if(fence > svga->last_complete_fence)
+	{
+		SVGA_fence_wait(fence);
+		SVGA_fence_query((DWORD *)&svga->last_complete_fence, (DWORD *)&svga->last_seen_fence);
+	}
+}
+
+/* query fence state */
+BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, uint32_t *lastPassed, uint32_t *lastFence)
+{
+	SVGA_ASSERT;
+	
+	uint32_t last_fence;
+	uint32_t passed_fence;
+	
+	SVGA_fence_query((DWORD *)&passed_fence, (DWORD *)&last_fence);
+	
+	if(fence > last_fence)
+	{
+		if(fenceStatus)
+			*fenceStatus = 1;
 		
-		for(;;)
-		{
-			uint32_t stop = fifo[SVGA_FIFO_STOP];
-			
-			if(nextCmd >= stop)
-			{
-		    /* There is no valid FIFO data between nextCmd and max */
-				if(nextCmd + cmd_bytes < max || (nextCmd + cmd_bytes == max && stop > min))
-				{
-					/*  There is already enough contiguous space between nextCmd and max (the end of the buffer) */
-					FifoWriteCopy(fifo, cmd_buf, cmd_bytes);
-					break;
-				}
-				else if ((max - nextCmd) + (stop - min) <= cmd_bytes)
-				{
-					FIFOFull(svga);
-				}
-				else
-				{
-					/* Data fits in FIFO but only if we split it. */
-					FifoWriteCopy(fifo, cmd_buf, cmd_bytes);
-					break;
-				}
-			}
-			else
-			{
-				/* There is FIFO data between nextCmd and max */
-				if(nextCmd + cmd_bytes < stop)
-				{
-					/* There is already enough contiguous space between nextCmd and stop */
-					FifoWriteCopy(fifo, cmd_buf, cmd_bytes);
-					break;
-				}
-				else
-				{
-					FIFOFull(svga);
-				}
-			}
-		} // forever
-				
-		SVGAUnlock(svga, LOCK_FIFO);
-	} // lock
+		if(lastPassed)
+			*lastPassed = fence;
+		
+		if(lastFence)
+			*lastFence = fence;
+		
+		return TRUE; /* FALSE? */
+	}
+	
+	if(fenceStatus)
+	{
+		if(fence <= passed_fence)
+			*fenceStatus = 1;
+		else
+			*fenceStatus = 0;
+	}
+	
+	if(lastPassed)
+		*lastPassed = passed_fence;
+		
+	if(lastFence)
+		*lastFence = last_fence;
+	
+	svga->last_complete_fence  = passed_fence;
+	svga->last_seen_fence      = last_fence;
 	
 	return TRUE;
 }
 
-
-/* check if escape command is supported by driver */
-static int IsSupportedEsc(HDC gdi_ctx, int code)
+/*
+ * Commands uploading
+ */
+void SVGAStart(svga_inst_t *svga)
 {
-	int test = 0;
-	DWORD inData = code;
+	int id = svga->cmd_next++;
+	if(svga->cmd_next >= CMD_BUFFER_COUNT)
+	{
+		svga->cmd_next = 0;
+	}
 	
-	test = ExtEscape(gdi_ctx, QUERYESCSUPPORT, sizeof(DWORD), (LPCSTR)&inData, 0, NULL);
-	return test;
+	if(svga->cmd_stat[id].qStatus)
+	{
+		while(*(svga->cmd_stat[id].qStatus) == SVGA_PROC_NONE);
+	}
+	
+	svga->cmd_act = id;
+	svga->cmd_pos = 0;
 }
 
-/* verify if all driver components are on same API */
-BOOL SVGAVerifyDriver(HDC gdi_ctx, uint32_t *drv_ver, uint32_t *vxd_ver)
+void SVGAPush(svga_inst_t *svga, const void *cmd, const size_t size)
 {
-	uint32_t vers[2] = {0, 0};
+	uint8_t *ptr = svga->cmd_buf[svga->cmd_act];
+	ptr += svga->cmd_pos;
 	
-	if(ExtEscape(gdi_ctx, SVGA_API, 0, NULL, sizeof(vers), (LPSTR)vers) != 0)
-	{
-		if(drv_ver)
-		{
-			*drv_ver = vers[0];
-		}
-		
-		if(vxd_ver)
-		{
-			*vxd_ver = vers[1];
-		}
-		
-		return vers[0] == DRV_API_LEVEL && vers[1] == DRV_API_LEVEL;
-	}
-	
-	return FALSE;
+	memcpy(ptr, cmd, size);
+	svga->cmd_pos += size;
 }
 
-/* check if driver (16bit) supports minimal of command set */
-BOOL IsSVGAHW(HDC gdi_ctx)
+void *SVGAPull(svga_inst_t *svga, const size_t size)
 {
-	size_t i;
-	const int codes[] = {
-		SVGA_HWINFO_REGS,
-		SVGA_HWINFO_FIFO,
-		SVGA_HWINFO_CAPS,
-		SVGA_API,
-		0
-	};
+	uint8_t *ptr = svga->cmd_buf[svga->cmd_act];
+	ptr += svga->cmd_pos;
+	svga->cmd_pos += size;
 	
-	for(i = 0; i < (sizeof(codes)/sizeof(int)); i++)
-	{
-		if(codes[i] == 0)
-		{
-			break;
-		}
-		
-		if(IsSupportedEsc(gdi_ctx, codes[i]) == 0)
-		{
-			return FALSE;
-		}
-	}
-	
-	return TRUE;
+	return (void*)ptr;
 }
 
-/* check if graphical driver is realy SVGA and supporting all commands and is 3D campatible */
-BOOL IsSVGA(HDC gdi_ctx)
+void SVGAFinish(svga_inst_t *svga, DWORD flags, DWORD DXCtxId)
 {
-	size_t i;
-	const int codes[] = {
-		SVGA_READ_REG,
-		SVGA_HDA_REQ,
-		SVGA_REGION_CREATE,
-		SVGA_REGION_FREE,
-		SVGA_SYNC,
-		SVGA_RING,
-		0
-	};
+	const int id = svga->cmd_act;
 	
-	if(!IsSVGAHW(gdi_ctx))
+	SVGA_CMB_submit(svga->cmd_buf[id], svga->cmd_pos, &(svga->cmd_stat[id]), flags, DXCtxId);
+	
+	svga->last_complete_fence = svga->cmd_stat[id].fifo_fence_last;
+	
+	if(svga->cmd_stat[id].fifo_fence_used != 0)
 	{
-		return FALSE;
+		svga->last_seen_fence = svga->cmd_stat[id].fifo_fence_used;
+		svga->cmd_fence = svga->cmd_stat[id].fifo_fence_used;
 	}
-	
-	if(!SVGAVerifyDriver(gdi_ctx, NULL, NULL))
-	{
-		return FALSE;
-	}
-	
-	for(i = 0; i < (sizeof(codes)/sizeof(int)); i++)
-	{
-		if(codes[i] == 0)
-		{
-			break;
-		}
-		
-		if(IsSupportedEsc(gdi_ctx, codes[i]) == 0)
-		{
-			return FALSE;
-		}
-	}
-	
-	return TRUE;
 }
+
+void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags, DWORD DXCtxId)
+{
+	SVGAStart(svga);
+	SVGAPush(svga, cmd, size);
+	SVGAFinish(svga, flags, DXCtxId);
+}
+
+/*
+ * Inicializators
+ */
 
 static BOOL SVGAInitOTables(svga_inst_t *svga)
 {
@@ -1006,102 +319,92 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
 	} cmd;
 #pragma pack(pop)
 	
-	otinfo_entry_t entry;
+	SVGA_OT_info_entry_t *ot = SVGA_OT_setup();
+	if(ot == NULL)
+	{
+		return FALSE;
+	}
+	
 	for(i = SVGA_OTABLE_MOB; i < SVGA_OTABLE_DX_MAX; i++)
 	{
-		if(!SVGAOTableQuery(svga, i, &entry))
-		{
-			return FALSE;
-		}
+		SVGA_OT_info_entry_t *entry = &(ot[i]);
 		
-		if((entry.flags & FLAG_ACTIVE) == 0)
+		if((entry->flags & SVGA_OT_FLAG_ACTIVE) == 0)
 		{
-			if(entry.size > 0)
+			if(entry->size > 0)
 			{
 				cmd.cmd = SVGA_3D_CMD_SET_OTABLE_BASE;
 				cmd.size = sizeof(SVGA3dCmdSetOTableBase);
 				cmd.otable.type = i;
-				cmd.otable.baseAddress = entry.phy / PAGE_SIZE;
-				cmd.otable.sizeInBytes = entry.size;
+				cmd.otable.baseAddress = entry->phy / PAGE_SIZE;
+				cmd.otable.sizeInBytes = entry->size;
 			  cmd.otable.validSizeInBytes = 0;
 			  cmd.otable.ptDepth = SVGA3D_MOBFMT_RANGE;
 			  
-			  SVGAFifoWrite(svga, &cmd, sizeof(cmd));
+			  SVGASend(svga, &cmd, sizeof(cmd), SVGA_CB_SYNC, 0);
 			  debug_printf("setting OTable: %d!\n", i);
 			  
-			  entry.flags |= FLAG_ACTIVE;
-			  SVGAOTableFlags(svga, i, entry.flags);	  
+			  entry->flags |= SVGA_OT_FLAG_ACTIVE; 
 			}
 		}
 	}
-	
-	/* sync */
-	uint32_t fence = SVGAFenceInsert(svga);
-	SVGAFenceSync(svga, fence);
 	
 	return TRUE;
 }
 
+/*
+ * Resources
+ */
+
 /* create SVGA interface */
-BOOL SVGACreate(svga_inst_t *svga, HWND win)
+BOOL SVGACreate(svga_inst_t *svga)
 {
-	memset(svga, 0, sizeof(svga_inst_t));
-
-	if(win == INVALID_HANDLE_VALUE)
+	if(!SVGA_valid())
 	{
-		svga->dc = SVGAGetDesktopCTX();
-	}
-	else
-	{
-		svga->dc = GetDC(win);
+		GUIError(svga, "Your GPU isn't VMWare SVGA II or you haven't installed corresponding driver.");
+		return FALSE;
 	}
 	
+	svga->dx = FALSE;
+	svga->hda = FBHDA_setup();
 	svga->pid = GetCurrentProcessId();
+	svga->db  = SVGA_DB_setup();
 	
-	if(IsSVGA(svga->dc))
+	if(svga->hda->flags & FB_ACCEL_VMSVGA3D)
 	{
-		if(ExtEscape(svga->dc, SVGA_HDA_REQ, 0, NULL, sizeof(svga_hda_t), (LPSTR)&(svga->hda)))
-		{
-			assert(svga->hda.fifo_linear);
-			assert(svga->hda.userlist_linear);
-			
-			SVGAUserlistInit(svga);
-			svga->surfinfo = (svga_surfinfo_t*)calloc(sizeof(svga_surfinfo_t), svga->hda.ul_surf_count);
-			
-			svga->vxd = CreateFileA("\\\\.\\vmwsmini.vxd", 0, 0, NULL, 0, FILE_FLAG_DELETE_ON_CLOSE, NULL);
-#ifdef DEBUG
-			SVGACMDDebug(svga, "RING-3 DLL init");
-#endif
+		int i;
+		debug_printf("%s SUCCESS!\n", __FUNCTION__);
+		svga->ctx_id = 0;
 
-			debug_printf("%s SUCCESS!\n", __FUNCTION__);
-			svga->ctx_id = 0;
-			
-			SVGACBContextCreate(svga);
-			SVGAInitOTables(svga);
-			
-			return TRUE;
+		for(i = 0; i < CMD_BUFFER_COUNT; i++)
+		{
+			svga->cmd_buf[i] = SVGA_CMB_alloc();
+			svga->cmd_stat[i].sStatus = SVGA_PROC_COMPLETED;
+			svga->cmd_stat[i].qStatus = &(svga->cmd_stat[i].sStatus);
 		}
+
+		svga->cmd_next = 0;
+		svga->cmd_act  = -1;
+		
+		svga->cmd_fence = 0;
+		svga->last_seen_fence = 1;
+		svga->last_complete_fence = 1;
+		
+		svga->softblit_gmr_id = 0;
+		svga->softblit_gmr_ptr = NULL;
+		svga->softblit_gmr_size = 0;
+
+		/* GEN10 */
+		if(svga->hda->flags & FB_ACCEL_VMSVGA10)
+		{
+			SVGAInitOTables(svga);
+		}
+			
+		return TRUE;
 	}
 	else
 	{
-		if(IsSVGAHW(svga->dc))
-		{
-			uint32_t drv_ver = -1;
-			uint32_t vxd_ver = -1;
-			
-			if(SVGAVerifyDriver(svga->dc, &drv_ver, &vxd_ver))
-			{
-				GUIError(svga, "3D functionality is disabled!\n\nIt could be disabled in VM configuration or is disabled by hypervizor due missing compatible GPU on host site or VM serve wrong 3D api (Virtual GPU GEN9 is required)");
-			}
-			else
-			{
-				GUIError(svga, "Mismatch in driver files detected:\nDLL API: %d\nVXD API: %d\nDRV API:%d\n\nPlease try to reboot the OS or reinstall driver", DRV_API_LEVEL, vxd_ver, drv_ver);
-			}
-		}
-		else
-		{
-			GUIError(svga, "Your GPU isn't VMWare SVGA II or you haven't installed corresponding driver.");
-		}
+		GUIError(svga, "3D functionality is disabled!\n\nIt could be disabled in VM configuration or is disabled by hypervisor due missing compatible GPU on host site or VM serve wrong 3D api");
 	}
 	
 	return FALSE;
@@ -1112,7 +415,7 @@ uint32_t SVGAContextCreate(svga_inst_t *svga)
 {
 #pragma pack(push)
 #pragma pack(1)
-	struct
+	struct 
 	{
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineContext defctx;
@@ -1127,26 +430,15 @@ uint32_t SVGAContextCreate(svga_inst_t *svga)
 		ctx_cmd.header.id = SVGA_3D_CMD_CONTEXT_DEFINE;
 	
 	ctx_cmd.header.size = sizeof(SVGA3dCmdDefineContext);
-	ctx_cmd.defctx.cid = SVGAContextIDNext(svga);
+	ctx_cmd.defctx.cid = SVGAContextIDNext(svga, 1);
 	
-	if(svga->have_cb_context)
-	{
-		cb_state_t cbs;
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &ctx_cmd, sizeof(ctx_cmd));
-		cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-	}
-	else
-	{
-		SVGAFifoWrite(svga, &ctx_cmd, sizeof(ctx_cmd));
-		SVGAFullSync(svga);
-	}
+	SVGASend(svga, &ctx_cmd, sizeof(ctx_cmd), SVGA_CB_SYNC, 0);
 	
 	svga->ctx_id = ctx_cmd.defctx.cid;
 	
-	svga_printf(svga, "creating context %d\n", svga->ctx_id);
+	debug_printf("creating context %d\n", svga->ctx_id);
 	
-	SVGAContextInfoSet(svga, ctx_cmd.defctx.cid, CTX_INDEX_COTABLE, 0);
+	SVGAContextIDInfo(svga, svga->ctx_id)->cotable = NULL;
 	
 	return ctx_cmd.defctx.cid;
 }
@@ -1166,7 +458,7 @@ void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid)
 	SVGA_ASSERT;
 	assert(cid > 0);
 	
-	svga_printf(svga, "destroing context %d\n", cid);
+	debug_printf("destroing context %d\n", cid);
 	
 	if(svga->dx)
 		ctx_cmd.header.id = SVGA_3D_CMD_DX_DESTROY_CONTEXT;
@@ -1176,19 +468,7 @@ void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid)
 	ctx_cmd.header.size = sizeof(SVGA3dCmdDefineContext);
 	ctx_cmd.defctx.cid = cid;
 	
-	if(svga->have_cb_context)
-	{
-		cb_state_t cbs;
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &ctx_cmd, sizeof(ctx_cmd));
-		cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-	}
-	else
-	{
-		SVGAFifoWrite(svga, &ctx_cmd, sizeof(ctx_cmd));
-	}
-	
-	SVGAFullSync(svga);
+	SVGASend(svga, &ctx_cmd, sizeof(ctx_cmd), SVGA_CB_SYNC, 0);
 	
 	SVGAContextIDFree(svga, cid);
 	svga->ctx_id = 0;
@@ -1211,25 +491,6 @@ static const svga_cotable_t def_cotable = {{
 	{SVGA_COTABLE_UAVIEW,          sizeof(SVGACOTableDXUAViewEntry),          COTABLE_ENTRIES_BLOCK, 0},
 }};
 
-void SVGACBContextCreate(svga_inst_t *svga)
-{
-/* CB context is enabled by driver now */
-	if(!svga->have_cb_context)
-	{
-		cb_state_t cbs;
-		/* check command buffer availability by tries to use it  */
-		if(cb_lock(svga, &cbs))
-		{
-			cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEVICE); /* do nothing, only unlock buffer */
-			svga->have_cb_context = TRUE;
-			
-			svga_printf(svga, "CB context is ready!");
-			
-			svga->have_cb_context = TRUE;
-		}
-	}
-}
-
 /* initialize DX cotables for CTX */
 BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 {
@@ -1245,9 +506,6 @@ BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 
 	// create GB context (if doesn't exist)
 	// SVGACBContextCreate(svga);
-	
-	cb_state_t cbs;
-	
 	svga_cotable_t *cotable = malloc(sizeof(svga_cotable_t));
 	
 	if(cotable == NULL)
@@ -1267,10 +525,8 @@ BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 	}
 
 	/* sync to MOBs creations */
-	SVGAFullSync(svga);
+	//SVGAFullSync(svga);
 
-	/* set cotable */
-	cb_lock(svga, &cbs);
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
 	{
 		if(cotable->item[i].gmr_id != 0 && cotable->item[i].cbItem > 0)
@@ -1282,13 +538,11 @@ BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 			cmd_cotable.entry.type  = cotable->item[i].type;
 			cmd_cotable.entry.validSizeInBytes = 0;
 		  	
-			cb_push(&cbs, &cmd_cotable, sizeof(cmd_cotable));
+			SVGASend(svga, &cmd_cotable, sizeof(cmd_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		}
 	}
-
-  cb_submit_sync(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
-  
-  SVGAContextInfoSet(svga, cid, CTX_INDEX_COTABLE, (DWORD)cotable);
+	
+  SVGAContextIDInfo(svga, cid)->cotable = cotable;
 }
 
 BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId)
@@ -1312,21 +566,18 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 	
 	if(cid == SVGA3D_INVALID_ID)
 		return FALSE;
-	
-	DWORD ptr32 = SVGAContextInfoGet(svga, cid, CTX_INDEX_COTABLE);
-	
-	if(ptr32 == 0)
+		
+	svga_cotable_t *cotable = SVGAContextIDInfo(svga, cid)->cotable;
+
+	if(cotable == NULL)
 	{
-		svga_printf(svga, "SVGAContextInfoGet FAIL!\n");
+		svga_printf(svga, "SVGAContextIDInfoGet FAIL!\n");
 		return FALSE;
 	}
-	
-	svga_cotable_t *cotable = (svga_cotable_t *)ptr32;
 	
 	if(destId+1 >= cotable->item[type].count)
 	{
 		/* cotable needs to be resized */
-		cb_state_t cbs;
 		void *old_mem = NULL;
 		void *new_mem = NULL;
 		uint32_t new_mem_ptr32 = 0;
@@ -1335,7 +586,7 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		
 		if(old_gmrId)
 		{
-			old_mem = (void*)SVGAGMRInfoGet(svga, old_gmrId, GMR_INDEX_ADDRESS);
+			old_mem = (void*)SVGAGMRIDInfo(svga, old_gmrId)->info.address;
 		}
 		
 		/* new number of items round to multiple of COTABLE_ENTRIES_BLOCK */
@@ -1353,9 +604,7 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		cmd_grow_cotable.entry.validSizeInBytes = cotable->item[type].cbItem * cotable->item[type].count;
 		
 		/* process readback */
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &cmd_read_cotable, sizeof(cmd_read_cotable));
-		cb_submit_sync(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
+		SVGASend(svga, &cmd_read_cotable, sizeof(cmd_read_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		
 		svga_printf(svga, "Grow #%d - start copy (%d -> %d)", destId, cotable->item[type].count, new_count);
 		
@@ -1381,9 +630,7 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		}
 		
 		/* process grow */
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &cmd_grow_cotable, sizeof(cmd_grow_cotable));
-		cb_submit_sync(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
+		SVGASend(svga, &cmd_grow_cotable, sizeof(cmd_grow_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		
 		/* update values */
 		cotable->item[type].count  = new_count;
@@ -1411,13 +658,11 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 	} cmd_cotable; // SVGA_3D_CMD_DX_SET_COTABLE
 #pragma pack(pop)
 	
-	cb_state_t cbs;
-	svga_cotable_t *cotable = (svga_cotable_t*)SVGAContextInfoGet(svga, cid, CTX_INDEX_COTABLE);
+	svga_cotable_t *cotable = SVGAContextIDInfo(svga, cid)->cotable;
 	
-	if(cotable == 0) return;
+	if(cotable == NULL) return;
 	
 	/* invalidate cotable */
-	cb_lock(svga, &cbs);
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
 	{
 		if(cotable->item[i].gmr_id != 0)
@@ -1429,13 +674,9 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 			cmd_cotable.entry.type  = cotable->item[i].type;
 			cmd_cotable.entry.validSizeInBytes = 0;
 		  
-			cb_push(&cbs, &cmd_cotable, sizeof(cmd_cotable));
+			SVGASend(svga, &cmd_cotable, sizeof(cmd_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		}
 	}
-	
-	cb_submit(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
-	
-	SVGAFullSync(svga);
 	
 	/* destroy MOBs */
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
@@ -1447,9 +688,8 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 		}
 	}
 	
-	SVGAFullSync(svga);
-	
-	free(cotable);	
+	SVGAContextIDInfo(svga, cid)->cotable = NULL;
+	free(cotable);
 }
 
 /* destroy the surface */
@@ -1472,9 +712,7 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 	} cmd_surface;
 #pragma pack(pop)
 	
-	cb_state_t cbs;		
-	
-	if(svga->surfinfo[sid].gmrId) // GB surface
+	if(SVGASurfaceIDInfo(svga, sid)->gmrId) // GB surface
 	{
 		cmd_unbind.cmd  = SVGA_3D_CMD_BIND_GB_SURFACE;
 		cmd_unbind.size = sizeof(SVGA3dCmdBindGBSurface);
@@ -1485,18 +723,10 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 		cmd_surface.size = sizeof(SVGA3dCmdDestroySurface);
 		cmd_surface.surface.sid = sid;
 		
-		if(svga->have_cb_context)
-		{
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &cmd_unbind, sizeof(cmd_unbind));
-			cb_push(&cbs, &cmd_surface, sizeof(cmd_surface));
-			cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &cmd_unbind, sizeof(cmd_unbind));
-			SVGAFifoWrite(svga, &cmd_surface, sizeof(cmd_surface));
-		}
+		SVGAStart(svga);
+		SVGAPush(svga, &cmd_unbind, sizeof(cmd_unbind));
+		SVGAPush(svga, &cmd_surface, sizeof(cmd_surface));
+		SVGAFinish(svga, SVGA_CB_SYNC, 0);
 	}
 	else
 	{
@@ -1504,16 +734,9 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 		cmd_surface.size = sizeof(SVGA3dCmdDestroySurface);
 		cmd_surface.surface.sid = sid;
 		
-		if(svga->have_cb_context)
-		{
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &cmd_surface, sizeof(cmd_surface));
-			cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &cmd_surface, sizeof(cmd_surface));
-		}
+		SVGASend(svga, &cmd_surface, sizeof(cmd_surface),
+			SVGA_CB_SYNC, 0
+		);
 	}
 	SVGASurfaceIDFree(svga, sid);
 }
@@ -1522,6 +745,7 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 void SVGADestroy(svga_inst_t *svga)
 {
 	SVGA_ASSERT;
+	int i;
 	
 	if(svga->ctx_id)
 	{
@@ -1529,248 +753,42 @@ void SVGADestroy(svga_inst_t *svga)
 		svga->ctx_id = 0;
 	}
 	
-	if(svga->surfinfo)
+	for(i = 0; i < CMD_BUFFER_COUNT; i++)
 	{
-		free(svga->surfinfo);
-		svga->surfinfo = NULL;
-	}
-	
-	if(svga->vxd)
-	{
-		CloseHandle(svga->vxd);
-	}
-}
-
-/* read hardware register */
-BOOL SVGAReadReg(svga_inst_t *svga, uint32_t reg, uint32_t *val)
-{
-	static uint32_t sreg = 0;
-	static uint32_t sval = 0;
-	
-	SVGA_ASSERT;
-	
-	sreg = reg;
-	
-	if(ExtEscape(svga->dc, SVGA_READ_REG, sizeof(uint32_t), (LPCSTR)&sreg, sizeof(uint32_t), (LPSTR)&sval))
-	{
-		if(val != NULL)
+		if(svga->cmd_buf[i] != NULL)
 		{
-			*val = sval;
-		}
-		
-		return TRUE;
-	}
-		
-	return FALSE;
-}
-
-/* insert fence and return its ID */
-uint32_t SVGAFenceInsert(svga_inst_t *svga)
-{
-	SVGA_ASSERT;
-	
-	uint32 fence = SVGAFenceIDNext(svga);
-#pragma pack(push)
-#pragma pack(1)
-  struct {
-		uint32 id;
-  	uint32 fence;
-	} cmd;
-#pragma pack(pop)   
-  
-	cmd.id = SVGA_CMD_FENCE;
-	cmd.fence = fence;
-	FifoWrite(svga, (uint32_t*)&cmd, sizeof(cmd));
-
-  if(fence == 1)
-  {
-  	/*
-  	 * potencial fence overrun eg. SVGAFencePassed() returns immediately,
-  	 * do extra sync to make sure, you're sync to this and all next fences
-  	 */
-  	SVGACMDSync(svga);
-  }
-
-	return fence;
-}
-
-/* generate only ID, needs to be inset to buffer manually */
-uint32_t SVGAFenceInsertCB(svga_inst_t *svga)
-{
-	SVGA_ASSERT;
-	uint32 fence = SVGAFenceIDNext(svga);
-	
-  if(fence == 1)
-  {
-  	/*
-  	 * overrun eg. SVGAFencePassed() returns immediately, force sync
-  	 */
-  	SVGACMDSync(svga);
-  	cb_sync(svga);
-  }
-
-	return fence;
-}
-
-/* check if fence has passed */
-BOOL
-#ifdef __GNUC__
-__attribute__ ((noinline))
-#endif
-SVGAFencePassed(svga_inst_t *svga, uint32_t fence)
-{
-	SVGA_ASSERT;
-	
-	if(fence > SVGAFenceIDCur(svga))
-	{
-		return TRUE;
-	}
-	
-	if(SVGALock(svga, LOCK_FIFO))
-	{
-		volatile uint32 *fifo = svga->hda.fifo_linear;
-		BOOL res;
-		
-		res = ((int32)(fifo[SVGA_FIFO_FENCE] - fence)) >= 0;
-		
-		SVGAUnlock(svga, LOCK_FIFO);
-		return res;
-	}
-	
-	/* return TRUE on failure because of deadlocks */
-	return TRUE;
-}
-
-/* wait to given fence
- * TODO: burning CPU in wait, solve with interupts and mutexes?
- */
-void SVGAFenceSync(svga_inst_t *svga, uint32_t fence)
-{
-	BOOL alarm = FALSE;
-	while(!SVGAFencePassed(svga, fence))
-	{
-		if(!alarm)
-		{
-			SVGACMDRing(svga);
-			alarm = TRUE;
-		}
-	}
-}
-
-/* query fence state */
-BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, uint32_t *lastPassed, uint32_t *lastFence)
-{
-	SVGA_ASSERT;
-	
-	if(SVGALock(svga, LOCK_FIFO))
-	{
-		volatile uint32 *fifo = svga->hda.fifo_linear;
-		
-		if(lastPassed)
-		{
-			*lastPassed = fifo[SVGA_FIFO_FENCE];
-		}
-		
-		if(fenceStatus)
-		{
-			*fenceStatus = ((int32)(fifo[SVGA_FIFO_FENCE] - fence)) >= 0;
-		}
-		
-		SVGAUnlock(svga, LOCK_FIFO);
-		
-		if(lastFence)
-		{
-			*lastFence = SVGAFenceIDCur(svga);
+			SVGA_CMB_free(svga->cmd_buf[i]);
 		}
 	}
 	
-	return TRUE;
-}
-
-/* write fifo (public interface) */
-BOOL SVGAFifoWrite(svga_inst_t *svga, void *cmd, size_t cmd_bytes)
-{
-	return FifoWrite(svga, (uint32_t*)cmd, cmd_bytes);
 }
 
 /* create GMR */
-uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
+static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t *user_page, uint32_t start_id)
 {
-	static uint32_t ins[2] = {
-		0, /* region id */
-		0, /* pages */
-	};
-	static uint32_t ids[5] = {
-		0, /* region id */
-		0, /* user page address */
-		0, /* page block */
-		0, /* mob PT address */
-		0, /* mob ppn */
-	};
-	
-	uint32_t rid = SVGAGMRIDNext(svga);
-	
 	SVGA_ASSERT;
+	
+	uint32_t rid = SVGAGMRIDNext(svga, 1);
+
 	assert(rid > 0);
-
-	/* number of pages */
-	ins[0] = rid;
-	ins[1] = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	SVGALock(svga, ULF_LOCK_GMR);
+	SVGA_region_info_t *gmr = &(SVGAGMRIDInfo(svga, rid)->info);
+	gmr->region_id = rid;
+	gmr->size      = size;
 	
-#if 0
-	/* old 16 bit call */
-	if(!ExtEscape(svga->dc, SVGA_REGION_CREATE, sizeof(ins), (LPCSTR)&ins, sizeof(ids), (LPSTR)&ids))
+	if(!SVGA_region_create(gmr))
 	{
-		SVGAUnlock(svga, ULF_LOCK_GMR);
-		return 0; /* call error */
-	}
-#else
-	if(!svga->vxd)
-	{
-		SVGAUnlock(svga, ULF_LOCK_GMR);
+		GUIError(svga, "Failed to allocate physical RAM space (%d bytes). Please attach more memory to VM or reboot guest OS.", size);	
 		return 0;
 	}
-	
-	if(!DeviceIoControl(svga->vxd, SVGA_REGION_CREATE, (LPVOID)&ins, sizeof(ins), (LPVOID)&ids, sizeof(ids), NULL, NULL))
-	{
-		SVGAUnlock(svga, ULF_LOCK_GMR);
-		return 0;
-	}
-#endif
-
-	if(ids[0] == 0)
-	{
-		SVGAUnlock(svga, ULF_LOCK_GMR);
-		GUIError(svga, "Failed to allocate continuous physical RAM space (%d bytes). Please attach more memory to VM or reboot guest OS.", size);	
-		return 0; /* allocation error */
-	}
-	
-	SVGAUnlock(svga, ULF_LOCK_GMR);
-	
-	assert(ins[0] == ids[0]);
 	
 	if(user_page)
 	{
-		*user_page = ids[1];
+		*user_page = (DWORD)gmr->address;
 	}
 	
-	if(ids[4] == 0) /* mob PPN */
-	{
-		SVGAGuestMemDescriptor *gmr_desc = (SVGAGuestMemDescriptor*)ids[2];
-		ids[4] = gmr_desc->ppn;
-	}
-	
-	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_ADDRESS, ids[1]);
-	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_SIZE, size);
-	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_PGBLK, ids[2]);
-	SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBADDR, ids[3]);
-
 	if(svga->dx)
 	{
-		SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBPPN,  ids[4]);
-		
 #pragma pack(push)
 #pragma pack(1)
 		struct
@@ -1779,15 +797,13 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 			uint32_t size;
 			SVGA3dCmdDefineGBMob mob;
 		} cmd_mob;
-#pragma pack(pop)
-		SVGAGuestMemDescriptor *gmr_desc = (SVGAGuestMemDescriptor*)ids[2];
-		
+#pragma pack(pop)		
 		cmd_mob.type              = SVGA_3D_CMD_DEFINE_GB_MOB;
 		cmd_mob.size              = sizeof(SVGA3dCmdDefineGBMob);
 		cmd_mob.mob.mobid         = rid;
-		cmd_mob.mob.base          = ids[4];
+		cmd_mob.mob.base          = gmr->mob_ppn;
 		cmd_mob.mob.sizeInBytes   = size;
-		if(ids[3] == 0)
+		if(gmr->mob_address == NULL) /* continual memory space */
 		{
 			cmd_mob.mob.ptDepth     = SVGA3D_MOBFMT_RANGE;
 		}
@@ -1796,52 +812,37 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 			cmd_mob.mob.ptDepth     = SVGA3D_MOBFMT_PTDEPTH_2;
 		}
 		
-		if(svga->have_cb_context)
-		{
-			cb_state_t cbs;
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &cmd_mob, sizeof(cmd_mob));
-			cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &cmd_mob, sizeof(cmd_mob));
-			
-			uint32_t fence = SVGAFenceInsert(svga);
-			SVGAFenceSync(svga, fence);
-		}
+		SVGASend(svga, &cmd_mob, sizeof(cmd_mob), SVGA_CB_SYNC, 0);
+		
+		gmr->is_mob = 1;
 	}
 	else
 	{
-		/* mob region have PPN */
-		SVGAGMRInfoSet(svga, ids[0], GMR_INDEX_MOBPPN, 0);
+		gmr->is_mob = 0;
 	}
 	
-	SVGACBContextCreate(svga);
-	
 	return rid;
+}
+
+uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
+{
+	if(svga->dx)
+	{
+		/* we're keeping some IDs for out internal frame buffer rendering */
+		return SVGARegionCreateLimit(svga, size, user_page, 5);
+	}
+	
+	return SVGARegionCreateLimit(svga, size, user_page, 1);
 }
 
 /* destroy the GMR */
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 {
-	static uint32_t ids[4] = {
-		0, /* region id */
-		0, /* user page address */
-		0, /* page block address */
-		0, /* mob PT address */
-	};
-
 	SVGA_ASSERT;
 	
-	ids[0] = regionId;
-	ids[1] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_ADDRESS);
-	ids[2] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_PGBLK);
-	ids[3] = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_MOBADDR);
+	SVGA_region_info_t *gmr = &SVGAGMRIDInfo(svga, regionId)->info;
 	
-	DWORD mobPPN = SVGAGMRInfoGet(svga, regionId, GMR_INDEX_MOBPPN);
-	
-	if(mobPPN)
+	if(gmr->is_mob)
 	{
 #pragma pack(push)
 #pragma pack(1)
@@ -1853,39 +854,17 @@ void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 		} cmd_mob_destroy;
 #pragma pack(pop)
 
-		cmd_mob_destroy.type = SVGA_3D_CMD_DESTROY_GB_MOB;
-		cmd_mob_destroy.size = sizeof(SVGA3dCmdDestroyGBMob);
-		cmd_mob_destroy.mob.mobid = regionId;
+		if(svga->hda->flags & FB_ACCEL_VMSVGA10)
+		{
+			cmd_mob_destroy.type = SVGA_3D_CMD_DESTROY_GB_MOB;
+			cmd_mob_destroy.size = sizeof(SVGA3dCmdDestroyGBMob);
+			cmd_mob_destroy.mob.mobid = regionId;
 
-		if(svga->have_cb_context)
-		{
-			cb_state_t cbs;
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &cmd_mob_destroy, sizeof(cmd_mob_destroy));
-			cb_submit_sync(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &cmd_mob_destroy, sizeof(cmd_mob_destroy));
-			SVGACMDSync(svga);
-		
-			uint32_t fence = SVGAFenceInsert(svga);
-			SVGAFenceSync(svga, fence);
+			SVGASend(svga, &cmd_mob_destroy, sizeof(cmd_mob_destroy), SVGA_CB_SYNC, 0);
 		}
 	}
 	
-		
-	if(ids[1] != 0)
-	{
-#if 0
-		ExtEscape(svga->dc, SVGA_REGION_FREE, sizeof(ids), (LPCSTR)&ids, 0, NULL);
-#else
-		if(svga->vxd);
-		{
-			DeviceIoControl(svga->vxd, SVGA_REGION_FREE, (LPVOID)&ids, sizeof(ids), NULL, 0, NULL, NULL);
-		}
-#endif
-	}
+	SVGA_region_free(gmr);
 	
 	SVGAGMRIDFree(svga, regionId);
 }
@@ -1899,11 +878,9 @@ BOOL SVGAReadHwInfo(svga_inst_t *svga, VBOXGAHWINFO *pHwInfo)
 	
 	pHwInfo->u32HwType = VBOX_GA_HW_TYPE_VMSVGA;
 	pHwInfo->u.svga.cbInfoSVGA = sizeof(VBOXGAHWINFOSVGA);
-	ExtEscape(svga->dc, SVGA_HWINFO_REGS, 0, NULL, sizeof(uint32_t)*GA_HWINFO_REGS, (LPSTR)&(pHwInfo->u.svga.au32Regs[0]));
-	ExtEscape(svga->dc, SVGA_HWINFO_FIFO, 0, NULL, sizeof(uint32_t)*GA_HWINFO_FIFO, (LPSTR)&(pHwInfo->u.svga.au32Fifo[0]));
-	ExtEscape(svga->dc, SVGA_HWINFO_CAPS, 0, NULL, sizeof(uint32_t)*GA_HWINFO_CAPS, (LPSTR)&(pHwInfo->u.svga.au32Caps[0]));
-	
-	//set_fake_caps(&(pHwInfo->u.svga.au32Caps[0]), 512);
+	SVGA_query_vector(SVGA_QUERY_REGS, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Regs[0]));
+	SVGA_query_vector(SVGA_QUERY_FIFO, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Fifo[0]));
+	SVGA_query_vector(SVGA_QUERY_CAPS, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Caps[0]));
 	
 #if 0
   /* dump caps */
@@ -1933,7 +910,7 @@ void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 	
 	if(svga == NULL)
 	{
-		if(!SVGACreate(&lsvga, INVALID_HANDLE_VALUE))
+		if(!SVGACreate(&lsvga))
 		{
 			return;
 		}
@@ -1971,7 +948,6 @@ void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 	{
 		SVGADestroy(svga);
 	}
-	
 }
 
 static int format_to_bpp(SVGA3dSurfaceFormat type)
@@ -2262,6 +1238,8 @@ format_debug_t format_debug_table[] = {
    0, NULL
 };
 
+#undef FORMAT_ITEM
+
 const char *get_format_name(SVGA3dSurfaceFormat e)
 {
 	format_debug_t *item = &format_debug_table[0];
@@ -2291,7 +1269,7 @@ static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render
 		}
 		
 		svga->softblit_gmr_size = softblit_minsize;
-		svga->softblit_gmr_id = SVGARegionCreate(svga, svga->softblit_gmr_size, (uint32_t*)(&svga->softblit_gmr_ptr));
+		svga->softblit_gmr_id = SVGARegionCreateLimit(svga, svga->softblit_gmr_size, (uint32_t*)(&svga->softblit_gmr_ptr), 1);
 		svga_printf(svga, "Created new display region: %d (%p)", svga->softblit_gmr_id, svga->softblit_gmr_ptr);
 		if(!svga->softblit_gmr_id)
 		{
@@ -2310,11 +1288,11 @@ static BOOL set_fb_blitsid(svga_inst_t *svga, uint32_t render_width, uint32_t re
 {
 	if(svga->blitsid != 0 && svga->blitsid != SVGA3D_INVALID_ID)
 	{
-		svga_surfinfo_t *sinfo = &svga->surfinfo[svga->blitsid];
+		SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, svga->blitsid);
 		if(sinfo != NULL)
 		{
-			if(sinfo->size.width == render_width &&
-				 sinfo->size.height == render_height &&
+			if(sinfo->width == render_width &&
+				 sinfo->height == render_height &&
 				 sinfo->bpp == screen_bpp
 				)
 			{
@@ -2468,12 +1446,12 @@ void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 static void refresh_fb(svga_inst_t *svga)
 {
 	uint32_t x, y;
-	uint32_t h = svga->hda.userlist_linear[ULF_HEIGHT];
-	uint32_t w = svga->hda.userlist_linear[ULF_PITCH]/sizeof(uint32_t);
+	uint32_t h = svga->hda->width;
+	uint32_t w = svga->hda->height;
 	uint32_t tmp;
-	
-	volatile uint32_t *ptr = (volatile uint32_t*)svga->hda.vram_linear;
-	
+
+	volatile uint32_t *ptr = (volatile uint32_t*)svga->hda->vram_pm32;
+
 	for(y = 0; y < h; y++)
 	{
 		for(x = 0; x < w; x++)
@@ -2499,16 +1477,10 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
 	assert(svga);
 	
-	uint32_t bpp = svga->hda.userlist_linear[ULF_BPP];
-  svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
-  uint32_t cb_cid = SVGA3D_INVALID_ID;
+	uint32_t bpp = svga->hda->bpp;
+  SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
   
   PIXELFORMATDESCRIPTOR pfd;
-  
-  if(svga->dx)
-  {
-  	cb_cid = cid;
-  }
   
   if(sinfo == NULL)
   {
@@ -2570,10 +1542,10 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	/*
 	 * quick way: surface and screen must have same color depth for HW present
 	 */
-	if((debug_get_option_blit_surf_to_screen_enabled() || svga->dx) && (bpp == sinfo->bpp || svga->dx) && bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
-	{
-		uint32_t fence;
-	        
+	if((debug_get_option_blit_surf_to_screen_enabled() || svga->dx) &&
+		(bpp == sinfo->bpp || svga->dx) &&
+		bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
+	{   
 #pragma pack(push)
 #pragma pack(1)
 		struct
@@ -2608,29 +1580,28 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			command.blit.destRect.top = 0;
 		}
 		
-		if(render_left + render_width > svga->hda.userlist_linear[ULF_WIDTH])
+		if(render_left + render_width > svga->hda->width)
 		{
-			command.blit.destRect.right = svga->hda.userlist_linear[ULF_WIDTH];
+			command.blit.destRect.right = svga->hda->width;
 			command.blit.srcRect.right = command.blit.destRect.right - render_left;
 		}
 		
-		if(render_top + render_height > svga->hda.userlist_linear[ULF_HEIGHT])
+		if(render_top + render_height > svga->hda->height)
 		{
-			command.blit.destRect.bottom = svga->hda.userlist_linear[ULF_HEIGHT];
+			command.blit.destRect.bottom = svga->hda->height;
 			command.blit.srcRect.bottom = command.blit.destRect.bottom - render_top;
 		}
-
-		if(svga->have_cb_context)
-		{
-	  	cb_state_t cbs;
-	  	cb_lock(svga, &cbs);
-	  	cb_push(&cbs, &command, sizeof(command));
-	  	cb_submit(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &command, sizeof(command));
-		}
+		
+		FBHDA_access_begin(0); 
+	  if(svga->dx)
+	  {
+	  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+	  }
+	  else
+	  {
+	  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
+	  }
+		FBHDA_access_end(0);
 	}
 	/*
 	 * GPU10 way, sync the GMR and use vramcopy to convert and copy to FB
@@ -2647,31 +1618,28 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			SVGA_3D_CMD_READBACK_GB_SURFACE,
 			sizeof(SVGA3dCmdReadbackGBSurface)}};
 #pragma pack(pop)
-		cb_state_t cbs;
 		vramcpy_rect_t vrect;
 		void *gmr;
 
 		cmd_readback.surf.sid = sid;
 		
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &cmd_readback, sizeof(cmd_readback));
-		cb_submit_sync(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
+		SVGASend(svga, &cmd_readback, sizeof(cmd_readback), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		
-		gmr = (void*)SVGAGMRInfoGet(svga, sinfo->gmrId, GMR_INDEX_ADDRESS);
+		gmr = SVGAGMRIDInfo(svga, sinfo->gmrId)->info.address;
 		assert(gmr);
 		
-		vrect.dst_pitch   = svga->hda.userlist_linear[ULF_PITCH];
+		vrect.dst_pitch   = svga->hda->pitch;
 		vrect.dst_x       = render_left;
 		vrect.dst_y       = render_top;
 		vrect.dst_w       = render_width;
 		vrect.dst_h       = render_height;
 		vrect.dst_bpp     = bpp;
-		vrect.src_pitch   = sinfo->size.width * vramcpy_pointsize(sinfo->bpp);
+		vrect.src_pitch   = sinfo->width * vramcpy_pointsize(sinfo->bpp);
 		vrect.src_x       = 0;
 		vrect.src_y       = 0;
 		vrect.src_bpp     = sinfo->bpp;
 		
-		vramcpy(svga->hda.vram_linear, gmr, &vrect);		
+		vramcpy(svga->hda->vram_pm32, gmr, &vrect);		
 	}
 	/*
 	 * harder way: we'll need render surface to some GMR region and copy to frame buffer manualy
@@ -2720,8 +1688,8 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command_blit.blit.boxSrc.x = 0;
 		command_blit.blit.boxSrc.y = 0;
 		command_blit.blit.boxSrc.z = 0;
-		command_blit.blit.boxSrc.w = sinfo->size.width;
-		command_blit.blit.boxSrc.h = sinfo->size.height;
+		command_blit.blit.boxSrc.w = sinfo->width;
+		command_blit.blit.boxSrc.h = sinfo->height;
 		command_blit.blit.boxSrc.d = 1;
 		
 		command_blit.blit.boxDest = command_blit.blit.boxSrc;
@@ -2738,7 +1706,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 
 		command_dma.dma.guest.ptr.gmrId  = SVGA_GMR_FRAMEBUFFER;
 		command_dma.dma.guest.ptr.offset = 0;
-		command_dma.dma.guest.pitch      = svga->hda.userlist_linear[ULF_PITCH];
+		command_dma.dma.guest.pitch      = svga->hda->pitch;
 		command_dma.dma.host.face        = 0;
 		command_dma.dma.host.mipmap      = 0;
 		command_dma.dma.transfer         = SVGA3D_READ_HOST_VRAM;
@@ -2764,18 +1732,18 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			command_dma.box.srcy = 0;
 		}
 		
-		if(render_left + render_width > svga->hda.userlist_linear[ULF_WIDTH])
+		if(render_left + render_width > svga->hda->width)
 		{
-			command_dma.box.w = svga->hda.userlist_linear[ULF_WIDTH] - render_left;
+			command_dma.box.w = svga->hda->width - render_left;
 		}
 		
-		if(render_top + render_height > svga->hda.userlist_linear[ULF_HEIGHT])
+		if(render_top + render_height > svga->hda->height)
 		{
-			command_dma.box.h = svga->hda.userlist_linear[ULF_HEIGHT] - render_top;
+			command_dma.box.h = svga->hda->height - render_top;
 		}
 		
 		command_dma.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
-		command_dma.suffix.maximumOffset = svga->hda.userlist_linear[ULF_PITCH] * svga->hda.userlist_linear[ULF_HEIGHT];
+		command_dma.suffix.maximumOffset = svga->hda->stride;
 		command_dma.suffix.flags.discard         = 0;
 		command_dma.suffix.flags.unsynchronized  = 0;
 		command_dma.suffix.flags.reserved        = 0;
@@ -2785,56 +1753,28 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command_update.rect.width  = render_width;
 		command_update.rect.height = render_height;
 		
+		/*
 		uint32_t fence = SVGAFenceInsertCB(svga);
 		uint32_t fence_cmd[2] = {SVGA_CMD_FENCE, fence};	
+		*/
 		
-		if(svga->have_cb_context)
+		SVGAStart(svga);
+		if(bpp != sinfo->bpp)
 		{
-			cb_state_t cbs;
-			cb_lock(svga, &cbs);
-			
-			if(bpp != sinfo->bpp)
-				cb_push(&cbs, &command_blit, sizeof(command_blit));
-			
-			cb_push(&cbs, &command_dma, sizeof(command_dma));
-			
-			if(bpp == 32)
-			{
-				cb_push(&cbs, &command_update, sizeof(command_update));
-				cb_submit(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
-			}
-			else
-			{
-				if(debug_get_option_dma_need_reread())
-				{
-					cb_submit_sync(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
-					refresh_fb(svga);
-				}
-				else
-				{
-					cb_push(&cbs, &command_update, sizeof(command_update));
-					cb_submit(svga, &cbs, cb_cid, SVGA_CB_CONTEXT_DEFAULT);
-				}
-			}
+			SVGAPush(svga, &command_blit, sizeof(command_blit));
 		}
-		else
+		SVGAPush(svga, &command_dma, sizeof(command_dma));
+		SVGAPush(svga, &command_update, sizeof(command_update));
+		
+		FBHDA_access_begin(0);
+		
+		SVGAFinish(svga, SVGA_CB_SYNC, 0);
+		
+		if(debug_get_option_dma_need_reread() && bpp != 32)
 		{
-			if(bpp != sinfo->bpp)
-				SVGAFifoWrite(svga, &command_blit, sizeof(command_blit));
-			
-			SVGAFifoWrite(svga, &command_dma, sizeof(command_dma));
-			
-			if(bpp == 32)
-			{
-				SVGAFifoWrite(svga, &command_update, sizeof(command_update));
-			}
-			else
-			{
-				uint32_t fence = SVGAFenceInsert(svga);
-				SVGAFenceSync(svga, fence);
-				refresh_fb(svga);
-			}
+			refresh_fb(svga);
 		}
+		FBHDA_access_end(0);
 	}
 }
 
@@ -2864,11 +1804,10 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		sizeof(SVGA3dCmdReadbackGBSurface)}};
 #pragma pack(pop)
 
-	cb_state_t cbs;
-	svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
+	SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
 	void *gmr = NULL;
 
-	if(sinfo == NULL || (sinfo->size.width * sinfo->size.height) == 0)
+	if(sinfo == NULL || (sinfo->width * sinfo->height) == 0)
 	{
 		debug_printf("SVGAPresentWindow: null surface info!\n");
 		/* Nothing to see here. Please disperse. */
@@ -2884,9 +1823,9 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
   const int sbpp = sinfo->bpp;
   const size_t sps = vramcpy_pointsize(sbpp);
 	
-	if(!sinfo->gmrId) /* old way: copy surface to guest memory and display it */
+	if(sinfo->gmrId == 0) /* old way: copy surface to guest memory and display it */
 	{
-	  if(!set_fb_gmr(svga, sinfo->size.width, sinfo->size.height))
+	  if(!set_fb_gmr(svga, sinfo->width, sinfo->height))
 	  {
 	  	debug_printf("SVGAPresentWindow: failed to set GMR!\n");
 	  	return;
@@ -2896,7 +1835,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		
 		command.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
 		command.dma.guest.ptr.offset = 0;
-		command.dma.guest.pitch      = sinfo->size.width * sps;
+		command.dma.guest.pitch      = sinfo->width * sps;
 		command.dma.host.sid         = sid;
 		command.dma.host.face        = 0;
 		command.dma.host.mipmap      = 0;
@@ -2905,8 +1844,8 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command.box.x = 0;
 		command.box.y = 0;
 		command.box.z = 0;
-		command.box.w = sinfo->size.width;
-		command.box.h = sinfo->size.height;
+		command.box.w = sinfo->width;
+		command.box.h = sinfo->height;
 		command.box.d = 1;
 		command.box.srcx = 0;
 		command.box.srcy = 0;
@@ -2918,20 +1857,8 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command.suffix.flags.unsynchronized  = 0;
 		command.suffix.flags.reserved        = 0;
 		
-		if(svga->have_cb_context)
-		{
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, &command, sizeof(command));
-			cb_submit_sync(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-		}
-		else
-		{
-			SVGAFifoWrite(svga, &command, sizeof(command));
-	
-			uint32_t fence = SVGAFenceInsert(svga);
-			SVGAFenceSync(svga, fence);
-		}
-	
+		SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
+		
 		assert(svga->softblit_gmr_ptr);
 	
 		gmr = svga->softblit_gmr_ptr;
@@ -2940,12 +1867,9 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	{
 		command_dx.surf.sid = sid;
 		
-		cb_lock(svga, &cbs);
-		cb_push(&cbs, &command_dx, sizeof(command_dx));
+		SVGASend(svga, &command_dx, sizeof(command_dx), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		
-		cb_submit_sync(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
-		
-		gmr = (void*)SVGAGMRInfoGet(svga, sinfo->gmrId, GMR_INDEX_ADDRESS);
+		gmr = (void*)SVGAGMRIDInfo(svga, sinfo->gmrId)->info.address;
 		
 		assert(gmr);
 	}
@@ -2960,8 +1884,8 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	
 	memset(&bmi, 0, sizeof(bmi));
 	bmi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
-	bmi.bmiHeader.biWidth       = sinfo->size.width;
-	bmi.bmiHeader.biHeight      = -sinfo->size.height;
+	bmi.bmiHeader.biWidth       = sinfo->width;
+	bmi.bmiHeader.biHeight      = -sinfo->height;
 	bmi.bmiHeader.biPlanes      = 1;
 	bmi.bmiHeader.biBitCount    = sbpp;
 	bmi.bmiHeader.biCompression = BI_RGB;
@@ -2990,13 +1914,9 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		bmi.bmask = 0x000000FF;
 	}
 	
-	if(SVGALock(svga, ULF_LOCK_FB))
-	{
-		StretchDIBits(hDC, 0, 0, sinfo->size.width, sinfo->size.height,
-	                   0, 0, sinfo->size.width, sinfo->size.height,
+	StretchDIBits(hDC, 0, 0, sinfo->width, sinfo->height,
+	                   0, 0, sinfo->width, sinfo->height,
 		                 gmr, (BITMAPINFO *)&bmi, 0, SRCCOPY);
-		SVGAUnlock(svga, ULF_LOCK_FB);
-	}
 }
 
 void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t destSid, LPCRECT pRect)
@@ -3042,23 +1962,10 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
     command.box.srcy = 0;
     command.box.srcz = 0;
     
-    if(svga->have_cb_context)
-    {
-    	cb_state_t cbs;
-    	cb_lock(svga, &cbs);
-    	cb_push(&cbs, &command, sizeof(command));
-   		cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-    }
-    else
-    {
-			SVGAFifoWrite(svga, &command, sizeof(command));
-			uint32_t fence = SVGAFenceInsert(svga);
-			SVGAFenceSync(svga, fence);
-		}
+    SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
 	}
 	else
 	{
-		cb_state_t cbs;
 		command_dx.type = SVGA_3D_CMD_DX_SURFACE_COPY_AND_READBACK;
 		command_dx.size = sizeof(SVGA3dCmdDXSurfaceCopyAndReadback);
 		command_dx.copy.srcSid   = srcSid;
@@ -3073,9 +1980,7 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
     command_dx.copy.box.srcy = 0;
     command_dx.copy.box.srcz = 0;
     
-    cb_lock(svga, &cbs);
-    cb_push(&cbs, &command_dx, sizeof(command_dx));
-    cb_submit(svga, &cbs, cid, SVGA_CB_CONTEXT_DEFAULT);
+    SVGASend(svga, &command_dx, sizeof(command_dx), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 	}
 }
 
@@ -3087,7 +1992,7 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 void SVGAZombieKiller()
 {
 	svga_inst_t lSvga;
-	if(SVGACreate(&lSvga, INVALID_HANDLE_VALUE))
+	if(SVGACreate(&lSvga))
 	{
 		uint32_t state = 0;
 		uint32_t pid;
@@ -3146,7 +2051,7 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 	header->id = SVGA_3D_CMD_SURFACE_DEFINE_V2;
 	header->size = cbCmd - sizeof(SVGA3dCmdHeader);
 	
-	uint32_t sid = SVGASurfaceIDNext(svga);
+	uint32_t sid = SVGASurfaceIDNext(svga, 1);
 	
 	if(sid)
 	{
@@ -3172,36 +2077,23 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 	  	
 	  	if(i == 0) /* save only face 0 */
 	  	{
-	  		svga->surfinfo[sid].format = surface->format;
-	  		svga->surfinfo[sid].bpp    = format_to_bpp(surface->format);
-	  		svga->surfinfo[sid].size.width = siz->width;
-	  		svga->surfinfo[sid].size.height = siz->height;
-	  		svga->surfinfo[sid].size.depth = siz->depth;
-	  		svga->surfinfo[sid].gmrId = 0;
+	  		SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
+	  		
+	  		sinfo->format = surface->format;
+	  		sinfo->bpp    = format_to_bpp(surface->format);
+	  		sinfo->width  = siz->width;
+	  		sinfo->height = siz->height;
+	  		sinfo->gmrId  = 0;
 	  	}
 	  	
 	  	paSizes++;
 	  	siz++;
 	  }
 	  
-	  if(svga->have_cb_context)
-	  {
-	  	cb_state_t cbs;
-			cb_lock(svga, &cbs);
-			cb_push(&cbs, cmd, cbCmd);
-			cb_submit_sync(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT); // need sync?
-
-		  *outSid = sid;
-		  return TRUE;
-	  }
-	  else
-	  {
-		  if(SVGAFifoWrite(svga, cmd, cbCmd))
-		  {
-		  	*outSid = sid;
-		  	return TRUE;
-		  }
-		}
+	  SVGASend(svga, cmd, cbCmd, SVGA_CB_SYNC, 0);
+	  
+		*outSid = sid;
+		return TRUE;
 	}
 	
 	return FALSE;
@@ -3232,7 +2124,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	
 #pragma pack(pop)
 
-  uint32_t sid = SVGASurfaceIDNext(svga);
+  uint32_t sid = SVGASurfaceIDNext(svga, 1);
   
   if(sid == 0)
   {
@@ -3262,8 +2154,8 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	}
 	else
 	{
-		cbGB = SVGAGMRInfoGet(svga, pCreateParms->gmrid, GMR_INDEX_SIZE);
-		userAddress = SVGAGMRInfoGet(svga, pCreateParms->gmrid, GMR_INDEX_ADDRESS);
+		cbGB = SVGAGMRIDInfo(svga, pCreateParms->gmrid)->info.size;
+		userAddress = (DWORD)SVGAGMRIDInfo(svga, pCreateParms->gmrid)->info.address;
 	}
 	
 	cmd.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
@@ -3289,119 +2181,39 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	cmd_bind.bind.sid = sid;
 	cmd_bind.bind.mobid = pCreateParms->gmrid;
 	
-	//SVGAFifoWrite(svga, &cmd_bind, sizeof(cmd_bind));
-
-	/* command buffers are faster than FIFO, so sync FIFO before continue */
-	cb_state_t cbs;
-	cb_lock(svga, &cbs);
-	cb_push(&cbs, &cmd, sizeof(cmd));
-	cb_push(&cbs, &cmd_bind, sizeof(cmd_bind));
-	
-	cb_submit(svga, &cbs, SVGA3D_INVALID_ID, SVGA_CB_CONTEXT_DEFAULT);
-	
+	SVGAStart(svga);
+	SVGAPush(svga, &cmd, sizeof(cmd));
+	SVGAPush(svga, &cmd_bind, sizeof(cmd_bind));
+	SVGAFinish(svga, SVGA_CB_SYNC, 0);
+		
   /* pCreateParms->gmrid;  In/Out: Backing GMR. */
   pCreateParms->cbGB = cbGB; /* Out: Size of backing memory. */
   pCreateParms->userAddress = userAddress; /* Out: R3 mapping of the backing memory */
   pCreateParms->u32Sid  = sid; /* Out: Surface id. */
 
-	svga->surfinfo[sid].format = pCreateParms->s.format;
-	svga->surfinfo[sid].bpp    = format_to_bpp(pCreateParms->s.format);
-	svga->surfinfo[sid].size.width = pCreateParms->s.size.width;
-	svga->surfinfo[sid].size.height = pCreateParms->s.size.height;
-	svga->surfinfo[sid].size.depth = pCreateParms->s.size.depth;
-	svga->surfinfo[sid].gmrId = pCreateParms->gmrid;
+	SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
+	sinfo->format = pCreateParms->s.format;
+	sinfo->bpp    = format_to_bpp(pCreateParms->s.format);
+	sinfo->width  = pCreateParms->s.size.width;
+	sinfo->height = pCreateParms->s.size.height;
+	sinfo->gmrId  = pCreateParms->gmrid;
 
   return TRUE;
-}
-
-BOOL cb_lock(svga_inst_t *svga, cb_state_t *cbs)
-{
-	memset(cbs, 0, sizeof(cb_state_t));
-	
-  do
-  {
-  	if(!SVGALockCB(svga, (void **)&(cbs->cb)))
-  	{
-  		return FALSE;
-  	}
-  } while(cbs->cb == NULL);
- 
-	memset(cbs->cb, 0, sizeof(SVGACBHeaderDX));
- 	
-  cbs->cb_ptr = (uint8_t*)cbs->cb;
-  cbs->cb_pos = sizeof(SVGACBHeaderDX);
-  cbs->cmd_count = 0;
-  
-  return TRUE;
-}
-
-static void cb_submit_proc(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id, BOOL sync)
-{
-  if(cbs->cb != NULL)
-  {
-  	cbs->cb->length = cbs->cb_pos - sizeof(SVGACBHeaderDX);
-  	
-  	if(cbctx_id != SVGA_CB_CONTEXT_DEVICE && cid != SVGA3D_INVALID_ID)
-  	{
-  		cbs->cb->flags = (SVGACBFlagsDX)(cbs->cb->flags | SVGA_CB_DX_FLAG_DX_CONTEXT);
-  		cbs->cb->dxContext = cid;
-  	}
-  	
-  	SVGASubmitCB(svga, cbs->cb, cbctx_id, sync);
-  	
-  	debug_printf("cb_send: cmds %d, size %d\n", cbs->cmd_count, cbs->cb->length);
-  }
-}
-
-void cb_submit(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id)
-{
-	cb_submit_proc(svga, cbs, cid, cbctx_id, FALSE);
-}
-
-void cb_submit_sync(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id)
-{
-	cb_submit_proc(svga, cbs, cid, cbctx_id, TRUE);
-}
-
-void cb_sync(svga_inst_t *svga)
-{
-  SVGASyncCB(svga);
-}
-
-void cb_push(cb_state_t *cbs, const void *buffer, size_t size)
-{
-  if(cbs->cb != NULL)
-  {
-		memcpy(cbs->cb_ptr + cbs->cb_pos, buffer, size);
-		cbs->cb_pos += size;
-		cbs->cmd_count++;
-	}
-}
-
-BOOL cb_full(cb_state_t *cbs, size_t cbNeed)
-{
-	if(cbs->cb == NULL)
-  {
-  	return FALSE;
-  }
-	
-	return cbs->cb_pos + cbNeed > SVGA_CB_MAX_SIZE ||
-		cbs->cmd_count >=  SVGA_CB_MAX_QUEUED_PER_CONTEXT;
 }
 
 BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch)
 {
-	svga_surfinfo_t *sinfo = &svga->surfinfo[sid];
+	SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
 
-	if(sinfo == NULL || (sinfo->size.width * sinfo->size.height) == 0)
+	if(sinfo == NULL || (sinfo->width * sinfo->height) == 0)
 	{
 		return FALSE;
 	}
 	
-	*pWidth  = sinfo->size.width;
-	*pHeight = sinfo->size.height;
+	*pWidth  = sinfo->width;
+	*pHeight = sinfo->height;
 	*pBpp    = sinfo->bpp;
-	*pPitch  = sinfo->size.width * vramcpy_pointsize(sinfo->bpp);
+	*pPitch  = sinfo->width * vramcpy_pointsize(sinfo->bpp);
 	
 	return TRUE;
 }

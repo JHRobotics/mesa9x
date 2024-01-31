@@ -58,6 +58,9 @@
 #include "wrapper/wrapper_sw_winsys.h"
 
 #include "wddm_screen.h"
+
+#define SVGA
+#include "3d_accel.h"
 #include "svgadrv.h"
 
 #include <stdio.h>
@@ -88,7 +91,7 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 #endif
 {
 	struct pipe_screen *screen = NULL;
-	if(!SVGACreate(&sSvga, INVALID_HANDLE_VALUE))
+	if(!SVGACreate(&sSvga))
 	{
 		fprintf(stderr, "Failed to init hardware! Wrong driver or virtual gpu type?\n");
 		return NULL;
@@ -316,6 +319,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				}
    	  }
    	  
+   	  /* Init HDA driver */
+   	  FBHDA_load();
+   	  
    	  /* 
    	   * Because this driver run in userspace as application and if crash, 
    	   * on next run, or another proceess run, we'll need to clean all
@@ -368,6 +374,8 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
       }
       // JH: clear the garbage
       SVGACleanup(NULL, 0);
+      FBHDA_free();
+      
       break;
    default:
      break;

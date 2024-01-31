@@ -131,7 +131,7 @@ BOOL LoadWinsys()
 
 static void d3dadapter9_context_destroy(struct d3dadapter9_context *ctx)
 {
-	HeapFree(GetProcessHeap(), 0, ctx);
+	free(ctx);
 }
 
 static HRESULT d3dadapter9_context_create(struct d3dadapter9_context *ctx, struct pipe_screen *s)
@@ -207,7 +207,7 @@ ULONG WINAPI NineNine_Release(INineNine *This)
 	ULONG cnt = InterlockedDecrement(&This->refcount);
 	if(cnt == 0)
 	{
-		//HeapFree(GetProcessHeap(), 0, This);
+		//free(This);
 	}
 	
 	return cnt;
@@ -885,7 +885,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 		return D3DERR_INVALIDCALL;
 	}
   printf("screen? %p\n", screen);	
-	INineNine *res = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(INineNine));
+	INineNine *res = calloc(1, sizeof(INineNine));
 	res->base.lpVtbl = &NineNineEx_vtable;
 	res->screen = screen;
 

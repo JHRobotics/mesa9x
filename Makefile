@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-17.3.9
-DEPS = config.mk Makefile
+#DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-21.3.8)
   MESA_NEW := 1

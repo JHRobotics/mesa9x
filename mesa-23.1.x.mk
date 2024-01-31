@@ -1001,7 +1001,7 @@ MesaGdiLib_SRC = \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_tile_cache.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_texture.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c \
-  win9x/vramlock.c \
+  win9x/3d_accel.c \
   win9x/vramconv.c \
   win9x/vramcpy.c \
 

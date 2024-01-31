@@ -1,61 +1,15 @@
 #ifndef __SVGADRV_H__INCLUDED__
 #define __SVGADRV_H__INCLUDED__
 
+#ifndef SVGA
+#define SVGA
+#endif
+
+#include "3d_accel.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#pragma pack(push)
-#pragma pack(1)
-
-/* SVGA HDA = hardware direct access */
-typedef struct _svga_hda_t
-{
-	uint8_t        *vram_linear;
-	uint32_t        vram_pm16;
-	uint32_t        vram_physical;
-	uint32_t        vram_size;
-
-	volatile uint32_t *fifo_linear;
-	uint32_t        fifo_pm16;
-	uint32_t        fifo_physical;
-	uint32_t        fifo_size;
-
-  uint32_t        ul_flags_index;
-  uint32_t        ul_fence_index;
-  uint32_t        ul_gmr_start;
-  uint32_t        ul_gmr_count;
-  uint32_t        ul_ctx_start;
-  uint32_t        ul_ctx_count;
-  uint32_t        ul_surf_start;
-  uint32_t        ul_surf_count;
-  uint32_t        userlist_pm16;
-  volatile uint32_t *userlist_linear;
-  uint32_t        userlist_length;  
-} svga_hda_t;
-
-#pragma pack(pop)
-
-#define ULF_DIRTY  0
-#define ULF_WIDTH  1
-#define ULF_HEIGHT 2
-#define ULF_BPP    3
-#define ULF_PITCH  4
-#define ULF_LOCK_UL   5
-#define ULF_LOCK_FIFO 6
-#define ULF_LOCK_FB   7
-#define ULF_LOCK_CB   8
-#define ULF_LOCK_GMR  9
-#define ULF_CNT       10
-
-typedef struct _svga_surfinfo_t
-{
-	SVGA3dSurfaceFormat format; /* format of surface */
-	SVGA3dSize          size;   /* size of face 0    */
-	uint32_t            bpp;    /* bit per pixel */
-	uint32_t            gmrId;  /* != 0 for GB surfaces */
-} svga_surfinfo_t;
-
 
 struct svga_cotable_entry
 {
@@ -70,61 +24,81 @@ typedef struct svga_cotable
 	struct svga_cotable_entry item[SVGA_COTABLE_MAX];
 } svga_cotable_t;
 
+#define CMD_BUFFER_COUNT 4
+
 typedef struct _svga_inst_t
 {
-	svga_hda_t hda;
-	HDC dc;
+	FBHDA_t *hda;
 	uint32_t ctx_id;
 	uint32_t pid;
+	
+	SVGA_DB_t *db;
+	void              *cmd_buf[CMD_BUFFER_COUNT];
+	SVGA_CMB_status_t  cmd_stat[CMD_BUFFER_COUNT];
+	int                cmd_next;
+	int                cmd_act;
+	size_t             cmd_pos;
+	uint32_t           cmd_fence;
+	
+	uint32_t last_seen_fence;
+	uint32_t last_complete_fence;
+	
 	uint32_t softblit_gmr_id;
 	void    *softblit_gmr_ptr;
 	uint32_t softblit_gmr_size;
+
 	BOOL dx;
-	svga_surfinfo_t *surfinfo;
-	HANDLE vxd;
+
 	/* (pseudo)v-sync variables */
 	ULARGE_INTEGER lastframe; /* last frame timestamp (FILETIME) */
 	uint64_t delta;           /* difference between Sleep input and real Sleep time */
 	/* latch for creating one single and persistant GB content */
 	BOOL have_cb_context;
 	uint32_t blitsid;
+	
+	
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
 
-void SVGAFullSync(svga_inst_t *svga);
-BOOL SVGACreate(svga_inst_t *svga, HWND win);
-void SVGADestroy(svga_inst_t *svga);
 BOOL SVGAReadReg(svga_inst_t *svga, uint32_t reg, uint32_t *val);
+
 uint32_t SVGAFenceInsert(svga_inst_t *svga);
 uint32_t SVGAFenceInsertCB(svga_inst_t *svga);
-BOOL SVGAFencePassed(svga_inst_t *svga, uint32_t fence);
 void SVGAFenceSync(svga_inst_t *svga, uint32_t fence);
 BOOL SVGAFenceQuery(svga_inst_t *svga, uint32_t fence, uint32_t *fenceStatus, uint32_t *lastPassed, uint32_t *nextFence);
-BOOL SVGAFifoWrite(svga_inst_t *svga, void *cmd, size_t cmd_bytes);
+
+void SVGAFullSync(svga_inst_t *svga);
+
+BOOL SVGACreate(svga_inst_t *svga);
+void SVGADestroy(svga_inst_t *svga);
+void SVGACleanup(svga_inst_t *svga, uint32_t pid);
+
+void SVGAStart(svga_inst_t *svga);
+void SVGAPush(svga_inst_t *svga, const void *cmd, const size_t size);
+void *SVGAPull(svga_inst_t *svga, const size_t size);
+void SVGAFinish(svga_inst_t *svga, DWORD flags, DWORD DXCtxId);
+void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags, DWORD DXCtxId);
+
 uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *address);
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
+
 uint32_t SVGAContextCreate(svga_inst_t *svga);
+void SVGACBContextCreate(svga_inst_t *svga);
 void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid);
+
 BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid);
 void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid);
-void SVGACleanup(svga_inst_t *svga, uint32_t pid);
+BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
+
+BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch);
 void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid);
 
-uint32_t SVGAContextIDNext(svga_inst_t *svga);
-void SVGAContextIDFree(svga_inst_t *svga, uint32_t ctx_id);
-uint32_t SVGASurfaceIDNext(svga_inst_t *svga);
-void SVGASurfaceIDFree(svga_inst_t *svga, uint32_t surf_id);
-
 void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
+
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
-
-void SVGACBContextCreate(svga_inst_t *svga);
-
-BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
-BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch);
 
 #ifdef DEBUG
 void svga_printf(svga_inst_t *svga, const char *fmt, ...);
@@ -134,25 +108,7 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...);
 
 void SVGAZombieKiller();
 
-/* helpers for command buffers */
-typedef struct cb_state
-{
-  struct _SVGACBHeaderDX *cb;
-  uint8_t *cb_ptr;
-  size_t cb_pos;
-  int cmd_count;
-} cb_state_t;
-
-BOOL cb_lock(svga_inst_t *svga, cb_state_t *cbs);
-void cb_submit(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
-void cb_submit_sync(svga_inst_t *svga, cb_state_t *cbs, uint32_t cid, uint32_t cbctx_id);
-void cb_sync(svga_inst_t *svga);
-void cb_push(cb_state_t *cbs, const void *buffer, size_t size);
-BOOL cb_full(cb_state_t *cbs, size_t cbNeed);
-
-//#define cb_submit(_svga, _state, _cid, _cbc) debug_printf("%s:%d\n", __FILE__, __LINE__); cb_submit2(_svga, _state, _cid, _cbc)
-
-#define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
+//#define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
 
 #ifndef NO_VBOX_H
 BOOL SVGAReadHwInfo(svga_inst_t *ctx, VBOXGAHWINFO *pHwInfo);

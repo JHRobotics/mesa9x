@@ -38,7 +38,7 @@ static ULONG WINAPI DRIPresent_Release(ID3DPresentM99 *This)
 	ULONG cnt = InterlockedDecrement(&This->refcount);
 	if(cnt == 0)
 	{
-		HeapFree(GetProcessHeap(), 0, This);
+		free(This);
 	}
 	
 	return cnt;
@@ -268,7 +268,7 @@ static HRESULT WINAPI DRIPresent_D3DWindowBufferFromRes(ID3DPresentM99 *This,
 	if(MesaDimensions(screen, ctx, res, &w, &h, &bpp, &pitch))
 	{
 		//printf("Screen: %d, %d, %d, %d\n", w, h, bpp, pitch);
-		D3DWindowBuffer *wb = HeapAlloc(GetProcessHeap(), 0, sizeof(D3DWindowBuffer));
+		D3DWindowBuffer *wb = malloc(sizeof(D3DWindowBuffer));
 		if(wb)
 		{
 			wb->width = w;
@@ -294,7 +294,7 @@ static HRESULT WINAPI DRIPresent_DestroyD3DWindowBuffer(ID3DPresentM99 *This, st
     /* the pixmap is managed by the PRESENT backend.
      * But if it can delete it right away, we may have
      * better performance */
-	HeapFree(GetProcessHeap(), 0, buffer);
+	free(buffer);
 	return D3D_OK;
 }
 
@@ -323,7 +323,7 @@ static HRESULT WINAPI DRIPresent_FrontBufferCopy(ID3DPresentM99 *This, struct D3
 
 struct d3d_drawable *get_d3d_drawable(HWND hwnd)
 {
-	struct d3d_drawable *d3d = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(struct d3d_drawable));
+	struct d3d_drawable *d3d = calloc(1, sizeof(struct d3d_drawable));
 	if(d3d != NULL)
 	{
 		d3d->wnd = hwnd;
@@ -339,7 +339,7 @@ struct d3d_drawable *get_d3d_drawable(HWND hwnd)
 
 void release_d3d_drawable(struct d3d_drawable *d3d)
 {
-	HeapFree(GetProcessHeap(), 0, d3d);
+	free(d3d);
 }
 
 static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer, HWND hWndOverride, const RECT *pSourceRect, const RECT *pDestRect, const RGNDATA *pDirtyRegion, DWORD Flags)
@@ -657,7 +657,7 @@ static ID3DPresentVtbl DRIPresent_vtable = {
 
 HRESULT WINAPI ID3DPresent_new(INineNine *nine, HWND hFocusWindow, D3DPRESENT_PARAMETERS *params, ID3DPresent **pp)
 {
-	ID3DPresentM99 *res = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(ID3DPresentM99));
+	ID3DPresentM99 *res = calloc(1, sizeof(ID3DPresentM99));
 	if(!res)
 	{
 		return E_OUTOFMEMORY;
@@ -701,7 +701,7 @@ static ULONG WINAPI DRIPresentGroup_Release(ID3DPresentGroupM99 *This)
 	ULONG cnt = InterlockedDecrement(&This->refcount);
 	if(cnt == 0)
 	{
-		HeapFree(GetProcessHeap(), 0, This);
+		free(This);
 	}
 	
 	return cnt;
@@ -764,7 +764,7 @@ static ID3DPresentGroupVtbl DRIPresentGroup_vtable = {
 
 HRESULT ID3DPresentGroup_new(INineNine *nine, HWND hFocusWindow, ID3DPresentGroup **pp)
 {
-	ID3DPresentGroupM99 *res = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(ID3DPresentGroupM99));
+	ID3DPresentGroupM99 *res = calloc(1, sizeof(ID3DPresentGroupM99));
 	if(!res)
 	{
 		return E_OUTOFMEMORY;

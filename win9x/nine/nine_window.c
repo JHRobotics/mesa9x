@@ -18,7 +18,7 @@
 typedef struct wnd_item
 {
 	HWND window;
-	WNDPROC winproc;
+//	WNDPROC winproc;
 	struct wnd_item *next;
 	ID3DPresentM99 *present;
 } wnd_item_t;
@@ -35,6 +35,10 @@ static DEVMODEA savedMode = {0};
 
 static LRESULT CALLBACK nine_winproc(HWND window, UINT message, WPARAM wparam, LPARAM lparam);
 
+static HHOOK win_hook = NULL;
+
+static LRESULT CALLBACK win_hook_proc(int nCode, WPARAM wParam, LPARAM lParam);
+
 void nine_init()
 {
 	InitializeCriticalSection(&nine_cs);
@@ -44,6 +48,8 @@ void nine_init()
 	ZeroMemory(&savedMode, sizeof(DEVMODEA));
 	savedMode.dmSize = sizeof(DEVMODEA);
 	EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &savedMode);
+	
+	win_hook = SetWindowsHookExA(WH_CALLWNDPROC, win_hook_proc, NULL, GetCurrentThreadId());
 }
 
 void nine_deinit()
@@ -51,6 +57,12 @@ void nine_deinit()
 	DEVMODEA cur;
 	/* check first if in saved struct isn't some garbage */
 	//if(savedMode.dmSize == sizeof(DEVMODEA))
+	if(win_hook)
+	{
+    UnhookWindowsHookEx(win_hook);
+    win_hook = NULL;
+	}
+	
 	if(savedMode.dmSize != 0)
 	{
 		ZeroMemory(&cur, sizeof(DEVMODEA));
@@ -177,7 +189,8 @@ static LRESULT device_process_message(ID3DPresentM99 *present, HWND window, BOOL
 	{
 		//TRACE("Filtering message: window %p, message %#x, wparam %#lx, lparam %#lx.\n",
 		//      window, message, wparam, lparam);
-		return DefWindowProcA(window, message, wparam, lparam);
+		//return DefWindowProcA(window, message, wparam, lparam);
+		return 0;
 	}
 
 	/* In fullscreen mode, the style is not supposed to affect appearance (because
@@ -285,9 +298,44 @@ static LRESULT device_process_message(ID3DPresentM99 *present, HWND window, BOOL
 		}
 	}
 
-	return CallWindowProcA(proc, window, message, wparam, lparam);
+	//return CallWindowProcA(proc, window, message, wparam, lparam);
+	return 0;
 }
 
+static LRESULT CALLBACK win_hook_proc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	PCWPSTRUCT pParams = (PCWPSTRUCT)lParam;
+	ID3DPresentM99 *present;
+	wnd_item_t *item;
+	WNDPROC proc;
+	
+	if (nCode < 0)
+		return CallNextHookEx(NULL, nCode, wParam, lParam);
+
+	nine_wnd_lock();
+
+	item = nine_wl.first;
+	while(item != NULL)
+	{
+		if(item->window == pParams->hwnd) break;
+	}
+	
+	if(item)
+	{
+		present = item->present;
+
+		if(present)
+		{
+			device_process_message(present, pParams->hwnd, FALSE, pParams->message, pParams->wParam, pParams->lParam, NULL);
+		}
+	}
+	
+	nine_wnd_unlock();
+	
+	return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+/*
 static LRESULT CALLBACK nine_winproc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	ID3DPresentM99 *present;
@@ -319,12 +367,13 @@ static LRESULT CALLBACK nine_winproc(HWND window, UINT message, WPARAM wparam, L
 
 	return CallWindowProcA(proc, window, message, wparam, lparam);
 }
+*/
 
 BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
 {
 	nine_wnd_lock();
 	
-	wnd_item_t *item = HeapAlloc(GetProcessHeap(), 0, sizeof(wnd_item_t));
+	wnd_item_t *item = calloc(1, sizeof(wnd_item_t));
 	if(item == NULL)
 	{
 		nine_wnd_unlock();
@@ -344,7 +393,7 @@ BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
 	  }
 	*/
 	
-	item->winproc = (WNDPROC)SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)nine_winproc);
+	//item->winproc = (WNDPROC)SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)nine_winproc);
 	item->present = present;
 	
 	if(nine_wl.last)
@@ -384,6 +433,7 @@ BOOL nine_unregister_window(HWND window)
 		return FALSE;
 	}
 
+/*
 	proc = GetWindowLongPtrA(window, GWLP_WNDPROC);
 	if(proc != (LONG_PTR)nine_winproc)
 	{
@@ -394,6 +444,7 @@ BOOL nine_unregister_window(HWND window)
 	}
 
 	SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)item->winproc);
+*/
 	
 	if(prev == NULL)
 	{
@@ -409,7 +460,7 @@ BOOL nine_unregister_window(HWND window)
 		nine_wl.last = prev;
 	}
 	
-	HeapFree(GetProcessHeap(), 0, item);
+	free(item);
 
 	nine_wnd_unlock();
 	return TRUE;

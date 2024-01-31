@@ -76,6 +76,7 @@ static boolean use_zink = FALSE;
 #endif
 
 #ifdef WIN9X
+#include "3d_accel.h"
 #include "vramcpy.h"
 #endif
 
@@ -322,6 +323,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 #ifdef HAVE_CRTEX
    	  crt_locks_init(CRT_LOCK_CNT);
 #endif
+#ifdef WIN9X
+   	  FBHDA_load();
+#endif
 #ifdef UNLOAD_PROTECTED
    	  {
    	  	/* load self again to protect from unload */
@@ -366,6 +370,9 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
       }
+#ifdef WIN9X
+   	  FBHDA_free();
+#endif
       break;
    }
    return TRUE;

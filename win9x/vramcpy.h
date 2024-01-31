@@ -29,7 +29,4 @@ uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp);
 
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC);
 
-BOOL vram_lock(volatile DWORD *ptr);
-void vram_unlock(volatile DWORD *ptr);
-
 #endif

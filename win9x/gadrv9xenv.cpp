@@ -103,21 +103,22 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 	HRESULT hr = S_OK;
 	const uint8_t *next = (const uint8_t *)pvCommands;
 	const uint8_t *last = next + cbCommands;
-  cb_state_t cbs;
-  uint32_t cid_dx = SVGA3D_INVALID_ID;
+  uint32_t cid_dx = 0;
+  DWORD flags = SVGA_CB_SYNC;
   
   if(cbCommands == 0 && pFenceQuery == NULL)
   	return S_OK;
   
   if(svga->dx)
   {
+  	flags |= SVGA_CB_DX_FLAG_DX_CONTEXT;
   	cid_dx = u32Cid;
   }
+    
+  uint32_t cnt_cmds = 0;
+  uint32_t cnt_cb   = 0;
   
-	if(svga->have_cb_context)
-	{
-  	cb_lock(svga, &cbs);
-  }
+  SVGAStart(svga);
   
   while(next < last)
  	{
@@ -172,29 +173,27 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 					break;
 			}
 			
-			if(svga->have_cb_context)
+			if(cnt_cmds >= SVGA_CB_MAX_QUEUED_PER_CONTEXT-3 ||
+				(cnt_cb + cmd_bytes) >= SVGA_CB_MAX_SIZE - (sizeof(DWORD)*2 + sizeof(SVGACBHeader))
+				)
 			{
-				/* check buffer limits and send on full */
-				if(cb_full(&cbs, cmd_bytes))
-				{
-					cb_submit(svga, &cbs, cid_dx, SVGA_CB_CONTEXT_DEFAULT);
-					cb_lock(svga, &cbs);
-				}
+				SVGAFinish(svga, flags, cid_dx);
+				SVGAStart(svga);
 				
-				cb_push(&cbs, (void*)header, cmd_bytes);
+				cnt_cmds = 0;
+				cnt_cb   = cmd_bytes;
 			}
-			else
-			{
-				if(!SVGAFifoWrite(svga, (void*)header, cmd_bytes))
-				{
-					hr = E_FAIL;
-					break;
-				}
-			}
+			
+			SVGAPush(svga, header, cmd_bytes);
+			
+			cnt_cmds++;
+			cnt_cb += cmd_bytes;
 			
 			next = ((uint8_t*)header) + cmd_bytes;
 			if(next > last)
+			{
 				break;
+			}
 		}
 		else if(cmd_id == SVGA_CMD_FENCE)
 		{
@@ -210,37 +209,17 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 			break;
 		}
 	}
+		
+	if(pFenceQuery)
+	{
+		flags |= SVGA_CB_FORCE_FENCE;
+	}
 	
-  uint32_t fence = 0;  
+	SVGAFinish(svga, flags, cid_dx);
+	
   if(pFenceQuery)
   {
-  	if(svga->have_cb_context)
-  	{
-  		fence = SVGAFenceInsertCB(svga);
-  		uint32_t fence_cmd[2] = {SVGA_CMD_FENCE, fence};
-  		
-			if(cb_full(&cbs, sizeof(fence_cmd)))
-			{
-				cb_submit(svga, &cbs, cid_dx, SVGA_CB_CONTEXT_DEFAULT);
-				cb_lock(svga, &cbs);
-			}
-				
-			cb_push(&cbs, &fence_cmd, sizeof(fence_cmd));
-  	}
-  	else
-  	{
-  		fence = SVGAFenceInsert(svga);
-  	}
-  }
-  
-  if(svga->have_cb_context)
-  {
-  	cb_submit(svga, &cbs, cid_dx, SVGA_CB_CONTEXT_DEFAULT);
-  }
-  
-  if(fence)
-  {
-  	vboxVxdFenceQuery(pvEnv, fence, pFenceQuery);
+  	vboxVxdFenceQuery(pvEnv, svga->cmd_fence, pFenceQuery);
   }
   
   return hr;
