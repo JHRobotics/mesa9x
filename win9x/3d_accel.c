@@ -10,12 +10,14 @@ static HANDLE hda_vxd = INVALID_HANDLE_VALUE;
 static SVGA_DB_t *svga_db = NULL;
 static SVGA_OT_info_entry_t *svga_ot = NULL;
 static HANDLE svga_mux = INVALID_HANDLE_VALUE;
+static BOOL svga_have_3d = FALSE;
 
 void FBHDA_load()
 {
 	HWND hDesktop = GetDesktopWindow();
 	HDC hdc = GetDC(hDesktop);
 	char strbuf[PATH_MAX];
+	svga_have_3d = FALSE;
 	
 	if(ExtEscape(hdc, OP_FBHDA_SETUP, 0, NULL, sizeof(FBHDA_t *), (LPVOID)&hda))
 	{
@@ -49,14 +51,11 @@ void FBHDA_load()
 								
 								svga_mux = CreateMutexA(NULL, FALSE, mutexname);
 								
-								return; /* SUCCESS */
+								svga_have_3d = TRUE; /* SUCCESS = SVGA3D */
 							}
 						}
 					}
-					else
-					{
-						return; /* SUCCESS */
-					}
+					return; /* SUCCESS = frame buffer */
 				}
 			}
 		}
@@ -141,11 +140,16 @@ BOOL SVGA_valid()
 	return FALSE;
 }
 
+static BOOL SVGA3D_enabled()
+{
+	return svga_have_3d;
+}
+
 DWORD *SVGA_CMB_alloc()
 {
 	DWORD *ptr = NULL;
 	
-	if(!FBHDA_valid()) return NULL;
+	if(!SVGA3D_enabled()) return NULL;
 	
 	if(DeviceIoControl(hda_vxd, OP_SVGA_CMB_ALLOC,
 		NULL, 0, &ptr, sizeof(DWORD),
@@ -159,7 +163,7 @@ DWORD *SVGA_CMB_alloc()
 
 void SVGA_CMB_free(DWORD *cmb)
 {
-	if(!FBHDA_valid()) return;
+	if(!SVGA3D_enabled()) return;
 	
 	DeviceIoControl(hda_vxd, OP_SVGA_CMB_FREE,
 		&cmb, sizeof(DWORD), NULL, 0,
@@ -171,7 +175,7 @@ void SVGA_CMB_submit(DWORD *cmb, DWORD cmb_size, SVGA_CMB_status_t *status, DWOR
 	SVGA_CMB_submit_io_t iobuf;
 	SVGA_CMB_status_t status_io;;
 	
-	if(!FBHDA_valid()) return;
+	if(!SVGA3D_enabled()) return;
 	
 	iobuf.cmb      = cmb;
 	iobuf.cmb_size = cmb_size;
@@ -197,7 +201,7 @@ DWORD SVGA_fence_get()
 {
 	DWORD fence = 0;
 	
-	if(!FBHDA_valid()) return 0;
+	if(!SVGA3D_enabled()) return 0;
 		
 	if(DeviceIoControl(hda_vxd, OP_SVGA_FENCE_GET,
 		NULL, 0, &fence, sizeof(DWORD),
@@ -213,8 +217,7 @@ void SVGA_fence_query(DWORD FBPTR ptr_fence_passed, DWORD FBPTR ptr_fence_last)
 {
 	DWORD results[2];
 	
-	if(!FBHDA_valid()) return;
-		
+	if(!SVGA3D_enabled()) return;
 	
 	if(DeviceIoControl(hda_vxd, OP_SVGA_FENCE_QUERY,
 		NULL, 0, &results, sizeof(DWORD)*2,
@@ -230,7 +233,7 @@ void SVGA_fence_query(DWORD FBPTR ptr_fence_passed, DWORD FBPTR ptr_fence_last)
 
 void SVGA_fence_wait(DWORD fence_id)
 {
-	if(!FBHDA_valid()) return;
+	if(!SVGA3D_enabled()) return;
 		
 	DeviceIoControl(hda_vxd, OP_SVGA_FENCE_WAIT,
 		&fence_id, sizeof(DWORD), NULL, 0,
@@ -241,7 +244,7 @@ BOOL SVGA_region_create(SVGA_region_info_t *rinfo)
 {
 	SVGA_region_info_t result;
 	
-	if(!FBHDA_valid()) return FALSE;
+	if(!SVGA3D_enabled()) return FALSE;
 		
 	if(rinfo->region_id == 0) return FALSE;
 	
@@ -263,7 +266,7 @@ BOOL SVGA_region_create(SVGA_region_info_t *rinfo)
 
 void SVGA_region_free(SVGA_region_info_t FBPTR rinfo)
 {
-	if(!FBHDA_valid()) return;
+	if(!SVGA3D_enabled()) return;
 		
 	if(rinfo->region_id == 0) return;
 	
