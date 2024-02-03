@@ -1592,16 +1592,30 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			command.blit.srcRect.bottom = command.blit.destRect.bottom - render_top;
 		}
 		
-		FBHDA_access_begin(0); 
-	  if(svga->dx)
-	  {
-	  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
-	  }
-	  else
-	  {
-	  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
-	  }
-		FBHDA_access_end(0);
+		if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
+		{
+		  if(svga->dx)
+		  {
+		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_FLAG_DX_CONTEXT, cid);
+		  }
+		  else
+		  {
+		  	SVGASend(svga, &command, sizeof(command), 0, 0);
+		  }
+		}
+		else
+		{
+			FBHDA_access_begin(0); 
+		  if(svga->dx)
+		  {
+		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		  }
+		  else
+		  {
+		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
+		  }
+			FBHDA_access_end(0);
+		}
 	}
 	/*
 	 * GPU10 way, sync the GMR and use vramcopy to convert and copy to FB
@@ -1639,7 +1653,9 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		vrect.src_y       = 0;
 		vrect.src_bpp     = sinfo->bpp;
 		
+		FBHDA_access_begin(0);
 		vramcpy(svga->hda->vram_pm32, gmr, &vrect);		
+		FBHDA_access_end(0);
 	}
 	/*
 	 * harder way: we'll need render surface to some GMR region and copy to frame buffer manualy
@@ -1764,17 +1780,28 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			SVGAPush(svga, &command_blit, sizeof(command_blit));
 		}
 		SVGAPush(svga, &command_dma, sizeof(command_dma));
-		SVGAPush(svga, &command_update, sizeof(command_update));
 		
-		FBHDA_access_begin(0);
+		BOOL need_reread = debug_get_option_dma_need_reread() && bpp != 32;
 		
-		SVGAFinish(svga, SVGA_CB_SYNC, 0);
-		
-		if(debug_get_option_dma_need_reread() && bpp != 32)
+		if((svga->hda->flags & FB_MOUSE_NO_BLIT) && !need_reread)
 		{
-			refresh_fb(svga);
+			SVGAPush(svga, &command_update, sizeof(command_update));
+			SVGAFinish(svga, 0, 0);
 		}
-		FBHDA_access_end(0);
+		else
+		{
+			FBHDA_access_begin(0);
+		
+			SVGAFinish(svga, SVGA_CB_SYNC, 0);
+		
+			if(need_reread)
+			{
+				refresh_fb(svga);
+			}
+			
+			/* note: update command is not needed here, FBHDA_access_end do it automaticaly  */
+			FBHDA_access_end(0);
+		}
 	}
 }
 
