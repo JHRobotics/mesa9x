@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-17.3.9
-#DEPS = config.mk Makefile
+DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-21.3.8)
   MESA_NEW := 1
@@ -30,6 +30,12 @@ endif
 
 ifeq ($(MESA_VER),mesa-23.1.x)
   MESA23 := 1
+  MESA_GPU10 := 1
+endif
+
+ifeq ($(MESA_VER),mesa-24.0.x)
+  MESA23 := 1
+  MESA24 := 1
   MESA_GPU10 := 1
 endif
 
@@ -92,7 +98,7 @@ ifdef MSC
   LIBPREFIX := 
 
   CL_INCLUDE = /Iincmsc /I$(MESA_VER)/include	/I$(MESA_VER)/include/GL /I$(MESA_VER)/src/mapi	/I$(MESA_VER)/src/util /I$(MESA_VER)/src /I$(MESA_VER)/src/mesa /I$(MESA_VER)/src/mesa/main \
-    /I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir /I$(MESA_VER)/src/gallium/state_trackers/wgl /I$(MESA_VER)/src/gallium/auxiliary /I$(MESA_VER)/src/gallium/include \
+    /I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir /I$(MESA_VER)/src/gallium/state_trackers/wgl /I$(MESA_VER)/src/gallium/auxiliary /I$(MESA_VER)/src/gallium/auxiliary/util /I$(MESA_VER)/src/gallium/include \
     /I$(MESA_VER)/src/gallium/drivers/svga /I$(MESA_VER)/src/gallium/drivers/svga/include /I$(MESA_VER)/src/gallium/winsys/sw  /I$(MESA_VER)/src/gallium/drivers /I$(MESA_VER)/src/gallium/winsys/svga/drm
 
   # /DNDEBUG
@@ -228,7 +234,7 @@ else
   D3D10_DEF  = d3d10_sw.def
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include	-I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi	-I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
-    -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/include \
+    -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/auxiliary/util -I$(MESA_VER)/src/gallium/include \
     -I$(MESA_VER)/src/gallium/drivers/svga -I$(MESA_VER)/src/gallium/drivers/svga/include -I$(MESA_VER)/src/gallium/winsys/sw  -I$(MESA_VER)/src/gallium/drivers -I$(MESA_VER)/src/gallium/winsys/svga/drm \
     -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 \
     -I$(MESA_VER)/src/gallium/frontends/nine -I$(MESA_VER)/include/winddk -Iinclude/winddk -Iwin9x
@@ -277,6 +283,10 @@ else
   
   ifdef MESA23
   	DEFS += -DMESA23
+  endif
+  
+  ifdef MESA24
+  	DEFS += -DMESA24
   endif
   
   ifdef GUI_ERRORS
