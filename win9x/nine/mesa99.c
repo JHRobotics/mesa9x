@@ -35,11 +35,44 @@ typedef struct _opengl_icd_t
 
 //static struct stw_winsys stw_winsys = {};
 
+/* globals */
 static HMODULE hMesa = NULL;
 
 MesaScreenCreateH MesaScreenCreate = NULL;
 MesaPresentH MesaPresent = NULL;
 MesaDimensionsH MesaDimensions = NULL;
+
+static INineNine *nineInst = NULL;
+static CRITICAL_SECTION nine_if_cs;
+
+//#ifdef DEBUG
+void mesa99_printf(const char *file, const char *fn, int line, const char *fmt, ...)
+{
+  va_list args;
+	FILE *fa;
+	
+	fa = fopen("C:\\mesa99.log", "ab");
+	
+	fprintf(fa, "%s:%s:%d: ", file, fn, line);
+	
+	va_start(args, fmt);
+  vfprintf(fa, fmt, args);
+  va_end(args);
+  
+  fputs("\r\n", fa);
+	fclose(fa);
+}
+//#endif
+
+void nine_lock_proc()
+{
+	EnterCriticalSection(&nine_if_cs);
+}
+
+void nine_unlock_proc()
+{
+	LeaveCriticalSection(&nine_if_cs);
+}
 
 
 static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
@@ -76,7 +109,7 @@ static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 
 #define TRY_LOAD_FUNC(_fname) \
 	proc = GetProcAddress(hMesaTest, #_fname); \
-	if(proc == NULL){FreeLibrary(hMesaTest); printf("not found %s in %s\n", #_fname, dllname); return FALSE;} \
+	if(proc == NULL){FreeLibrary(hMesaTest); mesa99_dbg("not found %s in %s", #_fname, dllname); return FALSE;} \
 	_fname = (_fname ## H)proc;
 
 static BOOL LoadWinsysDLL(char *dllname, HMODULE *OutHMesa)
@@ -101,30 +134,30 @@ BOOL LoadWinsys()
 	char dllname[MAX_PATH];
 	if(GetGLICD(dllname, MAX_PATH-1))
 	{
-		printf("mesa99: ICD success\n");
+		mesa99_dbg("mesa99: ICD success");
 		LoadWinsysDLL(dllname, &hMesa);
 	}
 	
 	if(!hMesa)
 	{
-		printf("mesa99: try opengl32.dll\n");
+		mesa99_dbg("mesa99: try opengl32.dll");
 		LoadWinsysDLL("opengl32.dll", &hMesa);
 	}
 	
 	if(!hMesa)
 	{
-		printf("mesa99: try mesa3d.dll\n");
+		mesa99_dbg("mesa99: try mesa3d.dll");
 		LoadWinsysDLL("mesa3d.dll", &hMesa);
 	}
 	
 	/* debug */
 	if(!hMesa)
 	{
-		printf("mesa99: try mesa3d.w98me.dll\n");
+		mesa99_dbg("mesa99: try mesa3d.w98me.dll");
 		LoadWinsysDLL("mesa3d.w98me.dll", &hMesa);
 	}
 	
-	printf("mesa99: loader = %p\n", hMesa);
+	mesa99_dbg("mesa99: loader = %p", hMesa);
 	
 	return hMesa ? TRUE : FALSE;
 }
@@ -157,56 +190,23 @@ static HRESULT d3dadapter9_context_create(struct d3dadapter9_context *ctx, struc
 	return D3D_OK;
 }
 
-BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID lpvReserved)
-{
-	BOOL fReturn = TRUE;
-
-	switch (fdwReason)
-	{
-		case DLL_PROCESS_ATTACH:
-			fReturn = LoadWinsys();
-			if(fReturn)
-			{
-				nine_init();
-			}
-			break;
-	
-		case DLL_PROCESS_DETACH:
-			if(hMesa)
-			{
-				FreeLibrary(hMesa);
-				hMesa = NULL;
-			}
-			
-			nine_deinit();
-			break;
-	
-		case DLL_THREAD_ATTACH:
-			break;
-	
-		case DLL_THREAD_DETACH:
-			break;
-	
-		default:
-			break;
-	}
-
-	return fReturn;
-}
-
 /* IUnknown */
 ULONG WINAPI NineNine_AddRef(INineNine *This)
 {
-	LONG cnt = InterlockedIncrement(&This->refcount);
+	mesa99_dbg("enter");
 	
+	LONG cnt = InterlockedIncrement(&This->refcount);
 	return cnt;
 }
 
 ULONG WINAPI NineNine_Release(INineNine *This)
 {
+	mesa99_dbg("enter");
+	
 	ULONG cnt = InterlockedDecrement(&This->refcount);
 	if(cnt == 0)
 	{
+		
 		//free(This);
 	}
 	
@@ -215,6 +215,8 @@ ULONG WINAPI NineNine_Release(INineNine *This)
 
 HRESULT WINAPI NineNine_QueryInterface(INineNine *This, REFIID riid, void **ppvObject)
 {
+	mesa99_dbg("enter");
+	
 	if(
 		IsEqualGUID(&IID_IDirect3D9Ex, riid) ||
 		IsEqualGUID(&IID_IDirect3D9, riid) ||
@@ -233,6 +235,8 @@ HRESULT WINAPI NineNine_QueryInterface(INineNine *This, REFIID riid, void **ppvO
 /* IDirect3D9 */
 HRESULT WINAPI NineNine_RegisterSoftwareDevice(INineNine *This, void *pInitializeFunction)
 {
+	mesa99_dbg("enter");
+	
 	return D3DERR_INVALIDCALL;
 }
 
@@ -247,6 +251,8 @@ HRESULT WINAPI NineNine_GetAdapterIdentifier(INineNine *This, UINT Adapter, DWOR
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	
+	mesa99_dbg("enter");
 	
 	memset(&pIdentifier->Driver[0], 0, sizeof(pIdentifier->Driver));
 	memset(&pIdentifier->Description[0], 0, sizeof(pIdentifier->Description));
@@ -282,6 +288,8 @@ UINT WINAPI NineNine_GetAdapterModeCount(INineNine *This, UINT Adapter, D3DFORMA
 	{
 		return 0;
 	}
+	
+	mesa99_dbg("enter");
 	
 	switch(Format)
 	{
@@ -342,6 +350,8 @@ HRESULT WINAPI NineNine_EnumAdapterModes(INineNine *This, UINT Adapter, D3DFORMA
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	
+	mesa99_dbg("enter");
 	
 	int modes = 0;
 	int iMode;
@@ -418,6 +428,8 @@ HRESULT WINAPI NineNine_GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3D
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
+	
 	DEVMODEA devMode = {0};
 	devMode.dmSize = sizeof(DEVMODE);
 	
@@ -449,73 +461,13 @@ HRESULT WINAPI NineNine_GetAdapterDisplayMode(INineNine *This, UINT Adapter, D3D
 
 HRESULT WINAPI NineNine_CheckDeviceType(INineNine *This, UINT Adapter, D3DDEVTYPE DevType, D3DFORMAT AdapterFormat, D3DFORMAT BackBufferFormat, BOOL bWindowed)
 {
-#if 0
-	HRESULT rc;
-	D3DDISPLAYMODE mode;
-	
-	rc = NineNine_GetAdapterDisplayMode(This, Adapter, &mode);
-	if(rc != D3D_OK) return rc;
-	
-	UINT modes16 = NineNine_GetAdapterModeCount(This, Adapter, D3DFMT_R5G6B5);
-	UINT modes24 = NineNine_GetAdapterModeCount(This, Adapter, D3DFMT_R8G8B8);
-	
-	switch(DevType)
-	{
-		case D3DDEVTYPE_HAL:
-		case D3DDEVTYPE_NULLREF:
-		//case D3DDEVTYPE_REF:
-			break;
-		default:
-			return D3DERR_NOTAVAILABLE;
-	}
-	
-	switch(AdapterFormat)
-	{
-		case D3DFMT_R5G6B5:
-			if(modes16 == 0) return D3DERR_NOTAVAILABLE;
-			break;
-		case D3DFMT_R8G8B8:
-			if(modes24 == 0) return D3DERR_NOTAVAILABLE;
-			break;
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-			return D3DERR_NOTAVAILABLE;
-	}
-	
-	if(bWindowed)
-	{
-		/*
-			https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3d9-checkdevicetype
-			Full-screen applications cannot do color conversion.
-			D3DFMT_UNKNOWN is allowed for windowed mode.*/
-		switch(BackBufferFormat)
-		{
-			case D3DFMT_UNKNOWN:
-			case D3DFMT_R5G6B5:
-			case D3DFMT_R8G8B8:
-			case D3DFMT_X8R8G8B8:
-			case D3DFMT_A8R8G8B8:
-				return D3D_OK;
-		}
-	}
-	else
-	{
-		if(BackBufferFormat == mode.Format)
-		{
-			return D3D_OK;
-		}
-	}
-	
-	return D3DERR_NOTAVAILABLE;
-#else
 	if(Adapter > NineNine_GetAdapterCount(This))
 	{
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
 	return NineAdapter9_CheckDeviceType(ADAPTER(), DevType, AdapterFormat, BackBufferFormat, bWindowed);
-#endif
 }
 
 HRESULT WINAPI NineNine_CheckDeviceFormat(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat)
@@ -525,7 +477,11 @@ HRESULT WINAPI NineNine_CheckDeviceFormat(INineNine *This, UINT Adapter, D3DDEVT
 		return D3DERR_INVALIDCALL;
 	}
 	
-	return NineAdapter9_CheckDeviceFormat(ADAPTER(), DeviceType, AdapterFormat, Usage, RType, CheckFormat);
+	mesa99_dbg("enter %X %X %X %X %X", Adapter, DeviceType, Usage, RType, CheckFormat);
+	HRESULT rc = NineAdapter9_CheckDeviceFormat(ADAPTER(), DeviceType, AdapterFormat, Usage, RType, CheckFormat);
+	mesa99_dbg("result 0x%X", rc);
+	
+	return rc;
 }
 
 HRESULT WINAPI NineNine_CheckDeviceMultiSampleType(INineNine *This, UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SurfaceFormat, BOOL Windowed, D3DMULTISAMPLE_TYPE MultiSampleType, DWORD *pQualityLevels)
@@ -535,6 +491,7 @@ HRESULT WINAPI NineNine_CheckDeviceMultiSampleType(INineNine *This, UINT Adapter
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
 	return NineAdapter9_CheckDeviceMultiSampleType(ADAPTER(), DeviceType, SurfaceFormat, Windowed, MultiSampleType, pQualityLevels);
 }
 
@@ -545,6 +502,7 @@ HRESULT WINAPI NineNine_CheckDepthStencilMatch(INineNine *This, UINT Adapter, D3
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
 	return NineAdapter9_CheckDepthStencilMatch(ADAPTER(), DeviceType, AdapterFormat, RenderTargetFormat, DepthStencilFormat);
 }
 
@@ -555,6 +513,7 @@ HRESULT WINAPI NineNine_CheckDeviceFormatConversion(INineNine *This, UINT Adapte
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
 	return NineAdapter9_CheckDeviceFormatConversion(ADAPTER(), DeviceType, SourceFormat, TargetFormat);
 }
 
@@ -564,7 +523,8 @@ HRESULT WINAPI NineNine_GetDeviceCaps(INineNine *This, UINT Adapter, D3DDEVTYPE 
 	{
 		return D3DERR_INVALIDCALL;
 	}
-		
+
+	mesa99_dbg("enter");
 	return NineAdapter9_GetDeviceCaps(ADAPTER(), DeviceType, pCaps);
 }
 
@@ -582,6 +542,7 @@ HMONITOR WINAPI NineNine_GetAdapterMonitor(INineNine *This, UINT Adapter)
 		return NULL;
 	}
 
+	mesa99_dbg("enter");
 	return GetPrimaryMonitorHandle();
 }
 
@@ -596,18 +557,24 @@ HRESULT WINAPI NineNine_CreateDevice(INineNine *This, UINT Adapter, D3DDEVTYPE D
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
+	//nine_lock();
+	
 	rc = ID3DPresentGroup_new(This, hFocusWindow, &pg);
 	if(rc !=  D3D_OK)
 	{
-		printf("ID3DPresentGroup_new FAIL\n");
+		mesa99_dbg("ID3DPresentGroup_new FAIL");
+		nine_unlock();
 		return rc;
 	}
 	
 	rc = NineAdapter9_CreateDevice(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, (IDirect3D9 *)This, pg, ppReturnedDeviceInterface);
 	if(FAILED(rc))
 	{
-		printf("FAILED NineAdapter9_CreateDevice\n");
+		mesa99_dbg("FAILED NineAdapter9_CreateDevice");
 	}
+	
+	//nine_unlock();
 	
 	return rc;
 }
@@ -624,15 +591,23 @@ HRESULT WINAPI NineNine_CreateDeviceEx(INineNine *This, UINT Adapter, D3DDEVTYPE
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
+	//nine_lock();
+	
 	rc = ID3DPresentGroup_new(This, hFocusWindow, &pg);
 	if(rc !=  D3D_OK)
 	{
+		nine_unlock();
 		return rc;
 	}
 	
-	return NineAdapter9_CreateDeviceEx(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
+	rc = NineAdapter9_CreateDeviceEx(ADAPTER(), Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters,
 		pFullscreenDisplayMode, (IDirect3D9Ex *)This, pg, ppReturnedDeviceInterface
 	);
+	
+	//nine_unlock();
+	
+	return rc;
 }
 
 UINT WINAPI NineNine_GetAdapterModeCountEx(INineNine *This, UINT Adapter, const D3DDISPLAYMODEFILTER *pFilter)
@@ -651,6 +626,8 @@ UINT WINAPI NineNine_GetAdapterModeCountEx(INineNine *This, UINT Adapter, const 
 	{
 		return 0;
 	}
+	
+	mesa99_dbg("enter");
 	
 	switch(pFilter->Format)
 	{
@@ -721,6 +698,8 @@ HRESULT WINAPI NineNine_EnumAdapterModesEx(INineNine *This, UINT Adapter, const 
 	{
 		return D3DERR_NOTAVAILABLE;
 	}
+	
+	mesa99_dbg("enter");
 	
 	int modes = 0;
 	int iMode;
@@ -797,6 +776,8 @@ HRESULT WINAPI NineNine_GetAdapterDisplayModeEx(INineNine *This, UINT Adapter, D
 		return D3DERR_INVALIDCALL;
 	}
 	
+	mesa99_dbg("enter");
+	
 	DEVMODEA devMode = {0};
 	devMode.dmSize = sizeof(DEVMODE);
 	
@@ -838,6 +819,8 @@ HRESULT WINAPI NineNine_GetAdapterDisplayModeEx(INineNine *This, UINT Adapter, D
 
 HRESULT WINAPI NineNine_GetAdapterLUID(INineNine *This, UINT Adapter, LUID *pLUID)
 {
+	mesa99_dbg("enter");
+	
 	return D3DERR_INVALIDCALL;
 }
 
@@ -866,6 +849,8 @@ static IDirect3D9ExVtbl NineNineEx_vtable = {
 	(void *)NineNine_GetAdapterLUID
 };
 
+static struct pipe_screen *last_screen = NULL;
+
 HRESULT WINAPI NineNine_new(INineNine **ppOut)
 {
 	HRESULT hr;
@@ -878,13 +863,23 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 		return D3DERR_INVALIDCALL;
 	}
 	
-	printf("Creating screen\n");
+	mesa99_dbg("Creating screen");
 	
-	if(!MesaScreenCreate(hdc, &screen))
+	if(last_screen != NULL)
 	{
-		return D3DERR_INVALIDCALL;
+		screen = last_screen;
 	}
-  printf("screen? %p\n", screen);	
+	else
+	{
+		if(!MesaScreenCreate(hdc, &screen))
+		{
+			mesa99_dbg("MesaScreenCreate failed");
+			return D3DERR_INVALIDCALL;
+		}
+		//last_screen = screen;
+	}
+	
+  mesa99_dbg("screen? %p", screen);	
 	INineNine *res = calloc(1, sizeof(INineNine));
 	res->base.lpVtbl = &NineNineEx_vtable;
 	res->screen = screen;
@@ -898,7 +893,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
             /// @todo NineAdapter9_new calls this as ctx->base.destroy,
             //       and will not call if memory allocation fails.
             // wddm_destroy(&pCtx->base);
-      printf("d3dadapter9_context_create FAILED\n");
+      mesa99_dbg("d3dadapter9_context_create FAILED");
     	return D3DERR_INVALIDCALL;
 		}
 	}
@@ -919,19 +914,21 @@ void WINAPI DebugSetMute(void) {
 
 IDirect3D9 * WINAPI DECLSPEC_HOTPATCH Direct3DCreate9(UINT sdk_version)
 {
-	IDirect3D9 *out = NULL;
+	mesa99_dbg("enter");
 	
-	if(NineNine_new((INineNine **)&out) == D3D_OK)
-	{
-		return out;
-	}
-		
-	return NULL;
+	NineNine_AddRef(nineInst);
+	
+	return (IDirect3D9*)nineInst;
 }
 
 HRESULT WINAPI DECLSPEC_HOTPATCH Direct3DCreate9Ex(UINT sdk_version, IDirect3D9Ex **d3d9ex)
 {
-	return NineNine_new((INineNine **)d3d9ex);
+	mesa99_dbg("enter");
+	
+	NineNine_AddRef(nineInst);
+	*d3d9ex = (IDirect3D9Ex*)nineInst;
+	
+	return D3D_OK;
 }
 
 /*******************************************************************
@@ -1000,4 +997,59 @@ void WINAPI D3DPERF_SetRegion(D3DCOLOR color, const WCHAR *name)
 {
 	
 }
+
+/***********************************************************************/
+
+BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID lpvReserved)
+{
+	BOOL fReturn = TRUE;
+
+	switch (fdwReason)
+	{
+		case DLL_PROCESS_ATTACH:
+			InitializeCriticalSection(&nine_if_cs);
+			fReturn = LoadWinsys();
+			if(fReturn)
+			{
+				if(nine_init())
+				{
+					if(NineNine_new(&nineInst) == D3D_OK)
+					{
+						return TRUE;
+					}
+					nine_deinit();
+				}
+			}
+			
+			DeleteCriticalSection(&nine_if_cs);
+			return FALSE;
+	
+		case DLL_PROCESS_DETACH:
+			mesa99_dbg("DLL_PROCESS_DETACH: %d", lpvReserved);
+			
+			if(hMesa)
+			{
+				FreeLibrary(hMesa);
+				hMesa = NULL;
+			}
+			
+			mesa99_dbg("Cleanup, num refs: %d", nineInst->refcount);
+			
+			nine_deinit();
+			DeleteCriticalSection(&nine_if_cs);
+			break;
+	
+		case DLL_THREAD_ATTACH:
+			break;
+	
+		case DLL_THREAD_DETACH:
+			break;
+	
+		default:
+			break;
+	}
+
+	return fReturn;
+}
+
 

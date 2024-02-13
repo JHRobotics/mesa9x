@@ -113,6 +113,7 @@ typedef struct FBHDA
 #define FB_ACCEL_VMSVGA3D      32
 #define FB_ACCEL_VMSVGA10      64
 #define FB_MOUSE_NO_BLIT      128
+#define FB_FORCE_SOFTWARE     256
 
 /* for internal use in RING-0 by VXD only */
 BOOL FBHDA_init_hw(); 

@@ -388,22 +388,39 @@ HRESULT WINAPI DllCanUnloadNow()
 	return S_FALSE;
 }
 
+static struct pipe_screen *last_screen = NULL;
+static BOOL last_screen_isSVGA3D = FALSE;
+
 BOOL WINAPI MesaDimensions(struct pipe_screen *screen, struct pipe_context *ctx, struct pipe_resource *res, 
 	int *pWidth, int *pHeight, int *pBpp, int *pPitch)
 {
-	const char *type_name = screen->get_name(screen);
+	BOOL is_svga = FALSE;
 	
-	if(strncmp(type_name, "SVGA3D", sizeof("SVGA3D")-1) == 0)
+	if(last_screen != screen)
+	{
+		const char *type_name = screen->get_name(screen);
+		last_screen_isSVGA3D = FALSE;
+		
+		if(strncmp(type_name, "SVGA3D", sizeof("SVGA3D")-1) == 0)
+		{
+			last_screen_isSVGA3D = TRUE;
+		}
+		last_screen = screen;
+	}
+	
+	is_svga = last_screen_isSVGA3D;
+	
+	if(is_svga)
 	{
 		const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
 		
-    if(pEnv)
-    {
-    	svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
-    	assert(svga);
+		if(pEnv)
+		{
+			svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
+			assert(svga);
     	  
-      uint32_t sid = GaDrvGetSurfaceId(screen, res);
-      return SVGASurfaceInfo(svga, sid, pWidth, pHeight, pBpp, pPitch);
+			uint32_t sid = GaDrvGetSurfaceId(screen, res);
+			return SVGASurfaceInfo(svga, sid, pWidth, pHeight, pBpp, pPitch);
 		}
 	}
 	

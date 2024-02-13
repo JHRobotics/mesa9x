@@ -6,11 +6,14 @@
 
 typedef void (*vramcpy_f)(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect);
 
+/*
 #ifdef __GNUC__
 #define vram_memcpy __builtin_memcpy
 #else
 #define vram_memcpy memcpy
 #endif
+*/
+#define vram_memcpy memcpy_inline
 
 /* sse vector types */
 #if defined(__GNUC__) && defined(__SSE__)
@@ -136,6 +139,28 @@ static void vramcpy_ ## _src ## _ ## _src ## _RGB (uint8_t *psrc, uint8_t *pdst,
 		pdst += rect->dst_pitch; \
 	} }
 
+
+static inline void memcpy_inline(void *dst, void *src, size_t count)
+{
+	size_t dw_count;
+	size_t dw_size;
+	size_t i;
+	DWORD *ddst = (DWORD*)dst;
+	DWORD *dsrc = (DWORD*)src;
+	
+	dw_count = count >> 2;
+	dw_size = count & 0xFFFFFFFCUL;
+	
+	for(i = 0; i < dw_count; i++)
+	{
+		*ddst++ = *dsrc++;
+	}
+	
+	for(i = dw_size; i < count; i++)
+	{
+		((BYTE*)dst)[i] = ((BYTE*)src)[i]; 
+	}
+}
 
 CONV_FUNC_COPY_RGB(15);
 CONV_FUNC(16, 15, RGB);
@@ -301,7 +326,9 @@ static void vramcpy_24_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect
 
 static void vramcpy_invalid(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
+#ifdef DEBUG
 	printf("invalid conversion %d %d\n", rect->src_bpp, rect->dst_bpp);
+#endif
 }
 
 #define CONV_TABLE_HASH(_src, _dst) ((((_src) & 0x78) << 1) | (((_dst) & 0x78) >> 3))
@@ -355,7 +382,9 @@ void vramcpy(void *dst, void *src, vramcpy_rect_t *rect)
 	static uint32_t last_func = 0;
 	if(last_func != CONV_TABLE_HASH(rect->src_bpp, rect->dst_bpp))
 	{
+#ifdef DEBUG
 		printf("Using VRAM blit: %d -> %d\n", rect->src_bpp, rect->dst_bpp);
+#endif
 		last_func = CONV_TABLE_HASH(rect->src_bpp, rect->dst_bpp);
 	}
 	

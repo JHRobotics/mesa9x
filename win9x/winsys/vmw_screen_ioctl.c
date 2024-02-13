@@ -57,6 +57,12 @@
 
 //#include <iprt/asm.h>
 
+#ifdef MESA24
+#define boolean bool
+#define FALSE false
+#define TRUE true
+#endif
+
 #define VMW_MAX_DEFAULT_TEXTURE_SIZE   (128 * 1024 * 1024)
 #define VMW_FENCE_TIMEOUT_SECONDS 60
 

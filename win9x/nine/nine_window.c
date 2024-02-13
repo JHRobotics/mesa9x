@@ -29,7 +29,6 @@ typedef struct wnd_list
 	wnd_item_t *last;
 } wnd_list_t;
 
-static CRITICAL_SECTION nine_cs;
 static wnd_list_t nine_wl = {NULL, NULL};
 static DEVMODEA savedMode = {0};
 
@@ -39,9 +38,8 @@ static HHOOK win_hook = NULL;
 
 static LRESULT CALLBACK win_hook_proc(int nCode, WPARAM wParam, LPARAM lParam);
 
-void nine_init()
+BOOL nine_init()
 {
-	InitializeCriticalSection(&nine_cs);
 	nine_wl.first = NULL;
 	nine_wl.last  = NULL;
 	
@@ -52,16 +50,11 @@ void nine_init()
 	win_hook = SetWindowsHookExA(WH_CALLWNDPROC, win_hook_proc, NULL, GetCurrentThreadId());
 }
 
-void nine_deinit()
+void nine_restore_screen()
 {
 	DEVMODEA cur;
 	/* check first if in saved struct isn't some garbage */
 	//if(savedMode.dmSize == sizeof(DEVMODEA))
-	if(win_hook)
-	{
-    UnhookWindowsHookEx(win_hook);
-    win_hook = NULL;
-	}
 	
 	if(savedMode.dmSize != 0)
 	{
@@ -80,15 +73,18 @@ void nine_deinit()
 	}
 }
 
-static void nine_wnd_lock()
+void nine_deinit()
 {
-	EnterCriticalSection(&nine_cs);
+	if(win_hook)
+	{
+    UnhookWindowsHookEx(win_hook);
+    win_hook = NULL;
+	}
+	
+	nine_restore_screen();
 }
 
-static void nine_wnd_unlock()
-{
-	LeaveCriticalSection(&nine_cs);
-}
+volatile BOOL wine_hook_disabled = FALSE;
 
 static HRESULT set_display_mode(ID3DPresentM99 *This, DEVMODEA *new_mode)
 {
@@ -294,7 +290,7 @@ static LRESULT device_process_message(ID3DPresentM99 *present, HWND window, BOOL
 	{
 		if(wparam == SC_RESTORE)
 		{
-			DefWindowProcA(window, message, wparam, lparam);
+			//DefWindowProcA(window, message, wparam, lparam);
 		}
 	}
 
@@ -305,32 +301,39 @@ static LRESULT device_process_message(ID3DPresentM99 *present, HWND window, BOOL
 static LRESULT CALLBACK win_hook_proc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	PCWPSTRUCT pParams = (PCWPSTRUCT)lParam;
-	ID3DPresentM99 *present;
+	ID3DPresentM99 *present = NULL;
 	wnd_item_t *item;
 	WNDPROC proc;
 	
 	if (nCode < 0)
 		return CallNextHookEx(NULL, nCode, wParam, lParam);
-
-	nine_wnd_lock();
-
-	item = nine_wl.first;
-	while(item != NULL)
-	{
-		if(item->window == pParams->hwnd) break;
-	}
 	
-	if(item)
+	mesa99_dbg("enter, wine_hook_disabled = %d, msg: %d", wine_hook_disabled, pParams->message);
+	
+	if(wine_hook_disabled == FALSE)
 	{
-		present = item->present;
-
+		nine_lock();
+	
+		item = nine_wl.first;
+		while(item != NULL)
+		{
+			if(item->window == pParams->hwnd) break;
+				
+			item = item->next;
+		}
+		
+		if(item)
+		{
+			present = item->present;
+		}
+				
 		if(present)
 		{
 			device_process_message(present, pParams->hwnd, FALSE, pParams->message, pParams->wParam, pParams->lParam, NULL);
 		}
+		
+		nine_unlock();
 	}
-	
-	nine_wnd_unlock();
 	
 	return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -371,29 +374,19 @@ static LRESULT CALLBACK nine_winproc(HWND window, UINT message, WPARAM wparam, L
 
 BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
 {
-	nine_wnd_lock();
+	nine_lock();
+	
+	mesa99_dbg("register window: %X", window);
 	
 	wnd_item_t *item = calloc(1, sizeof(wnd_item_t));
 	if(item == NULL)
 	{
-		nine_wnd_unlock();
+		nine_unlock();
 		return FALSE;
 	}
 	
 	item->window = window;
 	item->next = NULL;
-	
-	
-	/*
-	JHR: for future NT (5.x) support
-	  item->unicode = IsWindowUnicode(window);
-	  if(item->unicode)
-	  {
-	    item->winproc = SetWindowLongPtrW(...)
-	  }
-	*/
-	
-	//item->winproc = (WNDPROC)SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)nine_winproc);
 	item->present = present;
 	
 	if(nine_wl.last)
@@ -407,16 +400,18 @@ BOOL nine_register_window(HWND window, ID3DPresentM99 *present)
 		nine_wl.last  = item;
 	}
 	
-	nine_wnd_unlock();
+	nine_unlock();
 }
 
 BOOL nine_unregister_window(HWND window)
 {
-	struct nine_wndproc *entry, *last;
-	LONG_PTR proc;
+//	struct nine_wndproc *entry, *last;
+//	LONG_PTR proc;
 	wnd_item_t *item, *prev;
+	
+	mesa99_dbg("unregister window: %X", window);
 
-	nine_wnd_lock();
+	nine_lock();
 
 	prev = NULL;
 	item = nine_wl.first;
@@ -425,26 +420,14 @@ BOOL nine_unregister_window(HWND window)
 		if(item->window == window) break;
 		
 		prev = item;
+		item = item->next;
 	}
 
 	if(item == NULL)
 	{
-		nine_wnd_unlock();
+		nine_unlock();
 		return FALSE;
 	}
-
-/*
-	proc = GetWindowLongPtrA(window, GWLP_WNDPROC);
-	if(proc != (LONG_PTR)nine_winproc)
-	{
-		item->present = NULL;
-		nine_wnd_unlock();
-		WARN("Not unregistering window %p, window proc %#lx doesn't match nine window proc %p.\n", window, proc, nine_winproc);
-		return FALSE;
-	}
-
-	SetWindowLongPtrA(window, GWLP_WNDPROC, (LONG_PTR)item->winproc);
-*/
 	
 	if(prev == NULL)
 	{
@@ -460,9 +443,56 @@ BOOL nine_unregister_window(HWND window)
 		nine_wl.last = prev;
 	}
 	
+	mesa99_dbg("success");
 	free(item);
 
-	nine_wnd_unlock();
+	nine_unlock();
+	return TRUE;
+}
+
+BOOL nine_unregister_present(ID3DPresentM99 *present)
+{
+	wnd_item_t *item, *prev;
+	
+	mesa99_dbg("unregister present");
+
+	nine_lock();
+
+	prev = NULL;
+	item = nine_wl.first;
+	while(item != NULL)
+	{
+		if(item->present == present)
+		{
+			if(prev)
+			{
+				prev->next = item->next;
+			}
+			else
+			{
+				nine_wl.first = item->next;
+			}
+			
+			if(item->next == NULL)
+			{
+				nine_wl.last = prev;
+			}
+			
+			mesa99_dbg("removed win: %X", item->window);
+			item = item->next;
+			free(item);
+		}
+		else
+		{
+			prev = item;
+			item = item->next;
+		}
+	}
+	
+	mesa99_dbg("success");
+
+
+	nine_unlock();
 	return TRUE;
 }
 
@@ -473,6 +503,8 @@ void restore_fullscreen_window(ID3DPresentM99 *This, HWND hwnd)
 	HWND window_pos_after = NULL;
 	boolean filter_messages;
 	LONG style, style_ex;
+	
+	mesa99_dbg("enter");
 
 	if(This->ex && !This->no_window_changes)
 	{
@@ -505,6 +537,8 @@ void restore_fullscreen_window(ID3DPresentM99 *This, HWND hwnd)
 
 void setup_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
 {
+	mesa99_dbg("enter");
+	
 	boolean filter_messages;
 	LONG style, style_ex;
 
@@ -530,6 +564,8 @@ void setup_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
 
 void move_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h)
 {
+	mesa99_dbg("enter");
+	
 	boolean filter_messages;
 	LONG style, style_ex;
 

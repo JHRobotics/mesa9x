@@ -36,7 +36,12 @@
  **********************************************************/
 
 
+#ifdef MESA24
+#include "util/compiler.h"
+#else
 #include "pipe/p_compiler.h"
+#endif
+
 #include "util/u_inlines.h"
 #include "util/u_memory.h"
 #if defined(MESA_NEW) || defined(MESA23)

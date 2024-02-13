@@ -68,6 +68,13 @@ void GUIError(svga_inst_t *svga, const char *msg, ...)
 #define GUIError(...)
 #endif
 
+/* debug messages */
+#ifdef DEBUG
+void svga_printf(svga_inst_t *svga, const char *fmt, ...)
+{
+	// ...
+}
+#endif
 /*
  * Database (shared between processes)
  */

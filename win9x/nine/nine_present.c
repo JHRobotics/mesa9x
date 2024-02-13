@@ -36,8 +36,13 @@ static ULONG WINAPI DRIPresent_AddRef(ID3DPresentM99 *This)
 static ULONG WINAPI DRIPresent_Release(ID3DPresentM99 *This)
 {
 	ULONG cnt = InterlockedDecrement(&This->refcount);
+	mesa99_dbg("release: %d", cnt);
 	if(cnt == 0)
 	{
+		nine_unregister_present(This);
+		nine_restore_screen();
+		
+		mesa99_dbg("free");
 		free(This);
 	}
 	
@@ -66,22 +71,28 @@ static HRESULT ChangeDisplaySettingsIfNeccessary(ID3DPresentM99 *This, DEVMODEA 
 	DEVMODEA cur = {0};
 	cur.dmSize = sizeof(DEVMODEA);
 	
+	mesa99_dbg("enter");
+	
 	if(EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &cur))
 	{
+		mesa99_dbg("EnumDisplaySettingsA: %d %d %d", cur.dmBitsPerPel, cur.dmPelsWidth, cur.dmPelsHeight);
+		
 		if(cur.dmBitsPerPel != pMode->dmBitsPerPel ||
 			cur.dmPelsWidth   != pMode->dmPelsWidth ||
 			cur.dmPelsHeight  != pMode->dmPelsHeight)
 		{
 			if(ChangeDisplaySettingsA(pMode, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL)
 			{
+				mesa99_dbg("success - changed");
 				return S_OK;
 			}
 		}
 		
+		mesa99_dbg("success - not changed");
 		return S_OK;
 	}
 	
-	printf("EnumDisplaySettingsA failure\n");
+	mesa99_dbg("failure");
 	
 	return E_NOINTERFACE;
 }
@@ -89,7 +100,7 @@ static HRESULT ChangeDisplaySettingsIfNeccessary(ID3DPresentM99 *This, DEVMODEA 
 /* ID3DPresent */
 static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESENT_PARAMETERS *params)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 	
 	HWND focus_window = This->focus_wnd ? This->focus_wnd : params->hDeviceWindow;
 	RECT rect;
@@ -108,6 +119,13 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 		params->hDeviceWindow = This->params.hDeviceWindow;
 	else
 		This->params.hDeviceWindow = params->hDeviceWindow;
+		
+	mesa99_dbg("params: w %d = %d, h %d = %d",
+		This->params.BackBufferWidth,
+		params->BackBufferWidth,
+		This->params.BackBufferHeight,
+		params->BackBufferHeight
+		);
 
 	if(
 		(This->params.BackBufferWidth != params->BackBufferWidth) ||
@@ -122,16 +140,16 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			new_mode.dmPelsWidth = params->BackBufferWidth;
 			new_mode.dmPelsHeight = params->BackBufferHeight;
 			new_mode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
-			if(params->FullScreen_RefreshRateInHz)
+			/*if(params->FullScreen_RefreshRateInHz)
 			{
 				new_mode.dmFields |= DM_DISPLAYFREQUENCY;
 				new_mode.dmDisplayFrequency = params->FullScreen_RefreshRateInHz;
-			}
+			}*/
 			new_mode.dmSize = sizeof(DEVMODEA);
 			hr = ChangeDisplaySettingsIfNeccessary(This, &new_mode);
 			if(FAILED(hr))
 			{
-				printf(" FAILED ChangeDisplaySettingsIfNeccessary\n");
+				mesa99_dbg("FAILED ChangeDisplaySettingsIfNeccessary");
 				return hr;
 			}
 			
@@ -145,7 +163,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 			hr = ChangeDisplaySettingsIfNeccessary(This, &This->initial_mode);
 			if(FAILED(hr))
 			{
-				printf(" FAILED ChangeDisplaySettingsIfNeccessary\n");
+				mesa99_dbg("FAILED ChangeDisplaySettingsIfNeccessary");
 				return hr;
 			}
 
@@ -160,7 +178,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 				/* switch from window to fullscreen */
 				if(!nine_register_window(focus_window, This))
 				{
-					printf(" FAILED nine_register_window\n");
+					mesa99_dbg(" FAILED nine_register_window");
 					return D3DERR_INVALIDCALL;
 				}
 
@@ -186,7 +204,7 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 
 			if (params->Windowed && !nine_unregister_window(focus_window))
 			{
-				printf("Window %p is not registered with nine.\n", focus_window);
+				mesa99_dbg("Window %p is not registered with nine.\n", focus_window);
 			}
 		}
 		
@@ -235,7 +253,8 @@ static HRESULT DRIPresent_ChangePresentParameters(ID3DPresentM99 *This, D3DPRESE
 		//
 	}
 	
-	//printf("%s SUCCESS\n", __FUNCTION__);
+	mesa99_dbg("success");
+	
 	return D3D_OK;
 }
 
@@ -243,7 +262,15 @@ static HRESULT WINAPI DRIPresent_SetPresentParameters(ID3DPresentM99 *This,
 	D3DPRESENT_PARAMETERS *pPresentationParameters,
 	D3DDISPLAYMODEEX *pFullscreenDisplayMode)
 {
-	return DRIPresent_ChangePresentParameters(This, pPresentationParameters);
+	HRESULT rc;
+	
+	//nine_lock();
+	
+	rc = DRIPresent_ChangePresentParameters(This, pPresentationParameters);
+	
+	//nine_unlock();
+	
+	return rc;
 }
 
 #define DEPTH_BYTES(_d) (((_d)+7) >> 3)
@@ -261,13 +288,13 @@ static HRESULT WINAPI DRIPresent_D3DWindowBufferFromRes(ID3DPresentM99 *This,
 	struct pipe_screen *screen,	struct pipe_context *ctx, struct pipe_resource *res,
 	D3DWindowBuffer **out)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 	
 	int w, h, bpp, pitch;
 	
 	if(MesaDimensions(screen, ctx, res, &w, &h, &bpp, &pitch))
 	{
-		//printf("Screen: %d, %d, %d, %d\n", w, h, bpp, pitch);
+		mesa99_dbg("Screen: %d, %d, %d, %d", w, h, bpp, pitch);
 		D3DWindowBuffer *wb = malloc(sizeof(D3DWindowBuffer));
 		if(wb)
 		{
@@ -290,17 +317,18 @@ static HRESULT WINAPI DRIPresent_D3DWindowBufferFromRes(ID3DPresentM99 *This,
 
 static HRESULT WINAPI DRIPresent_DestroyD3DWindowBuffer(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
     /* the pixmap is managed by the PRESENT backend.
      * But if it can delete it right away, we may have
      * better performance */
 	free(buffer);
+	
 	return D3D_OK;
 }
 
 static HRESULT WINAPI DRIPresent_WaitBufferReleased(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 #ifdef IMPLEMENT
 	if(!PRESENTWaitPixmapReleased(buffer->present_pixmap_priv))
 	{
@@ -312,7 +340,7 @@ static HRESULT WINAPI DRIPresent_WaitBufferReleased(ID3DPresentM99 *This, struct
 
 static HRESULT WINAPI DRIPresent_FrontBufferCopy(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer)
 {
-	printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 #ifdef IMPLEMENT
 	if (PRESENTHelperCopyFront(This->gdi_display, buffer->present_pixmap_priv))
 		return D3D_OK;
@@ -344,7 +372,7 @@ void release_d3d_drawable(struct d3d_drawable *d3d)
 
 static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DWindowBuffer *buffer, HWND hWndOverride, const RECT *pSourceRect, const RECT *pDestRect, const RGNDATA *pDirtyRegion, DWORD Flags)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 	struct d3d_drawable *d3d;
 	RECT dest_translate;
 	RECT windowRect;
@@ -358,7 +386,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 	else
 		hwnd = This->focus_wnd;
 
-	//printf("%s: This=%p hwnd=%p\n", __FUNCTION__, This, hwnd);
+	mesa99_dbg("%s: This=%p hwnd=%p", __FUNCTION__, This, hwnd);
 
 	d3d = get_d3d_drawable(/*This->gdi_display, */hwnd);
 
@@ -421,7 +449,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 /* Based on wine's wined3d_get_adapter_raster_status. */
 static HRESULT WINAPI DRIPresent_GetRasterStatus(ID3DPresentM99 *This, D3DRASTER_STATUS *pRasterStatus )
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 	LONGLONG freq_per_frame, freq_per_line;
 	LARGE_INTEGER counter, freq_per_sec;
 	unsigned refresh_rate, height;
@@ -585,11 +613,11 @@ static HRESULT WINAPI DRIPresent_SetGammaRamp(ID3DPresentM99 *This, const D3DGAM
 
 static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, int *width, int *height, int *depth)
 {
-	//printf("%s\n", __FUNCTION__);
+	mesa99_dbg("enter");
 	HWND draw_window = This->params.hDeviceWindow ? This->params.hDeviceWindow : This->focus_wnd;
 	RECT pRect;
 
-	//printf("%s: This=%p hwnd=%p draw_window=%p\n", __FUNCTION__, This, hWnd, draw_window);
+	mesa99_dbg("%s: This=%p hwnd=%p draw_window=%p", __FUNCTION__, This, hWnd, draw_window);
 
 	/* For fullscreen modes, use the dimensions of the X11 window instead of
 	 * the game window. This is for compability with Valve's "fullscreen hack",
@@ -612,7 +640,7 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 	if(!GetClientRect(hWnd, &pRect))
 		return D3DERR_INVALIDCALL;
 	
-	//printf("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
+	mesa99_dbg("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
 	if(width != NULL)  *width = pRect.right - pRect.left;
 	if(height != NULL) *height = pRect.bottom - pRect.top;
 	if(depth != NULL)  *depth = 32; //24; //TODO
@@ -731,7 +759,7 @@ static UINT WINAPI DRIPresentGroup_GetMultiheadCount(ID3DPresentGroupM99 *This)
 
 static HRESULT WINAPI DRIPresentGroup_GetPresent(ID3DPresentGroupM99 *This, UINT Index, ID3DPresent **ppPresent)
 {
-	//printf("DRIPresentGroup_GetPresent\n");
+	mesa99_dbg("enter");
 	
 	if(Index >= DRIPresentGroup_GetMultiheadCount(This))
 	{

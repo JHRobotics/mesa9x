@@ -57,7 +57,7 @@ BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
 BASE_mesa99.dll         := 0x00990000
-BASE_mesa89.dll         := 0x00700000
+BASE_mesa89.dll         := 0x00A30000
 BASE_mesad3d10.w95.dll  := 0x10000000
 BASE_mesad3d10.w98me.dll  := 0x10000000
 

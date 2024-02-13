@@ -61,6 +61,7 @@ struct D3DWindowBuffer
 
 BOOL nine_unregister_window(HWND window);
 BOOL nine_register_window(HWND window, ID3DPresentM99 *present);
+BOOL nine_unregister_present(ID3DPresentM99 *present);
 void restore_fullscreen_window(ID3DPresentM99 *This, HWND hwnd);
 void move_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h);
 void setup_fullscreen_window(ID3DPresentM99 *This, HWND hwnd, int w, int h);
