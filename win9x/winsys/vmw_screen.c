@@ -41,7 +41,7 @@
 #include "vmw_context.h"
 
 #include "util/u_memory.h"
-#ifdef MESA24
+#if MESA_MAJOR >= 24
 #include "util/compiler.h"
 #else
 #include "pipe/p_compiler.h"

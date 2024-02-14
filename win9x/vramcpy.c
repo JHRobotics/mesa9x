@@ -12,14 +12,14 @@
 #include "vramcpy.h"
 
 /* SW headers */
-#ifdef MESA_NEW
+#ifdef MESA_MAJOR == 21
 # include "pipe/p_format.h"
 # include "pipe/p_context.h"
 #endif
 
 #include "util/u_inlines.h"
 
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR >= 21
 # include "u_format.h"
 #else
 # include "util/u_format.h"
@@ -28,7 +28,7 @@
 #include "util/u_math.h"
 #include "util/u_memory.h"
 
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR >= 21
 # include "frontend/sw_winsys.h"
 #else
 # include "state_tracker/sw_winsys.h"

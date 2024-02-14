@@ -1,89 +1,77 @@
-# rules for mesa 23.1.9
+# rules for mesa 21.3.9
 
-MESA_DIST_VERSION=23.1.9
+MESA_DIST_VERSION=21.3.9
 
 MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/anon_file.c \
 	$(MESA_VER)/src/util/bitscan.c \
 	$(MESA_VER)/src/util/blob.c \
 	$(MESA_VER)/src/util/build_id.c \
+	$(MESA_VER)/src/util/compress.c \
 	$(MESA_VER)/src/util/crc32.c \
 	$(MESA_VER)/src/util/dag.c \
+	$(MESA_VER)/src/util/debug.c \
 	$(MESA_VER)/src/util/disk_cache.c \
 	$(MESA_VER)/src/util/disk_cache_os.c \
 	$(MESA_VER)/src/util/double.c \
 	$(MESA_VER)/src/util/fast_idiv_by_const.c \
 	$(MESA_VER)/src/util/fossilize_db.c \
-	$(MESA_VER)/src/util/futex.c \
 	$(MESA_VER)/src/util/half_float.c \
 	$(MESA_VER)/src/util/hash_table.c \
-	$(MESA_VER)/src/util/u_idalloc.c \
 	$(MESA_VER)/src/util/log.c \
 	$(MESA_VER)/src/util/memstream.c \
 	$(MESA_VER)/src/util/mesa-sha1.c \
-	$(MESA_VER)/src/util/os_time.c \
 	$(MESA_VER)/src/util/os_file.c \
 	$(MESA_VER)/src/util/os_memory_fd.c \
 	$(MESA_VER)/src/util/os_misc.c \
 	$(MESA_VER)/src/util/os_socket.c \
-	$(MESA_VER)/src/util/perf/u_trace.c \
-	$(MESA_VER)/src/util/u_process.c \
-	$(MESA_VER)/src/util/u_qsort.cpp \
-	$(MESA_VER)/src/util/rwlock.c \
-	$(MESA_VER)/src/util/sha1/sha1.c \
+	$(MESA_VER)/src/util/os_time.c \
 	$(MESA_VER)/src/util/ralloc.c \
 	$(MESA_VER)/src/util/rand_xor.c \
 	$(MESA_VER)/src/util/rb_tree.c \
 	$(MESA_VER)/src/util/register_allocate.c \
 	$(MESA_VER)/src/util/rgtc.c \
 	$(MESA_VER)/src/util/set.c \
-	$(MESA_VER)/src/util/simple_mtx.c \
 	$(MESA_VER)/src/util/slab.c \
 	$(MESA_VER)/src/util/softfloat.c \
 	$(MESA_VER)/src/util/sparse_array.c \
 	$(MESA_VER)/src/util/string_buffer.c \
 	$(MESA_VER)/src/util/strtod.c \
 	$(MESA_VER)/src/util/u_atomic.c \
-	$(MESA_VER)/src/util/u_call_once.c \
+	$(MESA_VER)/src/util/u_cpu_detect.c \
+	$(MESA_VER)/src/util/u_debug.c \
 	$(MESA_VER)/src/util/u_debug_describe.c \
+	$(MESA_VER)/src/util/u_debug_memory.c \
 	$(MESA_VER)/src/util/u_debug_refcnt.c \
 	$(MESA_VER)/src/util/u_debug_stack.c \
 	$(MESA_VER)/src/util/u_debug_symbol.c \
-	$(MESA_VER)/src/util/u_dl.c \
 	$(MESA_VER)/src/util/u_hash_table.c \
-	$(MESA_VER)/src/util/u_queue.c \
-	$(MESA_VER)/src/util/u_thread.c \
-	$(MESA_VER)/src/util/u_vector.c \
+	$(MESA_VER)/src/util/u_idalloc.c \
 	$(MESA_VER)/src/util/u_math.c \
 	$(MESA_VER)/src/util/u_mm.c \
-	$(MESA_VER)/src/util/u_debug.c \
-	$(MESA_VER)/src/util/u_debug_memory.c \
-	$(MESA_VER)/src/util/u_cpu_detect.c \
-	$(MESA_VER)/src/util/u_printf.c \
-	$(MESA_VER)/src/util/u_worklist.c \
+	$(MESA_VER)/src/util/u_process.c \
+	$(MESA_VER)/src/util/u_queue.c \
+	$(MESA_VER)/src/util/u_vector.c \
 	$(MESA_VER)/src/util/vma.c \
-	$(MESA_VER)/src/util/mesa_cache_db.c \
-	$(MESA_VER)/src/util/mesa_cache_db_multipart.c \
-	$(MESA_VER)/src/util/format_srgb.c \
-	$(MESA_VER)/src/c11/impl/threads_posix.c \
-	$(MESA_VER)/src/c11/impl/time.c \
-	$(MESA_VER)/src/util/streaming-load-memcpy.c
+	$(MESA_VER)/src/util/format/u_format.c \
+	$(MESA_VER)/src/util/format/u_format_bptc.c \
+	$(MESA_VER)/src/util/format/u_format_etc.c \
+	$(MESA_VER)/src/util/format/u_format_fxt1.c \
+	$(MESA_VER)/src/util/format/u_format_latc.c \
+	$(MESA_VER)/src/util/format/u_format_other.c \
+	$(MESA_VER)/src/util/format/u_format_rgtc.c \
+	$(MESA_VER)/src/util/format/u_format_s3tc.c \
+	$(MESA_VER)/src/util/format/u_format_tests.c \
+	$(MESA_VER)/src/util/format/u_format_unpack_neon.c \
+	$(MESA_VER)/src/util/format/u_format_yuv.c \
+	$(MESA_VER)/src/util/format/u_format_zs.c \
+	$(MESA_VER)/src/util/u_printf.cpp \
+	$(MESA_VER)/src/util/u_qsort.cpp \
+	$(MESA_VER)/src/util/sha1/sha1.c \
+	$(MESA_VER)/src/util/format/u_format_pack.c \
+	$(MESA_VER)/src/util/format/u_format_table.c \
+	$(MESA_VER)/src/util/format_srgb.c
 #	$(MESA_VER)/src/util/xmlconfig.c
-
-MesaUtilLib_SRC += \
-  $(MESA_VER)/src/util/format/u_format.c \
-  $(MESA_VER)/src/util/format/u_format_bptc.c \
-  $(MESA_VER)/src/util/format/u_format_etc.c \
-  $(MESA_VER)/src/util/format/u_format_fxt1.c \
-  $(MESA_VER)/src/util/format/u_format_latc.c \
-  $(MESA_VER)/src/util/format/u_format_other.c \
-  $(MESA_VER)/src/util/format/u_format_rgtc.c \
-  $(MESA_VER)/src/util/format/u_format_s3tc.c \
-  $(MESA_VER)/src/util/format/u_format_tests.c \
-  $(MESA_VER)/src/util/format/u_format_unpack_neon.c \
-  $(MESA_VER)/src/util/format/u_format_yuv.c \
-  $(MESA_VER)/src/util/format/u_format_zs.c \
-  $(MESA_VER)/src/util/format/u_format_table.c
 
 MesaLib_SRC  = \
 	$(MESA_VER)/src/compiler/glsl/glsl_lexer.cpp \
@@ -97,7 +85,7 @@ MesaLib_SRC  = \
 	$(MESA_VER)/src/compiler/spirv/spirv_info.c \
 	$(MESA_VER)/src/compiler/spirv/vtn_gather_types.c \
 	$(MESA_VER)/src/mapi/glapi/enums.c \
-	$(MESA_VER)/src/mesa/main/api_exec_init.c \
+	$(MESA_VER)/src/mesa/main/api_exec.c \
 	$(MESA_VER)/src/mesa/main/format_fallback.c \
 	$(MESA_VER)/src/mesa/main/marshal_generated0.c \
 	$(MESA_VER)/src/mesa/main/marshal_generated1.c \
@@ -107,13 +95,13 @@ MesaLib_SRC  = \
 	$(MESA_VER)/src/mesa/main/marshal_generated5.c \
 	$(MESA_VER)/src/mesa/main/marshal_generated6.c \
 	$(MESA_VER)/src/mesa/main/marshal_generated7.c \
-	$(MESA_VER)/src/mesa/main/unmarshal_table.c \
 	$(MESA_VER)/src/mesa/program/program_parse.tab.c \
 	$(MESA_VER)/src/mesa/program/lex.yy.c
 
 MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/state_tracker/st_atifs_to_nir.c \
-	$(MESA_VER)/src/mesa/state_tracker/st_atom_array.cpp \
+	$(MESA_VER)/src/mesa/state_tracker/st_atom.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_atom_array.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_atom_atomicbuf.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_atom_blend.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_atom_clip.c \
@@ -133,46 +121,71 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/state_tracker/st_atom_texture.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_atom_viewport.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_bitmap.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_bitmap_shader.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_blit.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_bufferobjects.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_clear.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_compute.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_condrender.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_copyimage.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_drawpixels.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_drawpixels_shader.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_drawtex.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_eglimage.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_fbo.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_feedback.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_flush.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_memoryobjects.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_msaa.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_perfmon.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_perfquery.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_program.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_queryobj.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_rasterpos.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_readpixels.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_semaphoreobjects.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_strings.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_syncobj.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_cb_texture.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_texturebarrier.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_viewport.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_cb_xformfb.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_context.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_copytex.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_debug.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_draw.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_draw_feedback.c \
-	$(MESA_VER)/src/mesa/state_tracker/st_draw_hw_select.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_extensions.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_format.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_gen_mipmap.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_ir.cpp \
 	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_nir.cpp \
-	$(MESA_VER)/src/mesa/state_tracker/st_interop.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_tgsi.cpp \
+	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_tgsi_array_merge.cpp \
+	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_tgsi_private.cpp \
+	$(MESA_VER)/src/mesa/state_tracker/st_glsl_to_tgsi_temprename.cpp \
 	$(MESA_VER)/src/mesa/state_tracker/st_manager.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_nir_builtins.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_nir_lower_builtin.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_nir_lower_tex_src_plane.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_pbo.c \
-	$(MESA_VER)/src/mesa/state_tracker/st_pbo_compute.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_program.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_sampler_view.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_scissor.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_shader_cache.c \
-	$(MESA_VER)/src/mesa/state_tracker/st_texcompress_compute.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_texture.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_tgsi_lower_depth_clamp.c \
+	$(MESA_VER)/src/mesa/state_tracker/st_tgsi_lower_yuv.c \
 	$(MESA_VER)/src/mesa/state_tracker/st_vdpau.c
 MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/program/arbprogparse.c \
-	$(MESA_VER)/src/mesa/program/link_program.cpp \
+	$(MESA_VER)/src/mesa/program/ir_to_mesa.cpp \
 	$(MESA_VER)/src/mesa/program/prog_cache.c \
+	$(MESA_VER)/src/mesa/program/prog_execute.c \
 	$(MESA_VER)/src/mesa/program/prog_instruction.c \
+	$(MESA_VER)/src/mesa/program/prog_noise.c \
+	$(MESA_VER)/src/mesa/program/prog_opt_constant_fold.c \
+	$(MESA_VER)/src/mesa/program/prog_optimize.c \
 	$(MESA_VER)/src/mesa/program/prog_parameter.c \
 	$(MESA_VER)/src/mesa/program/prog_parameter_layout.c \
 	$(MESA_VER)/src/mesa/program/prog_print.c \
@@ -197,11 +210,14 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/buffers.c \
 	$(MESA_VER)/src/mesa/main/clear.c \
 	$(MESA_VER)/src/mesa/main/clip.c \
+	$(MESA_VER)/src/mesa/main/colortab.c \
 	$(MESA_VER)/src/mesa/main/compute.c \
 	$(MESA_VER)/src/mesa/main/condrender.c \
 	$(MESA_VER)/src/mesa/main/conservativeraster.c \
 	$(MESA_VER)/src/mesa/main/context.c \
+	$(MESA_VER)/src/mesa/main/convolve.c \
 	$(MESA_VER)/src/mesa/main/copyimage.c \
+	$(MESA_VER)/src/mesa/main/cpuinfo.c \
 	$(MESA_VER)/src/mesa/main/debug.c \
 	$(MESA_VER)/src/mesa/main/debug_output.c \
 	$(MESA_VER)/src/mesa/main/depth.c \
@@ -214,6 +230,7 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/errors.c \
 	$(MESA_VER)/src/mesa/main/es1_conversion.c \
 	$(MESA_VER)/src/mesa/main/eval.c \
+	$(MESA_VER)/src/mesa/main/execmem.c \
 	$(MESA_VER)/src/mesa/main/extensions.c \
 	$(MESA_VER)/src/mesa/main/extensions_table.c \
 	$(MESA_VER)/src/mesa/main/externalobjects.c \
@@ -234,13 +251,13 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/glthread.c \
 	$(MESA_VER)/src/mesa/main/glthread_bufferobj.c \
 	$(MESA_VER)/src/mesa/main/glthread_draw.c \
-	$(MESA_VER)/src/mesa/main/glthread_draw_unroll.c \
 	$(MESA_VER)/src/mesa/main/glthread_get.c \
 	$(MESA_VER)/src/mesa/main/glthread_list.c \
 	$(MESA_VER)/src/mesa/main/glthread_shaderobj.c \
 	$(MESA_VER)/src/mesa/main/glthread_varray.c \
 	$(MESA_VER)/src/mesa/main/hash.c \
 	$(MESA_VER)/src/mesa/main/hint.c \
+	$(MESA_VER)/src/mesa/main/histogram.c \
 	$(MESA_VER)/src/mesa/main/image.c \
 	$(MESA_VER)/src/mesa/main/light.c \
 	$(MESA_VER)/src/mesa/main/lines.c \
@@ -248,6 +265,7 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/mipmap.c \
 	$(MESA_VER)/src/mesa/main/multisample.c \
 	$(MESA_VER)/src/mesa/main/objectlabel.c \
+	$(MESA_VER)/src/mesa/main/objectpurge.c \
 	$(MESA_VER)/src/mesa/main/pack.c \
 	$(MESA_VER)/src/mesa/main/pbo.c \
 	$(MESA_VER)/src/mesa/main/performance_monitor.c \
@@ -277,11 +295,10 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/spirv_extensions.c \
 	$(MESA_VER)/src/mesa/main/state.c \
 	$(MESA_VER)/src/mesa/main/stencil.c \
+	$(MESA_VER)/src/mesa/main/streaming-load-memcpy.c \
 	$(MESA_VER)/src/mesa/main/syncobj.c \
 	$(MESA_VER)/src/mesa/main/texcompress.c \
 	$(MESA_VER)/src/mesa/main/texcompress_astc.cpp \
-	$(MESA_VER)/src/mesa/main/texcompress_astc_luts.cpp \
-	$(MESA_VER)/src/mesa/main/texcompress_astc_luts_wrap.cpp \
 	$(MESA_VER)/src/mesa/main/texcompress_bptc.c \
 	$(MESA_VER)/src/mesa/main/texcompress_cpal.c \
 	$(MESA_VER)/src/mesa/main/texcompress_etc.c \
@@ -289,6 +306,7 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/texcompress_rgtc.c \
 	$(MESA_VER)/src/mesa/main/texcompress_s3tc.c \
 	$(MESA_VER)/src/mesa/main/texenv.c \
+	$(MESA_VER)/src/mesa/main/texformat.c \
 	$(MESA_VER)/src/mesa/main/texgen.c \
 	$(MESA_VER)/src/mesa/main/texgetimage.c \
 	$(MESA_VER)/src/mesa/main/teximage.c \
@@ -306,7 +324,7 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/main/vdpau.c \
 	$(MESA_VER)/src/mesa/main/version.c \
 	$(MESA_VER)/src/mesa/main/viewport.c \
-	$(MESA_VER)/src/mesa/main/es1_conversion.c
+	$(MESA_VER)/src/mesa/main/vtxfmt.c
 #MesaLib_SRC += \
 #	$(MESA_VER)/src/mesa/main/marshal_generated0.c \
 #	$(MESA_VER)/src/mesa/main/marshal_generated1.c \
@@ -317,8 +335,14 @@ MesaLib_SRC += \
 #	$(MESA_VER)/src/mesa/main/marshal_generated6.c \
 #	$(MESA_VER)/src/mesa/main/marshal_generated7.c
 MesaLib_SRC += \
+	$(MESA_VER)/src/mesa/math/m_debug_clip.c \
+	$(MESA_VER)/src/mesa/math/m_debug_norm.c \
+	$(MESA_VER)/src/mesa/math/m_debug_xform.c \
 	$(MESA_VER)/src/mesa/math/m_eval.c \
-	$(MESA_VER)/src/mesa/math/m_matrix.c
+	$(MESA_VER)/src/mesa/math/m_matrix.c \
+	$(MESA_VER)/src/mesa/math/m_translate.c \
+	$(MESA_VER)/src/mesa/math/m_vector.c \
+	$(MESA_VER)/src/mesa/math/m_xform.c
 MesaLib_SRC += \
 	$(MESA_VER)/src/mesa/vbo/vbo_context.c \
 	$(MESA_VER)/src/mesa/vbo/vbo_exec.c \
@@ -345,68 +369,93 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/glsl/builtin_types.cpp \
 	$(MESA_VER)/src/compiler/glsl/builtin_variables.cpp \
 	$(MESA_VER)/src/compiler/glsl/generate_ir.cpp \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_atomics.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_images.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_buffers.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_packed_varyings.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_samplers.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_samplers_as_deref.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_xfb_varying.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_link_atomics.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_link_uniform_blocks.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_link_uniform_initializers.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_link_uniforms.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_link_varyings.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_link_xfb.c \
 	$(MESA_VER)/src/compiler/glsl/gl_nir_linker.c \
-	$(MESA_VER)/src/compiler/glsl/gl_nir_opt_dead_builtin_varyings.c \
+	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_atomics.c \
+	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_buffers.c \
+	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_images.c \
+	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_samplers.c \
+	$(MESA_VER)/src/compiler/glsl/gl_nir_lower_samplers_as_deref.c \
 	$(MESA_VER)/src/compiler/glsl/glsl_parser_extras.cpp \
 	$(MESA_VER)/src/compiler/glsl/glsl_symbol_table.cpp \
 	$(MESA_VER)/src/compiler/glsl/glsl_to_nir.cpp \
 	$(MESA_VER)/src/compiler/glsl/hir_field_selection.cpp \
+	$(MESA_VER)/src/compiler/glsl/ir.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_array_refcount.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_basic_block.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_builder.cpp \
+	$(MESA_VER)/src/compiler/glsl/ir_builder_print_visitor.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_clone.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_constant_expression.cpp \
-	$(MESA_VER)/src/compiler/glsl/ir.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_equals.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_expression_flattening.cpp \
+	$(MESA_VER)/src/compiler/glsl/ir_function.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_function_can_inline.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_function_detect_recursion.cpp \
-	$(MESA_VER)/src/compiler/glsl/ir_function.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_hierarchical_visitor.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_hv_accept.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_print_visitor.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_reader.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_rvalue_visitor.cpp \
+	$(MESA_VER)/src/compiler/glsl/ir_set_program_inouts.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_validate.cpp \
 	$(MESA_VER)/src/compiler/glsl/ir_variable_refcount.cpp \
-	$(MESA_VER)/src/compiler/glsl/linker.cpp \
-	$(MESA_VER)/src/compiler/glsl/linker_util.cpp \
+	$(MESA_VER)/src/compiler/glsl/link_atomics.cpp \
 	$(MESA_VER)/src/compiler/glsl/link_functions.cpp \
 	$(MESA_VER)/src/compiler/glsl/link_interface_blocks.cpp \
-	$(MESA_VER)/src/compiler/glsl/link_uniforms.cpp \
 	$(MESA_VER)/src/compiler/glsl/link_uniform_block_active_visitor.cpp \
 	$(MESA_VER)/src/compiler/glsl/link_uniform_blocks.cpp \
+	$(MESA_VER)/src/compiler/glsl/link_uniform_initializers.cpp \
+	$(MESA_VER)/src/compiler/glsl/link_uniforms.cpp \
 	$(MESA_VER)/src/compiler/glsl/link_varyings.cpp \
+	$(MESA_VER)/src/compiler/glsl/linker.cpp \
+	$(MESA_VER)/src/compiler/glsl/linker_util.cpp \
+	$(MESA_VER)/src/compiler/glsl/loop_analysis.cpp \
+	$(MESA_VER)/src/compiler/glsl/loop_unroll.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_blend_equation_advanced.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_buffer_access.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_builtins.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_const_arrays_to_uniforms.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_cs_derived.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_discard.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_discard_flow.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_distance.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_if_to_cond_assign.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_instructions.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_int64.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_jumps.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_mat_op_to_vec.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_named_interface_blocks.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_offset_array.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_output_reads.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_packed_varyings.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_packing_builtins.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_precision.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_shared_reference.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_subroutine.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_tess_level.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_ubo_reference.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_variable_index_to_cond_assign.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_vec_index_to_cond_assign.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_vec_index_to_swizzle.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_vector.cpp \
 	$(MESA_VER)/src/compiler/glsl/lower_vector_derefs.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_vector_insert.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_vertex_id.cpp \
+	$(MESA_VER)/src/compiler/glsl/lower_xfb_varying.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_algebraic.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_array_splitting.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_conditional_discard.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_constant_folding.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_constant_propagation.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_constant_variable.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_copy_propagation_elements.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_dead_builtin_variables.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_dead_builtin_varyings.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_dead_code.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_dead_code_local.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_dead_functions.cpp \
@@ -416,16 +465,19 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/glsl/opt_if_simplification.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_minmax.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_rebalance_tree.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_redundant_jumps.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_structure_splitting.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_swizzle.cpp \
 	$(MESA_VER)/src/compiler/glsl/opt_tree_grafting.cpp \
+	$(MESA_VER)/src/compiler/glsl/opt_vectorize.cpp \
 	$(MESA_VER)/src/compiler/glsl/propagate_invariance.cpp \
 	$(MESA_VER)/src/compiler/glsl/s_expression.cpp \
-	$(MESA_VER)/src/compiler/glsl/string_to_uint_map.cpp \
 	$(MESA_VER)/src/compiler/glsl/serialize.cpp \
 	$(MESA_VER)/src/compiler/glsl/shader_cache.cpp \
+	$(MESA_VER)/src/compiler/glsl/string_to_uint_map.cpp \
 	$(MESA_VER)/src/compiler/glsl/glcpp/pp.c
 MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir.c \
-	$(MESA_VER)/src/compiler/nir/nir_builder.c \
 	$(MESA_VER)/src/compiler/nir/nir_builtin_builder.c \
 	$(MESA_VER)/src/compiler/nir/nir_clone.c \
 	$(MESA_VER)/src/compiler/nir/nir_control_flow.c \
@@ -437,7 +489,6 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir_gather_info.c \
 	$(MESA_VER)/src/compiler/nir/nir_gather_ssa_types.c \
 	$(MESA_VER)/src/compiler/nir/nir_gather_xfb_info.c \
-	$(MESA_VER)/src/compiler/nir/nir_group_loads.c \
 	$(MESA_VER)/src/compiler/nir/nir_gs_count_vertices.c \
 	$(MESA_VER)/src/compiler/nir/nir_inline_functions.c \
 	$(MESA_VER)/src/compiler/nir/nir_inline_uniforms.c \
@@ -445,28 +496,24 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir_linking_helpers.c \
 	$(MESA_VER)/src/compiler/nir/nir_liveness.c \
 	$(MESA_VER)/src/compiler/nir/nir_loop_analyze.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_alu.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_alu_width.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_alpha_test.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_alu.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_alu_to_scalar.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_amul.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_array_deref_of_vec.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_atomics_to_ssbo.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_bit_size.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_bitmap.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_blend.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_bool_to_bitsize.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_bool_to_float.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_bool_to_int32.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_cl_images.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_clamp_color_outputs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_clip.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_clip_cull_distance_arrays.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_clip_disable.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_clip_halfz.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_const_arrays_to_uniforms.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_continue_constructs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_convert_alu_types.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_variable_initializers.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_discard_if.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_discard_or_demote.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_double_ops.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_drawpixels.c \
@@ -474,33 +521,31 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir_lower_flatshade.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_flrp.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_fp16_conv.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_fragcoord_wtrans.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_fragcolor.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_fragcoord_wtrans.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_frexp.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_global_vars_to_local.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_goto_ifs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_gs_intrinsics.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_helper_writes.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_load_const_to_scalar.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_locals_to_regs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_idiv.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_image.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_indirect_derefs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_input_attachments.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_int_to_float.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_int64.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_interpolation.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_int_to_float.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_io.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_io_arrays_to_elements.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_io_to_temporaries.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_io_to_scalar.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_io_to_temporaries.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_io_to_vector.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_is_helper_invocation.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_multiview.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_load_const_to_scalar.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_locals_to_regs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_mediump.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_mem_access_bit_sizes.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_memcpy.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_memory_model.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_multiview.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_non_uniform_access.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_packing.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_passthrough_edgeflags.c \
@@ -509,41 +554,34 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir_lower_pntc_ytransform.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_point_size.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_point_size_mov.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_point_smooth.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_poly_line_smooth.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_printf.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_regs_to_ssa.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_readonly_images_to_tex.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_regs_to_ssa.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_returns.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_samplers.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_scratch.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_shader_calls.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_single_sampled.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_ssbo.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_subgroups.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_system_values.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_task_shader.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_tex_shadow.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_sysvals_to_varyings.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_tex.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_texcoord_replace.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_texcoord_replace_late.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_to_source_mods.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_two_sided_color.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_ubo_vec4.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_undef_to_zero.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_vars_to_ssa.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_uniforms_to_ubo.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_var_copies.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_variable_initializers.c \
+	$(MESA_VER)/src/compiler/nir/nir_lower_vars_to_ssa.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_vec_to_movs.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_vec3_to_vec4.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_viewport_transform.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_wpos_center.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_wpos_ytransform.c \
 	$(MESA_VER)/src/compiler/nir/nir_lower_wrmasks.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_bit_size.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_ubo_vec4.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_uniforms_to_ubo.c \
-	$(MESA_VER)/src/compiler/nir/nir_lower_sysvals_to_varyings.c \
 	$(MESA_VER)/src/compiler/nir/nir_metadata.c \
-	$(MESA_VER)/src/compiler/nir/nir_mod_analysis.c \
 	$(MESA_VER)/src/compiler/nir/nir_move_vec_src_uses_to_dest.c \
 	$(MESA_VER)/src/compiler/nir/nir_normalize_cubemap_coords.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_access.c \
@@ -570,34 +608,26 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/compiler/nir/nir_opt_memcpy.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_move.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_move_discards_to_top.c \
-	$(MESA_VER)/src/compiler/nir/nir_opt_non_uniform_access.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_offsets.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_peephole_select.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_phi_precision.c \
-	$(MESA_VER)/src/compiler/nir/nir_opt_preamble.c \
-	$(MESA_VER)/src/compiler/nir/nir_opt_ray_queries.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_rematerialize_compares.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_remove_phis.c \
-	$(MESA_VER)/src/compiler/nir/nir_opt_shrink_stores.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_shrink_vectors.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_sink.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_trivial_continues.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_undef.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_uniform_atomics.c \
 	$(MESA_VER)/src/compiler/nir/nir_opt_vectorize.c \
-	$(MESA_VER)/src/compiler/nir/nir_passthrough_gs.c \
-	$(MESA_VER)/src/compiler/nir/nir_passthrough_tcs.c \
 	$(MESA_VER)/src/compiler/nir/nir_phi_builder.c \
 	$(MESA_VER)/src/compiler/nir/nir_print.c \
 	$(MESA_VER)/src/compiler/nir/nir_propagate_invariant.c \
 	$(MESA_VER)/src/compiler/nir/nir_range_analysis.c \
 	$(MESA_VER)/src/compiler/nir/nir_remove_dead_variables.c \
 	$(MESA_VER)/src/compiler/nir/nir_repair_ssa.c \
-	$(MESA_VER)/src/compiler/nir/nir_scale_fdiv.c \
 	$(MESA_VER)/src/compiler/nir/nir_schedule.c \
 	$(MESA_VER)/src/compiler/nir/nir_search.c \
 	$(MESA_VER)/src/compiler/nir/nir_serialize.c \
-	$(MESA_VER)/src/compiler/nir/nir_split_64bit_vec3_and_vec4.c \
 	$(MESA_VER)/src/compiler/nir/nir_split_per_member_structs.c \
 	$(MESA_VER)/src/compiler/nir/nir_split_var_copies.c \
 	$(MESA_VER)/src/compiler/nir/nir_split_vars.c \
@@ -641,7 +671,6 @@ MesaWglLib_SRC = \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_pixelformat.c \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_st.c \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_tls.c \
-	$(MESA_VER)/src/gallium/frontends/wgl/stw_ext_interop.c \
 	$(MESA_VER)/src/gallium/targets/libgl-gdi/stw_wgl.c \
 	extra/knownfolders.c
 
@@ -689,12 +718,15 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/driver_ddebug/dd_screen.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_noop/noop_pipe.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_noop/noop_state.c \
+	$(MESA_VER)/src/gallium/auxiliary/driver_rbug/rbug_context.c \
+	$(MESA_VER)/src/gallium/auxiliary/driver_rbug/rbug_core.c \
+	$(MESA_VER)/src/gallium/auxiliary/driver_rbug/rbug_objects.c \
+	$(MESA_VER)/src/gallium/auxiliary/driver_rbug/rbug_screen.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_context.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_dump.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_dump_state.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_screen.c \
 	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_texture.c \
-	$(MESA_VER)/src/gallium/auxiliary/driver_trace/tr_util.c \
 	$(MESA_VER)/src/gallium/auxiliary/hud/font.c \
 	$(MESA_VER)/src/gallium/auxiliary/hud/hud_context.c \
 	$(MESA_VER)/src/gallium/auxiliary/hud/hud_cpu.c \
@@ -705,6 +737,7 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/hud/hud_driver_query.c \
 	$(MESA_VER)/src/gallium/auxiliary/hud/hud_fps.c \
 	$(MESA_VER)/src/gallium/auxiliary/indices/u_primconvert.c \
+	$(MESA_VER)/src/gallium/auxiliary/os/os_process.c \
 	$(MESA_VER)/src/gallium/auxiliary/pipebuffer/pb_buffer_fenced.c \
 	$(MESA_VER)/src/gallium/auxiliary/pipebuffer/pb_bufmgr_cache.c \
 	$(MESA_VER)/src/gallium/auxiliary/pipebuffer/pb_bufmgr_debug.c \
@@ -719,6 +752,13 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/postprocess/pp_mlaa.c \
 	$(MESA_VER)/src/gallium/auxiliary/postprocess/pp_program.c \
 	$(MESA_VER)/src/gallium/auxiliary/postprocess/pp_run.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_connection.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_context.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_core.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_demarshal.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_shader.c \
+	$(MESA_VER)/src/gallium/auxiliary/rbug/rbug_texture.c \
+	$(MESA_VER)/src/gallium/auxiliary/rtasm/rtasm_cpu.c \
 	$(MESA_VER)/src/gallium/auxiliary/rtasm/rtasm_execmem.c \
 	$(MESA_VER)/src/gallium/auxiliary/rtasm/rtasm_x86sse.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_aa_point.c \
@@ -726,6 +766,7 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_dump.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_dynamic_indexing.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_exec.c \
+	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_emulate.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_from_mesa.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_info.c \
 	$(MESA_VER)/src/gallium/auxiliary/tgsi/tgsi_iterate.c \
@@ -752,6 +793,7 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_compute.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_debug_flush.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_debug_image.c \
+	$(MESA_VER)/src/gallium/auxiliary/util/u_dl.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_draw.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_draw_quad.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_driconf.c \
@@ -762,8 +804,10 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_handle_table.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_helpers.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_index_modify.c \
+	$(MESA_VER)/src/gallium/auxiliary/util/u_linear.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_live_shader_cache.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_log.c \
+	$(MESA_VER)/src/gallium/auxiliary/util/u_network.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_prim.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_prim_restart.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_pstipple.c \
@@ -780,13 +824,13 @@ MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_transfer.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_transfer_helper.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_threaded_context.c \
-	$(MESA_VER)/src/gallium/auxiliary/util/u_trace_gallium.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_upload_mgr.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_vbuf.c \
 	$(MESA_VER)/src/gallium/auxiliary/util/u_vertex_state_cache.c \
 	$(MESA_VER)/src/gallium/auxiliary/nir/tgsi_to_nir.c \
 	$(MESA_VER)/src/gallium/auxiliary/nir/nir_to_tgsi.c \
-	$(MESA_VER)/src/gallium/auxiliary/nir/nir_draw_helpers.c
+	$(MESA_VER)/src/gallium/auxiliary/nir/nir_draw_helpers.c \
+	$(MESA_VER)/src/gallium/auxiliary/nir/nir_to_tgsi_info.c
 # Auto-generated
 MesaGalliumAuxLib_SRC += \
 	$(MESA_VER)/src/gallium/auxiliary/indices/u_indices_gen.c \
@@ -794,54 +838,50 @@ MesaGalliumAuxLib_SRC += \
 
 MesaGalliumAuxLibSimd_SRC = \
   $(MesaGalliumAuxLib_SRC) \
-  $(MESA_VER)/src/gallium/auxiliary/draw/draw_llvm.c \
-  $(MESA_VER)/src/gallium/auxiliary/draw/draw_llvm_sample.c \
-  $(MESA_VER)/src/gallium/auxiliary/draw/draw_pt_fetch_shade_pipeline_llvm.c \
-  $(MESA_VER)/src/gallium/auxiliary/draw/draw_vs_llvm.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_arit.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_arit_overflow.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_assert.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_bitarit.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_const.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_conv.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_coro.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_flow.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_aos.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_aos_array.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_float.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_s3tc.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_soa.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_srgb.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_yuv.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_gather.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_init.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_intr.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_ir_common.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_logic.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_nir.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_nir_soa.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_pack.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_printf.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_quad.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample_aos.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample_soa.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_struct.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_swizzle.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_action.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_aos.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_info.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_soa.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_type.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_jit_types.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_nir_aos.c \
-  $(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_debug.cpp \
-  $(MESA_VER)/src/gallium/auxiliary/tessellator/p_tessellator.cpp \
-  $(MESA_VER)/src/gallium/auxiliary/tessellator/tessellator.cpp \
-  $(MESA_VER)/src/gallium/auxiliary/nir/nir_to_tgsi_info.c
+	$(MESA_VER)/src/gallium/auxiliary/draw/draw_llvm.c \
+	$(MESA_VER)/src/gallium/auxiliary/draw/draw_llvm_sample.c \
+	$(MESA_VER)/src/gallium/auxiliary/draw/draw_pt_fetch_shade_pipeline_llvm.c \
+	$(MESA_VER)/src/gallium/auxiliary/draw/draw_vs_llvm.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_arit.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_arit_overflow.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_assert.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_bitarit.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_const.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_conv.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_coro.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_flow.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_aos.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_aos_array.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_float.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_s3tc.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_soa.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_srgb.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_format_yuv.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_gather.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_init.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_intr.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_ir_common.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_logic.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_nir.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_nir_soa.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_pack.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_printf.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_quad.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample_aos.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_sample_soa.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_struct.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_swizzle.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_action.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_aos.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_info.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_tgsi_soa.c \
+	$(MESA_VER)/src/gallium/auxiliary/gallivm/lp_bld_type.c \
+	$(MESA_VER)/src/gallium/auxiliary/tessellator/p_tessellator.cpp \
+	$(MESA_VER)/src/gallium/auxiliary/tessellator/tessellator.cpp
 
 MesaNineLib_SRC    = \
 	$(MESA_VER)/src/gallium/frontends/nine/adapter9.c \
@@ -941,13 +981,7 @@ MesaSVGALib_SRC  = \
 	$(MESA_VER)/src/gallium/drivers/svga/svga_tgsi.c \
 	$(MESA_VER)/src/gallium/drivers/svga/svga_tgsi_decl_sm30.c \
 	$(MESA_VER)/src/gallium/drivers/svga/svga_tgsi_insn.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_tgsi_vgpu10.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_image_view.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_state_uav.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_shader_buffer.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_pipe_cs.c \
-	$(MESA_VER)/src/gallium/drivers/svga/svga_state_cs.c
-	
+	$(MESA_VER)/src/gallium/drivers/svga/svga_tgsi_vgpu10.c
 
 MesaSVGAWinsysLib_SRC  = \
 	$(MESA_VER)/src/gallium/winsys/svga/drm/pb_buffer_simple_fenced.c \
@@ -967,141 +1001,122 @@ MesaSVGAWinsysLib_SRC  = \
 	win9x/svgadrv.c
 	
 MesaGdiLib_SRC = \
-  $(MESA_VER)/src/gallium/winsys/sw/gdi/gdi_sw_winsys.c \
-  $(MESA_VER)/src/gallium/winsys/sw/wrapper/wrapper_sw_winsys.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_buffer.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_clear.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_context.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_compute.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_draw_arrays.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_fence.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_flush.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_fs_exec.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_image.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_prim_vbuf.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_blend.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_depth_test.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_fs.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_pipe.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_query.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_screen.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_setup.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_blend.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_clip.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_derived.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_image.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_rasterizer.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_sampler.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_shader.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_so.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_surface.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_state_vertex.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_surface.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_sample.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_tile_cache.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_texture.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c \
-  win9x/3d_accel.c \
-  win9x/vramconv.c \
-  win9x/vramcpy.c
+	$(MESA_VER)/src/gallium/winsys/sw/gdi/gdi_sw_winsys.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_buffer.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_clear.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_compute.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_context.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_draw_arrays.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_fence.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_flush.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_fs_exec.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_image.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_prim_vbuf.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_blend.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_depth_test.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_fs.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_pipe.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_quad_stipple.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_query.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_screen.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_setup.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_blend.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_clip.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_derived.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_image.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_rasterizer.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_sampler.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_shader.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_so.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_surface.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_state_vertex.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_surface.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_texture.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_sample.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_tile_cache.c \
+	$(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c \
+	win9x/3d_accel.c \
+	win9x/vramconv.c \
+	win9x/vramcpy.c
 
 MesaGdiLibGL_SRC = \
   $(MesaGdiLib_SRC) \
-  $(MESA_VER)/src/gallium/targets/wgl/wgl.c \
-  win9x/wgl/wglpipe.c \
-  win9x/wgl/wglpipe_splp.c
+	$(MESA_VER)/src/gallium/targets/wgl/wgl.c \
+	win9x/wgl/wglpipe.c \
+	win9x/wgl/wglpipe_splp.c
   
 MesaGdiLibICD_SRC = \
   $(MesaGdiLib_SRC) \
-  $(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c \
-  win9x/wgl/wglpipe.c \
-  win9x/wgl/wglpipe_splp.c
+	$(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c \
+	win9x/wgl/wglpipe.c \
+	win9x/wgl/wglpipe_splp.c
   
 MesaGdiLibVMW_SRC = \
   $(MesaGdiLib_SRC) \
-  win9x/libgl_vmws.c \
-  win9x/wgl/wglpipe.c
+	win9x/libgl_vmws.c \
+	win9x/wgl/wglpipe.c
 
 MesaGalliumLLVMPipe_SRC += \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_alpha.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend_aos.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend_logicop.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_depth.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_interp.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_clear.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_context.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_cs_tpool.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_draw_arrays.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_fence.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_flush.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_jit.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_fastpath.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_interp.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_sampler.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_memory.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_perf.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_query.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_debug.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_linear.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_linear_fallback.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_rect.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_tri.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_scene.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_scene_queue.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_screen.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_analysis.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_line.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_point.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_rect.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_tri.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_vbuf.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_blend.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_clip.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_cs.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_derived.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_analysis.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_fastpath.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_linear.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_gs.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_rasterizer.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_sampler.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_setup.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_so.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_surface.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_tess.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_vertex.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_vs.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_surface.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_arit.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_blend.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_conv.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_format.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_main.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_printf.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_texture.c \
-  $(MESA_VER)/src/gallium/drivers/llvmpipe/lp_tex_sample.c \
-
-MesaD3D10Lib_SRC = \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Adapter.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Debug.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Device.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Draw.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/DxgiFns.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Format.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/InputAssembly.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/OutputMerger.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Query.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Rasterizer.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Resource.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/Shader.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderDump.cpp \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderParse.c \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderTGSI.c \
-  $(MESA_VER)/src/gallium/frontends/d3d10umd/D3DKMT.cpp \
-  $(MESA_VER)/src/gallium/targets/d3d10sw/d3d10_gdi.c
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_alpha.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend_aos.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_blend_logicop.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_depth.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_bld_interp.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_clear.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_context.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_cs_tpool.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_draw_arrays.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_fence.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_flush.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_jit.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_fastpath.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_interp.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_linear_sampler.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_memory.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_perf.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_query.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_debug.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_linear.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_linear_fallback.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_rect.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_rast_tri.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_scene.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_scene_queue.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_screen.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_analysis.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_line.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_point.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_rect.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_tri.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_setup_vbuf.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_blend.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_clip.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_cs.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_derived.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_analysis.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_fastpath.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_linear.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_gs.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_rasterizer.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_sampler.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_setup.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_so.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_surface.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_tess.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_vertex.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_state_vs.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_surface.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_arit.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_blend.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_conv.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_format.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_main.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_printf.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_texture.c \
+	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_tex_sample.c

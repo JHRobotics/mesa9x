@@ -39,7 +39,7 @@
 #include "util/u_memory.h"
 #include "util/u_math.h"
 #include "svgadump/svga_dump.h"
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR >= 21
 #include "frontend/drm_driver.h"
 #else
 #include "state_tracker/drm_driver.h"
@@ -57,7 +57,7 @@
 
 //#include <iprt/asm.h>
 
-#ifdef MESA24
+#if MESA_MAJOR >= 24
 #define boolean bool
 #define FALSE false
 #define TRUE true
@@ -169,7 +169,7 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
     return u32Sid;
 }
 
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
 uint32
 vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
 			    SVGA3dSurfaceFlags flags,
@@ -298,7 +298,7 @@ vmw_ioctl_surface_req(const struct vmw_winsys_screen *vws,
  *
  * Returns 0 on success, a system error on failure.
  */
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
 int
 vmw_ioctl_gb_surface_ref(struct vmw_winsys_screen *vws,
                          const struct winsys_handle *whandle,
@@ -704,7 +704,7 @@ vboxGetParam(struct vmw_winsys_screen_wddm *vws_wddm, struct drm_vmw_getparam_ar
         case DRM_VMW_PARAM_SCREEN_TARGET:
             gp_arg->value = 1;
             break;
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
         case DRM_VMW_PARAM_VGPU10:
             gp_arg->value = 1;
             break;
@@ -761,7 +761,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 
    vws->ioctl.have_drm_2_6 = 1; /* unused */
    vws->ioctl.have_drm_2_9 = 1;
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR < 21
    vws->ioctl.have_drm_2_15 = 1;
    vws->ioctl.have_drm_2_16 = 1;
    vws->ioctl.have_drm_2_17 = 1;
@@ -771,7 +771,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 
    vws->ioctl.drm_execbuf_version = vws->ioctl.have_drm_2_9 ? 2 : 1;
 
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
    drm_gb_capable = 1;
 #else
    drm_gb_capable = have_drm_2_5;
@@ -795,7 +795,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
    }
    vws->ioctl.hwversion = gp_arg.value;
 
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
    /* The driver does not support this feature. */
    vws->base.have_gb_objects = FALSE;
    /* commented code begin */

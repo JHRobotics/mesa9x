@@ -20,22 +20,26 @@
 
 include config.mk
 
-MESA_VER ?= mesa-17.3.9
+MESA_VER ?= mesa-21.3.x
 DEPS = config.mk Makefile
 
-ifeq ($(MESA_VER),mesa-21.3.8)
-  MESA_NEW := 1
+ifeq ($(MESA_VER),mesa-17.3.9)
+  MESA_MAJOR := 17
+  MESA_GPU10 := 1
+endif
+
+ifeq ($(MESA_VER),mesa-21.3.x)
+  MESA_MAJOR := 21
   MESA_GPU10 := 1
 endif
 
 ifeq ($(MESA_VER),mesa-23.1.x)
-  MESA23 := 1
+  MESA_MAJOR := 23
   MESA_GPU10 := 1
 endif
 
 ifeq ($(MESA_VER),mesa-24.0.x)
-  MESA23 := 1
-  MESA24 := 1
+  MESA_MAJOR := 24
   MESA_GPU10 := 1
 endif
 
@@ -265,6 +269,8 @@ else
   ifdef VERSION_BUILD
     DEFS  += -DMESA9X_BUILD=$(VERSION_BUILD)
   endif
+  
+    DEFS += -DMESA_MAJOR=$(MESA_MAJOR)
 
 	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
 	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
@@ -276,19 +282,7 @@ else
   else
     DD_DEFS = -DNDEBUG -DD3D8TO9NOLOG
   endif
-  
-  ifdef MESA_NEW
-    DEFS += -DMESA_NEW
-  endif
-  
-  ifdef MESA23
-  	DEFS += -DMESA23
-  endif
-  
-  ifdef MESA24
-  	DEFS += -DMESA24
-  endif
-  
+    
   ifdef GUI_ERRORS
   	TUNE += -DGUI_ERRORS
   endif

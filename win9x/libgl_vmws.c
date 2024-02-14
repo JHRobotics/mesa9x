@@ -84,7 +84,7 @@ struct stw_shared_surface
 
 static svga_inst_t sSvga;
 
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
 static struct pipe_screen *wddm_screen_create(void)
 #else
 static struct pipe_screen *wddm_screen_create(HDC hDC)
@@ -109,7 +109,7 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 }
 
 /* present direct to window or screen if possible */
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
 static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
     struct stw_context *ctx = stw_current_context();
@@ -133,7 +133,7 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
 }
 
 /* present to window */
-#if !(defined(MESA_NEW) || defined(MESA23))
+#if MESA_MAJOR < 21
 static void wddm_present_window(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
 	  struct stw_context *ctx = stw_current_context();
@@ -244,7 +244,7 @@ wddm_compose(struct pipe_screen *screen,
     
 }
 
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR >= 21
 static unsigned
 wddm_get_pfd_flags(struct pipe_screen *screen)
 {
@@ -267,7 +267,7 @@ wddm_get_name(void)
 }
 #endif
 
-#if defined(MESA_NEW) || defined(MESA23)
+#if MESA_MAJOR >= 21
 struct stw_winsys stw_winsys = {
    &wddm_screen_create,
    //&wddm_present_window,
@@ -368,7 +368,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
          // clean hook in every case
-         #if !(defined(MESA_NEW) || defined(MESA23))
+         #if MESA_MAJOR < 21
          stw_tls_clenup_hook();
          #endif
       }

@@ -3,11 +3,15 @@
 #define MESA9X_STR_(x) #x
 #define MESA9X_STR(x) MESA9X_STR_(x)
 
-#if defined(MESA23)
+#if MESA_MAJOR == 24
+# define MESA9X_MAJOR 24
+# define MESA9X_MINOR 0
+# define MESA9X_PATCH 0
+#elif MESA_MAJOR == 23
 # define MESA9X_MAJOR 23
 # define MESA9X_MINOR 1
 # define MESA9X_PATCH 9
-#elif defined(MESA_NEW)
+#elif MESA_MAJOR == 21
 # define MESA9X_MAJOR 21
 # define MESA9X_MINOR 3
 # define MESA9X_PATCH 8
