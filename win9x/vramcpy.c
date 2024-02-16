@@ -1,4 +1,4 @@
-#ifdef MESA23
+#if MESA_MAJOR >= 23
 # include "state_tracker/st_format.h"
 # include "state_tracker/st_context.h"
 #endif
@@ -12,7 +12,7 @@
 #include "vramcpy.h"
 
 /* SW headers */
-#ifdef MESA_MAJOR == 21
+#if MESA_MAJOR == 21
 # include "pipe/p_format.h"
 # include "pipe/p_context.h"
 #endif

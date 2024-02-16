@@ -25,7 +25,6 @@ DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
-  MESA_GPU10 := 1
 endif
 
 ifeq ($(MESA_VER),mesa-21.3.x)

@@ -2176,9 +2176,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
-		uint32_t u32NumPages = (pCreateParms->cbGB + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		cbGB = u32NumPages * PAGE_SIZE;
-		pCreateParms->gmrid = SVGARegionCreate(svga, cbGB, &userAddress);
+		pCreateParms->gmrid = SVGARegionCreateLimit(svga, pCreateParms->cbGB, &userAddress, 10);
 		
 		if(pCreateParms->gmrid == 0)
 		{

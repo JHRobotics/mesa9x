@@ -181,7 +181,7 @@ struct SVGA3dCmdDefineGBSurface_v4 {
 }
 SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
 
-#ifndef MESA23
+#if MESA_MAJOR < 23
 
 /* SVGA3dUAView */
 

@@ -876,7 +876,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 			mesa99_dbg("MesaScreenCreate failed");
 			return D3DERR_INVALIDCALL;
 		}
-		//last_screen = screen;
+		last_screen = screen;
 	}
 	
   mesa99_dbg("screen? %p", screen);	

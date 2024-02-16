@@ -1068,6 +1068,21 @@ svga_texture_create(struct pipe_screen *screen,
                       svga_format_name(typeless),
                       bindings);
       }
+            
+#if 0
+      {
+      	FILE *fa = fopen("C:\\convert.log", "ab");
+      	if(fa)
+      	{
+      		fprintf(fa, "Convert resource type %s -> %s (bind 0x%x), depth: %d\n",
+                      svga_format_name(tex->key.format),
+                      svga_format_name(typeless),
+                      bindings,
+                      format_has_depth(template->format));
+         	fclose(fa);
+      	}
+      }
+#endif
 
       if (svga_format_is_uncompressed_snorm(tex->key.format)) {
          /* We can't normally render to snorm surfaces, but once we

@@ -33,7 +33,7 @@
  * @author Jose Fonseca <jfonseca@vmware.com>
  */
 
-#ifdef MESA23
+#if MESA_MAJOR >= 23
 # include "state_tracker/st_format.h"
 # include "state_tracker/st_context.h"
 #endif
