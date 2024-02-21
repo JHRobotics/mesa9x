@@ -56,6 +56,9 @@ typedef struct _svga_inst_t
 	BOOL have_cb_context;
 	uint32_t blitsid;
 	
+	/* limit */
+	uint32_t surfaces_mem_limit;
+	uint32_t surfaces_mem_usage;
 	
 } svga_inst_t;
 
@@ -86,13 +89,14 @@ void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
 uint32_t SVGAContextCreate(svga_inst_t *svga);
 void SVGACBContextCreate(svga_inst_t *svga);
 void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid);
+BOOL SVGAContextValid(svga_inst_t *svga, uint32_t cid);
 
 BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid);
 void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid);
 BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType type, uint32_t destId);
 
 BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t *pHeight, uint32_t *pBpp, uint32_t *pPitch);
-void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid);
+void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid, uint32_t *out_surface_size);
 
 void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 

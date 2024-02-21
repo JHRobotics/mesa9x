@@ -106,3 +106,55 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 
 	return new Direct3D8(d3d);
 }
+
+
+extern "C" HRESULT WINAPI ValidatePixelShader(DWORD* pixelshader, DWORD* reserved1, BOOL bool1, DWORD* toto)
+{
+  HRESULT ret;
+
+  if (!pixelshader)
+      return E_FAIL;
+
+  if (reserved1)
+      return E_FAIL;
+
+  switch(*pixelshader) {
+        case 0xFFFF0100:
+        case 0xFFFF0101:
+        case 0xFFFF0102:
+        case 0xFFFF0103:
+        case 0xFFFF0104:
+            ret=S_OK;
+            break;
+        default:
+            ret=E_FAIL;
+        }
+  return ret;
+}
+
+extern "C" HRESULT WINAPI ValidateVertexShader(DWORD* vertexshader, DWORD* reserved1, DWORD* reserved2, BOOL bool1, DWORD* toto)
+{
+  HRESULT ret;
+
+  if (!vertexshader)
+      return E_FAIL;
+
+  if (reserved1 || reserved2)
+      return E_FAIL;
+
+  switch(*vertexshader) {
+        case 0xFFFE0101:
+        case 0xFFFE0100:
+            ret=S_OK;
+            break;
+        default:
+            ret=E_FAIL;
+        }
+
+  return ret;
+}
+
+extern "C" HRESULT WINAPI D3D8GetSWInfo(void)
+{
+    return 0;
+}

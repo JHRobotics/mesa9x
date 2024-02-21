@@ -20,8 +20,17 @@
 static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFSIZE *paSizes, uint32_t cSizes, uint32_t *pu32Sid)
 {
 	SVGA_ENV;
+	
+	/* limit size */
+	if(svga->surfaces_mem_usage + pCreateParms->size > svga->surfaces_mem_limit)
+	{
+		return E_FAIL;
+	}
+	
 	if(SVGASurfaceCreate(svga, pCreateParms, paSizes, cSizes, pu32Sid))
 	{
+		svga->surfaces_mem_usage += pCreateParms->size;
+		
 		return S_OK;
 	}
 	
@@ -31,7 +40,19 @@ static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFS
 static void vboxVxdSurfaceDestroy(void *pvEnv, uint32_t u32Sid)
 {
 	SVGA_ENV;
-  SVGASurfaceDestroy(svga, u32Sid);
+	
+	uint32_t s = 0;
+	
+  SVGASurfaceDestroy(svga, u32Sid, &s);
+  
+  if(s > svga->surfaces_mem_usage)
+  {
+  	svga->surfaces_mem_usage = 0;
+  }
+  else
+  {
+  	svga->surfaces_mem_usage -= s;
+  }
 }
 
 static int vboxVxdFenceQuery(void *pvEnv, uint32_t u32FenceHandle, GAFENCEQUERY *pFenceQuery)
@@ -294,6 +315,15 @@ static void vboxVxdRegionDestroy(void *pvEnv, uint32_t u32GmrId, void *pvMap)
 static int vboxVxdGBSurfaceDefine(void *pvEnv, SVGAGBSURFCREATE *pCreateParms)
 {
 	SVGA_ENV;
+
+	/* limit size */
+	if(svga->surfaces_mem_usage + pCreateParms->cbGB > svga->surfaces_mem_limit)
+	{
+		svga->surfaces_mem_usage += pCreateParms->cbGB;
+		
+		return E_FAIL;
+	}
+	
 	if(SVGASurfaceGBCreate(svga, pCreateParms))
 	{
 		return S_OK;

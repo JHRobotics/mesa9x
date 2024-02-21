@@ -112,6 +112,7 @@ typedef struct GASURFCREATE
     uint32_t format; /* SVGA3dSurfaceFormat */
     uint32_t usage;  /* SVGA_SURFACE_USAGE_* */
     uint32_t mip_levels[GA_MAX_SURFACE_FACES];
+    uint32_t size;
 } GASURFCREATE;
 
 typedef struct GASURFSIZE
@@ -165,6 +166,7 @@ typedef struct SVGAGBSURFCREATE
     uint32_t cbGB; /* Out: Size of backing memory. */
     uint32_t userAddress; /* Out: R3 mapping of the backing memory. */
     uint32_t u32Sid; /* Out: Surface id. */
+    BOOL GMRreturn; /* In: GMR address is returned or it's managed with surface */
 } SVGAGBSURFCREATE, *PSVGAGBSURFCREATE;
 
 typedef struct WDDMGalliumDriverEnv

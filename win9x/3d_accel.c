@@ -12,12 +12,18 @@ static SVGA_OT_info_entry_t *svga_ot = NULL;
 static HANDLE svga_mux = INVALID_HANDLE_VALUE;
 static BOOL svga_have_3d = FALSE;
 
+static void SVGA_CMB_clean();
+#define CMB_TABLE_SIZE 64
+static DWORD *cmb_table[64];
+
 void FBHDA_load()
 {
 	HWND hDesktop = GetDesktopWindow();
 	HDC hdc = GetDC(hDesktop);
 	char strbuf[PATH_MAX];
 	svga_have_3d = FALSE;
+	
+	memset(&cmb_table[0], 0, sizeof(cmb_table));
 	
 	if(ExtEscape(hdc, OP_FBHDA_SETUP, 0, NULL, sizeof(FBHDA_t *), (LPVOID)&hda))
 	{
@@ -71,6 +77,12 @@ static BOOL FBHDA_valid()
 
 void FBHDA_free()
 {
+	if(SVGA_valid())
+	{
+		SVGA_CMB_clean();
+		SVGA_flushcache();
+	}
+	
 	if(hda_vxd != INVALID_HANDLE_VALUE)
 	{
 		CloseHandle(hda_vxd);
@@ -155,7 +167,23 @@ DWORD *SVGA_CMB_alloc()
 		NULL, 0, &ptr, sizeof(DWORD),
 		NULL, NULL))
 	{
-		return ptr;
+		if(ptr)
+		{
+			int i;
+			for(i = 0; i < CMB_TABLE_SIZE; i++)
+			{
+				if(cmb_table[i] == NULL)
+				{
+					cmb_table[i] = ptr;
+					return ptr;
+				}
+			}
+			
+			/* we have more than 64 CMBs, something is realy weird, free CMB and return NULL */
+			DeviceIoControl(hda_vxd, OP_SVGA_CMB_FREE, &ptr, sizeof(DWORD), NULL, 0, NULL, NULL);
+		}
+		
+		return NULL;
 	}
 	
 	return NULL;
@@ -163,11 +191,38 @@ DWORD *SVGA_CMB_alloc()
 
 void SVGA_CMB_free(DWORD *cmb)
 {
+	int i;
+	
 	if(!SVGA3D_enabled()) return;
 	
-	DeviceIoControl(hda_vxd, OP_SVGA_CMB_FREE,
-		&cmb, sizeof(DWORD), NULL, 0,
-		NULL, NULL);
+	for(i = 0; i < CMB_TABLE_SIZE; i++)
+	{
+		if(cmb_table[i] == cmb)
+		{
+			cmb_table[i] = NULL;
+			
+			/* free CMB only if is on table, just in case */
+			DeviceIoControl(hda_vxd, OP_SVGA_CMB_FREE,
+				&cmb, sizeof(DWORD), NULL, 0,
+				NULL, NULL);
+				
+			return;
+		}
+	}
+}
+
+/* destroy all alocated CMBs */
+static void SVGA_CMB_clean()
+{
+	int i;
+	
+	for(i = 0; i < CMB_TABLE_SIZE; i++)
+	{
+		if(cmb_table[i] != NULL)
+		{
+			SVGA_CMB_free(cmb_table[i]);
+		}
+	}
 }
 
 void SVGA_CMB_submit(DWORD *cmb, DWORD cmb_size, SVGA_CMB_status_t *status, DWORD flags, DWORD DXCtxId)
@@ -329,4 +384,13 @@ void SVGA_DB_lock()
 void SVGA_DB_unlock()
 {
 	ReleaseMutex(svga_mux);
+}
+
+void SVGA_flushcache()
+{
+	if(!SVGA3D_enabled()) return;
+		
+	DeviceIoControl(hda_vxd, OP_SVGA_FLUSHCACHE,
+		NULL, 0, NULL, 0,
+		NULL, NULL);
 }

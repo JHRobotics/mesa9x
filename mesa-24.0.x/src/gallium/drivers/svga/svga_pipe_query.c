@@ -1189,7 +1189,7 @@ svga_get_query_result(struct pipe_context *pipe,
 #ifdef VBOX_WITH_MESA3D_SVGA_GPU_FINISHED
    case PIPE_QUERY_GPU_FINISHED: {
       struct svga_winsys_screen *sws = svga_screen(svga->pipe.screen)->sws;
-      sws->fence_finish(sws, sq->fence, PIPE_TIMEOUT_INFINITE, SVGA_FENCE_FLAG_QUERY);
+      sws->fence_finish(sws, sq->fence, OS_TIMEOUT_INFINITE, SVGA_FENCE_FLAG_QUERY);
       vresult->u64 = 1;
    } break;
 #endif

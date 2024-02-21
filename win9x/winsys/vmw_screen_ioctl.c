@@ -161,6 +161,8 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
        createParms.mip_levels[iFace] = 0;
     }
     
+    createParms.size = svga3dsurface_get_serialized_size(format, size, numMipLevels, numFaces);
+    
     ret = vws_wddm->pEnv->pfnSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms, &sizes[0], numFaces * numMipLevels, &u32Sid);
     if (ret) {
         return (uint32_t)-1;
@@ -223,11 +225,13 @@ vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
         createParms.gmrid = SVGA3D_INVALID_ID;
     createParms.userAddress = 0; /* out */
     createParms.u32Sid = 0; /* out */
+    createParms.GMRreturn = FALSE;
+    if(p_region || createParms.gmrid != SVGA3D_INVALID_ID)
+    {
+    	createParms.GMRreturn = TRUE;
+    }
 
-    createParms.cbGB = svga3dsurface_get_serialized_size(format,
-                                                         size,
-                                                         numMipLevels,
-                                                         numFaces);
+    createParms.cbGB = svga3dsurface_get_serialized_size_extended(format, size, numMipLevels, numFaces, sampleCount);
 
     int ret = vws_wddm->pEnv->pfnGBSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms);
     if (ret)

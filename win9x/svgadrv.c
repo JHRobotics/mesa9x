@@ -299,6 +299,7 @@ void SVGAFinish(svga_inst_t *svga, DWORD flags, DWORD DXCtxId)
 		svga->last_seen_fence = svga->cmd_stat[id].fifo_fence_used;
 		svga->cmd_fence = svga->cmd_stat[id].fifo_fence_used;
 	}
+	svga->cmd_pos = 0;
 }
 
 void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags, DWORD DXCtxId)
@@ -406,6 +407,9 @@ BOOL SVGACreate(svga_inst_t *svga)
 		{
 			SVGAInitOTables(svga);
 		}
+		
+		svga->surfaces_mem_limit = 0x8000000UL;
+		svga->surfaces_mem_usage = 0;
 			
 		return TRUE;
 	}
@@ -611,7 +615,11 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		cmd_grow_cotable.entry.validSizeInBytes = cotable->item[type].cbItem * cotable->item[type].count;
 		
 		/* process readback */
-		SVGASend(svga, &cmd_read_cotable, sizeof(cmd_read_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		SVGAPush(svga, &cmd_read_cotable, sizeof(cmd_read_cotable));
+		SVGAFinish(svga,  SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		//SVGASend(svga, &cmd_read_cotable, sizeof(cmd_read_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		
+		SVGAStart(svga);
 		
 		svga_printf(svga, "Grow #%d - start copy (%d -> %d)", destId, cotable->item[type].count, new_count);
 		
@@ -637,7 +645,9 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		}
 		
 		/* process grow */
-		SVGASend(svga, &cmd_grow_cotable, sizeof(cmd_grow_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		//SVGASend(svga, &cmd_grow_cotable, sizeof(cmd_grow_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		SVGAPush(svga, &cmd_grow_cotable, sizeof(cmd_grow_cotable));
+		SVGAFinish(svga, SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 		
 		/* update values */
 		cotable->item[type].count  = new_count;
@@ -647,6 +657,8 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		SVGARegionDestroy(svga, old_gmrId);
 		
 		svga_printf(svga, "Done grow %d to %d", type, new_count);
+		
+		SVGAStart(svga);		
 	}
 	
 	return TRUE;	
@@ -668,6 +680,8 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 	svga_cotable_t *cotable = SVGAContextIDInfo(svga, cid)->cotable;
 	
 	if(cotable == NULL) return;
+	
+	SVGAContextIDInfo(svga, cid)->cotable = NULL;
 	
 	/* invalidate cotable */
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
@@ -695,12 +709,11 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 		}
 	}
 	
-	SVGAContextIDInfo(svga, cid)->cotable = NULL;
 	free(cotable);
 }
 
 /* destroy the surface */
-void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
+void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid, uint32_t *out_surface_size)
 {
 	SVGA_ASSERT;
 	assert(sid > 0);
@@ -719,7 +732,16 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 	} cmd_surface;
 #pragma pack(pop)
 	
-	if(SVGASurfaceIDInfo(svga, sid)->gmrId) // GB surface
+	SVGA_DB_surface_t *sinfo = SVGASurfaceIDInfo(svga, sid);
+	
+	if(!sinfo) return;
+		
+	if(out_surface_size)
+	{
+		*out_surface_size = sinfo->size;
+	}
+	
+	if(sinfo->gmrId) // GB surface
 	{
 		cmd_unbind.cmd  = SVGA_3D_CMD_BIND_GB_SURFACE;
 		cmd_unbind.size = sizeof(SVGA3dCmdBindGBSurface);
@@ -745,6 +767,12 @@ void SVGASurfaceDestroy(svga_inst_t *svga, uint32_t sid)
 			SVGA_CB_SYNC, 0
 		);
 	}
+	
+	if(sinfo->gmrId && sinfo->gmrMngt)
+	{
+		SVGARegionDestroy(svga, sinfo->gmrId);
+	}
+	
 	SVGASurfaceIDFree(svga, sid);
 }
 
@@ -767,7 +795,6 @@ void SVGADestroy(svga_inst_t *svga)
 			SVGA_CMB_free(svga->cmd_buf[i]);
 		}
 	}
-	
 }
 
 /* create GMR */
@@ -775,7 +802,7 @@ static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t
 {
 	SVGA_ASSERT;
 	
-	uint32_t rid = SVGAGMRIDNext(svga, 1);
+	uint32_t rid = SVGAGMRIDNext(svga, start_id);
 
 	assert(rid > 0);
 	
@@ -934,7 +961,7 @@ void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 	while((id = SVGASurfaceIDPop(svga, pid)) != 0)
 	{
 		debug_printf("Cleaning surface: %d\n", id);
-		SVGASurfaceDestroy(svga, id);
+		SVGASurfaceDestroy(svga, id, NULL);
 	}
 	
 	debug_printf("Cleaning contextes...");
@@ -1307,7 +1334,7 @@ static BOOL set_fb_blitsid(svga_inst_t *svga, uint32_t render_width, uint32_t re
 			}
 			else
 			{
-				SVGASurfaceDestroy(svga, svga->blitsid);
+				SVGASurfaceDestroy(svga, svga->blitsid, NULL);
 				svga->blitsid = 0;
 			}
 		}
@@ -1318,7 +1345,8 @@ static BOOL set_fb_blitsid(svga_inst_t *svga, uint32_t render_width, uint32_t re
 		//SVGA3D_SURFACE_BIND_SHADER_RESOURCE | SVGA3D_SURFACE_BIND_RENDER_TARGET, /* flags */
 		SVGA3D_FORMAT_INVALID, /* format */
 		0, /* usage */
-		{1} /* mipmaps */
+		{1}, /* mipmaps */
+		0, /* size (not count to limit) */
 	};
 	
 	if(svga->dx)
@@ -1545,7 +1573,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		/* Nothing to see here. Please disperse. */
 		return;
 	}
-  
+
 	/*
 	 * quick way: surface and screen must have same color depth for HW present
 	 */
@@ -1793,13 +1821,19 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		if((svga->hda->flags & FB_MOUSE_NO_BLIT) && !need_reread)
 		{
 			SVGAPush(svga, &command_update, sizeof(command_update));
-			SVGAFinish(svga, 0, 0);
+			if(svga->dx)
+				SVGAFinish(svga, SVGA_CB_FLAG_DX_CONTEXT, cid);
+			else
+				SVGAFinish(svga, 0, 0);
 		}
 		else
 		{
 			FBHDA_access_begin(0);
 		
-			SVGAFinish(svga, SVGA_CB_SYNC, 0);
+			if(svga->dx)
+				SVGAFinish(svga, SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+			else
+				SVGAFinish(svga, SVGA_CB_SYNC, 0);
 		
 			if(need_reread)
 			{
@@ -2118,6 +2152,16 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 	  		sinfo->width  = siz->width;
 	  		sinfo->height = siz->height;
 	  		sinfo->gmrId  = 0;
+	  		sinfo->gmrMngt = 0;
+	  		sinfo->size   = pCreateParms->size;
+	  	
+#if 0	
+			  {
+			  	FILE *fa = fopen("C:\\surf.log", "ab");
+			  	fprintf(fa, "%s (%d): %d x %d\r\n", get_format_name(sinfo->format), sinfo->format, sinfo->width, sinfo->height);
+			  	fclose(fa);
+			  }
+#endif
 	  	}
 	  	
 	  	paSizes++;
@@ -2125,6 +2169,8 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 	  }
 	  
 	  SVGASend(svga, cmd, cbCmd, SVGA_CB_SYNC, 0);
+	  
+
 	  
 		*outSid = sid;
 		return TRUE;
@@ -2167,6 +2213,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
   
 	uint32_t cbGB = 0;
 	uint32_t userAddress = 0;
+	uint32_t size_round = (pCreateParms->cbGB + PAGE_SIZE - 1) & (~((uint32_t)PAGE_SIZE-1));
 	
 	/*if(pCreateParms->s.flags & SVGA3D_SURFACE_HINT_RENDERTARGET)
 	{
@@ -2176,7 +2223,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
-		pCreateParms->gmrid = SVGARegionCreateLimit(svga, pCreateParms->cbGB, &userAddress, 10);
+		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10);
 		
 		if(pCreateParms->gmrid == 0)
 		{
@@ -2205,8 +2252,6 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	cmd.gbsurf.bufferByteStride   = 0;
 	
 	//svga_printf(svga, "new surface(%d): %s", sid, get_format_name(pCreateParms->s.format));
-	
-	//SVGAFifoWrite(svga, &cmd, sizeof(cmd));
 
 	cmd_bind.type = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd_bind.size = sizeof(SVGA3dCmdBindGBSurface);
@@ -2229,6 +2274,16 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	sinfo->width  = pCreateParms->s.size.width;
 	sinfo->height = pCreateParms->s.size.height;
 	sinfo->gmrId  = pCreateParms->gmrid;
+	sinfo->gmrMngt = pCreateParms->GMRreturn ? 0 : 1;
+	sinfo->size = pCreateParms->cbGB;
+
+#if 0
+	{
+	 	FILE *fa = fopen("C:\\surfgb.log", "ab");
+	 	fprintf(fa, "%s (%d): %d x %d, out: %d\r\n", get_format_name(sinfo->format), sinfo->format, sinfo->width, sinfo->height, pCreateParms->GMRreturn);
+	 	fclose(fa);
+	}
+#endif
 
   return TRUE;
 }
