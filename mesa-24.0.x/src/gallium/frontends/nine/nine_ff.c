@@ -34,7 +34,7 @@
    be compiled when some lights are actived.
    Comment next line, if I'm wrong:
  */
-//#define NINE_LIGHT_FIX
+#define NINE_NO_LIGHTS
 
 struct fvec4
 {
@@ -825,9 +825,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         struct ureg_src cLSDiv = _ZZZZ(LIGHT_CONST(6));
         struct ureg_src cLLast = _WWWW(LIGHT_CONST(7));
 
-#ifndef NINE_LIGHT_FIX
+#ifndef NINE_NO_LIGHTS
         const unsigned loop_label = l++;
-#endif
 
         /* Declare all light constants to allow indirect adressing */
         for (i = 32; i < 96; i++)
@@ -839,11 +838,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MOV(ureg, rS, ureg_imm1f(ureg, 0.0f));
 
         /* loop management */
-#ifndef NINE_LIGHT_FIX
         ureg_BGNLOOP(ureg, &label[loop_label]);
-#else
-        for(unsigned cL = 0; ; cL++){
-#endif
         ureg_ARL(ureg, AL, _W(rCtr));
 
         /* if (not DIRECTIONAL light): */
@@ -933,22 +928,16 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MAD(ureg, rA, cLColA, _W(rAtt), ureg_src(rA)); /* accumulate ambient */
 
         /* break if this was the last light */
-#ifndef NINE_LIGHT_FIX
         ureg_IF(ureg, cLLast, &label[l++]);
         ureg_BRK(ureg);
         ureg_ENDIF(ureg);
         ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
-#else
-        if(cL == device->context.ff.num_lights_active) break;
-#endif
 
         ureg_ADD(ureg, rCtr, _W(rCtr), ureg_imm1f(ureg, 8.0f));
-#ifndef NINE_LIGHT_FIX
         ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
         ureg_ENDLOOP(ureg, &label[loop_label]);
-#else
-      	} // for
-#endif
+
+#endif /* no lights */
 
         /* Apply to material:
          *

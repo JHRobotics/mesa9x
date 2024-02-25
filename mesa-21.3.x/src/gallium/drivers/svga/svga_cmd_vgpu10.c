@@ -687,6 +687,7 @@ SVGA3D_vgpu10_EndQuery(struct svga_winsys_context *swc,
    return PIPE_OK;
 }
 
+DEBUG_GET_ONCE_BOOL_OPTION(dx_flags, "SVGA_CLEAR_DX_FLAGS", TRUE);
 
 enum pipe_error
 SVGA3D_vgpu10_ClearDepthStencilView(struct svga_winsys_context *swc,
@@ -713,7 +714,17 @@ SVGA3D_vgpu10_ClearDepthStencilView(struct svga_winsys_context *swc,
    view_relocation(swc, ds_surf, &cmd->depthStencilViewId,
                    SVGA_RELOC_WRITE);
    cmd->depthStencilViewId = ss->view_id;
-   cmd->flags = flags;
+   if(!debug_get_option_dx_flags())
+   {
+   	  cmd->flags = flags;
+   }
+   else
+   {
+   	  /* codef from: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ne-d3d12-d3d12_clear_flags*/
+   	  cmd->flags = 0;
+   	  if(flags & SVGA3D_CLEAR_DEPTH) cmd->flags |= 0x1;
+   	  if(flags & SVGA3D_CLEAR_STENCIL) cmd->flags |= 0x2;
+   }
    cmd->stencil = stencil;
    cmd->depth = depth;
 

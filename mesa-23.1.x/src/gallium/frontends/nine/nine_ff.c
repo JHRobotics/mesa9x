@@ -820,6 +820,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         struct ureg_src cLLast = _WWWW(LIGHT_CONST(7));
 
 #ifndef NINE_NO_LIGHTS
+        const unsigned loop_label = l++;
+        
         /* Declare all light constants to allow indirect adressing */
         for (i = 32; i < 96; i++)
             ureg_DECL_constant(ureg, i);
