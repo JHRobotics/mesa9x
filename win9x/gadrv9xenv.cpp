@@ -21,16 +21,8 @@ static int vboxVxdSurfaceDefine(void *pvEnv, GASURFCREATE *pCreateParms, GASURFS
 {
 	SVGA_ENV;
 	
-	/* limit size */
-	if(svga->surfaces_mem_usage + pCreateParms->size > svga->surfaces_mem_limit)
-	{
-		return E_FAIL;
-	}
-	
 	if(SVGASurfaceCreate(svga, pCreateParms, paSizes, cSizes, pu32Sid))
 	{
-		svga->surfaces_mem_usage += pCreateParms->size;
-		
 		return S_OK;
 	}
 	
@@ -44,15 +36,6 @@ static void vboxVxdSurfaceDestroy(void *pvEnv, uint32_t u32Sid)
 	uint32_t s = 0;
 	
   SVGASurfaceDestroy(svga, u32Sid, &s);
-  
-  if(s > svga->surfaces_mem_usage)
-  {
-  	svga->surfaces_mem_usage = 0;
-  }
-  else
-  {
-  	svga->surfaces_mem_usage -= s;
-  }
 }
 
 static int vboxVxdFenceQuery(void *pvEnv, uint32_t u32FenceHandle, GAFENCEQUERY *pFenceQuery)
@@ -279,6 +262,11 @@ static int vboxVxdRegionCreate(void *pvEnv, uint32_t u32RegionSize, uint32_t *pu
   uint32_t user_address;
   HRESULT hr = E_FAIL;
   
+ 	if(SVGARegionsSize(svga) + u32RegionSize > svga->gmr_mem_limit)
+ 	{
+ 		return E_FAIL;
+ 	}
+  
 	region = SVGARegionCreate(svga, u32RegionSize, &user_address);
 	
 	if(region > 0)
@@ -315,14 +303,6 @@ static void vboxVxdRegionDestroy(void *pvEnv, uint32_t u32GmrId, void *pvMap)
 static int vboxVxdGBSurfaceDefine(void *pvEnv, SVGAGBSURFCREATE *pCreateParms)
 {
 	SVGA_ENV;
-
-	/* limit size */
-	if(svga->surfaces_mem_usage + pCreateParms->cbGB > svga->surfaces_mem_limit)
-	{
-		svga->surfaces_mem_usage += pCreateParms->cbGB;
-		
-		return E_FAIL;
-	}
 	
 	if(SVGASurfaceGBCreate(svga, pCreateParms))
 	{

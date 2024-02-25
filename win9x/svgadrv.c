@@ -408,9 +408,8 @@ BOOL SVGACreate(svga_inst_t *svga)
 			SVGAInitOTables(svga);
 		}
 		
-		svga->surfaces_mem_limit = 0x8000000UL;
-		svga->surfaces_mem_usage = 0;
-			
+		svga->gmr_mem_limit = 0xC000000UL; // 192 MB
+		
 		return TRUE;
 	}
 	else
@@ -2215,14 +2214,31 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	uint32_t userAddress = 0;
 	uint32_t size_round = (pCreateParms->cbGB + PAGE_SIZE - 1) & (~((uint32_t)PAGE_SIZE-1));
 	
-	/*if(pCreateParms->s.flags & SVGA3D_SURFACE_HINT_RENDERTARGET)
+#if 0
 	{
-		svga_printf(svga, "SVGASurfaceGBCreate: SVGA3D_SURFACE_HINT_RENDERTARGET");
-	}*/
-
+	 	FILE *fa = fopen("C:\\surfgb.log", "ab");
+	 	fprintf(fa, "%s (%d): %d x %d, out: %d\r\n",
+	 		get_format_name(pCreateParms->s.format),
+	 		pCreateParms->s.format,
+	 		pCreateParms->s.size.width,
+	 		pCreateParms->s.size.height,
+	 		pCreateParms->GMRreturn);
+	 	fclose(fa);
+	}
+#endif
+	
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
+	 	if(SVGARegionsSize(svga) + size_round > svga->gmr_mem_limit)
+	 	{
+	 		if(!(pCreateParms->s.format == SVGA3D_BUFFER && pCreateParms->s.size.width == 1024*1024))
+	 		{
+	 			SVGASurfaceIDFree(svga, sid);
+		 		return FALSE;
+		 	}
+	 	}
+		
 		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10);
 		
 		if(pCreateParms->gmrid == 0)
@@ -2251,8 +2267,6 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	cmd.gbsurf.arraySize          = pCreateParms->s.numFaces;
 	cmd.gbsurf.bufferByteStride   = 0;
 	
-	//svga_printf(svga, "new surface(%d): %s", sid, get_format_name(pCreateParms->s.format));
-
 	cmd_bind.type = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd_bind.size = sizeof(SVGA3dCmdBindGBSurface);
 	cmd_bind.bind.sid = sid;
@@ -2277,14 +2291,6 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	sinfo->gmrMngt = pCreateParms->GMRreturn ? 0 : 1;
 	sinfo->size = pCreateParms->cbGB;
 
-#if 0
-	{
-	 	FILE *fa = fopen("C:\\surfgb.log", "ab");
-	 	fprintf(fa, "%s (%d): %d x %d, out: %d\r\n", get_format_name(sinfo->format), sinfo->format, sinfo->width, sinfo->height, pCreateParms->GMRreturn);
-	 	fclose(fa);
-	}
-#endif
-
   return TRUE;
 }
 
@@ -2305,3 +2311,26 @@ BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t
 	return TRUE;
 }
 
+uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid)
+{
+	SVGA_DB_region_t *rinfo = SVGAGMRIDInfo(svga, gmrid);
+	
+	if(rinfo == NULL) return 0;
+	
+	return rinfo->info.size;
+}
+
+uint32_t SVGARegionsSize(svga_inst_t *svga)
+{
+	int i;
+	uint32_t size = 0;
+	for(i = 0; i < svga->db->regions_cnt; i++)
+	{
+		if(svga->db->regions[i].pid != 0)
+		{
+			size += svga->db->regions[i].info.size;
+		}
+	}
+	
+	return size;
+}

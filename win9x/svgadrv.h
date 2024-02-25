@@ -5,11 +5,11 @@
 #define SVGA
 #endif
 
-#include "3d_accel.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "3d_accel.h"
 
 struct svga_cotable_entry
 {
@@ -57,8 +57,7 @@ typedef struct _svga_inst_t
 	uint32_t blitsid;
 	
 	/* limit */
-	uint32_t surfaces_mem_limit;
-	uint32_t surfaces_mem_usage;
+	uint32_t gmr_mem_limit;
 	
 } svga_inst_t;
 
@@ -85,6 +84,8 @@ void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags
 
 uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *address);
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
+uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid);
+uint32_t SVGARegionsSize(svga_inst_t *svga);
 
 uint32_t SVGAContextCreate(svga_inst_t *svga);
 void SVGACBContextCreate(svga_inst_t *svga);

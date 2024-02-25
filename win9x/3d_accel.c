@@ -80,7 +80,7 @@ void FBHDA_free()
 	if(SVGA_valid())
 	{
 		SVGA_CMB_clean();
-		SVGA_flushcache();
+		//SVGA_flushcache();
 	}
 	
 	if(hda_vxd != INVALID_HANDLE_VALUE)
