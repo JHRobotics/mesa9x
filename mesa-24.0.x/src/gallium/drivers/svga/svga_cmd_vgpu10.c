@@ -687,7 +687,7 @@ SVGA3D_vgpu10_EndQuery(struct svga_winsys_context *swc,
    return PIPE_OK;
 }
 
-DEBUG_GET_ONCE_BOOL_OPTION(dx_flags, "SVGA_CLEAR_DX_FLAGS", TRUE);
+DEBUG_GET_ONCE_BOOL_OPTION(dx_flags, "SVGA_CLEAR_DX_FLAGS", true);
 
 enum pipe_error
 SVGA3D_vgpu10_ClearDepthStencilView(struct svga_winsys_context *swc,

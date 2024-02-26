@@ -481,8 +481,12 @@ svga_texture_transfer_map(struct pipe_context *pipe,
    struct svga_texture *tex = svga_texture(texture);
    struct svga_transfer *st;
    struct svga_winsys_surface *surf = tex->handle;
+#ifndef VBOX_WITH_MESA3D_HACKS
    bool use_direct_map = svga_have_gb_objects(svga) &&
                          (!svga_have_gb_dma(svga) || (usage & PIPE_MAP_WRITE));
+#else
+   bool use_direct_map = false;
+#endif
    void *map = NULL;
    int64_t begin = svga_get_time(svga);
 
