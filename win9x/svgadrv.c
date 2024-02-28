@@ -38,6 +38,10 @@
 #define SVGA_CB_FLAG_DX_CONTEXT SVGA_CB_DX_FLAG_DX_CONTEXT
 #endif
 
+#define GMR_LIMIT_DEFAULT_MB 192
+// ^ max recomended value for 512 MB RAM
+#define GMR_LIMIT_MIN_MB 64
+
 /*
  * GUI (errors...)
  */
@@ -121,7 +125,9 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...)
 	static _t *SVGA ## _fname ## IDInfo(svga_inst_t *svga, uint32_t sid){ \
 	SVGA_ASSERT; \
 	if(sid == 0) return NULL; \
-	return &(svga->db->_tname[sid-1]); }
+	if(svga->db->_tname[sid-1].pid != 0){	\
+		return &(svga->db->_tname[sid-1]);} \
+	return NULL; }
 
 
 DB_IDNext(SVGA_DB_surface_t, surfaces, Surface);
@@ -363,6 +369,7 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
 /*
  * Resources
  */
+DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
 
 /* create SVGA interface */
 BOOL SVGACreate(svga_inst_t *svga)
@@ -408,7 +415,17 @@ BOOL SVGACreate(svga_inst_t *svga)
 			SVGAInitOTables(svga);
 		}
 		
-		svga->gmr_mem_limit = 0xC000000UL; // 192 MB
+		int limit_mb = debug_get_option_gmr_limit_mb();
+		if(limit_mb == 0)
+		{
+			limit_mb = GMR_LIMIT_DEFAULT_MB;
+		}
+		else if(limit_mb < GMR_LIMIT_MIN_MB)
+		{
+			limit_mb = GMR_LIMIT_MIN_MB;
+		}
+		
+		svga->gmr_mem_limit = limit_mb * 1024 * 1024;
 		
 		return TRUE;
 	}
@@ -820,7 +837,8 @@ static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t
 		*user_page = (DWORD)gmr->address;
 	}
 	
-	if(svga->dx)
+	/* when GPU support GB objects, always create MOBs with regions */
+	if(svga->hda->flags & FB_ACCEL_VMSVGA10)
 	{
 #pragma pack(push)
 #pragma pack(1)
@@ -873,7 +891,14 @@ void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 {
 	SVGA_ASSERT;
 	
-	SVGA_region_info_t *gmr = &SVGAGMRIDInfo(svga, regionId)->info;
+	SVGA_DB_region_t *info = SVGAGMRIDInfo(svga, regionId);
+	
+	if(!info)
+	{
+		return;
+	}
+		
+	SVGA_region_info_t *gmr = &(info->info);
 	
 	if(gmr->is_mob)
 	{
@@ -2232,6 +2257,9 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	{
 	 	if(SVGARegionsSize(svga) + size_round > svga->gmr_mem_limit)
 	 	{
+	 		/* forbid to create surface when exceeds memory limit, but mesa still need
+	 		   some temporary buffers, allow them
+	 		 */
 	 		if(!(pCreateParms->s.format == SVGA3D_BUFFER && pCreateParms->s.size.width == 1024*1024))
 	 		{
 	 			SVGASurfaceIDFree(svga, sid);
@@ -2322,15 +2350,5 @@ uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid)
 
 uint32_t SVGARegionsSize(svga_inst_t *svga)
 {
-	int i;
-	uint32_t size = 0;
-	for(i = 0; i < svga->db->regions_cnt; i++)
-	{
-		if(svga->db->regions[i].pid != 0)
-		{
-			size += svga->db->regions[i].info.size;
-		}
-	}
-	
-	return size;
+	return svga->db->stat_regions_usage;
 }

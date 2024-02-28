@@ -228,7 +228,7 @@ static void SVGA_CMB_clean()
 void SVGA_CMB_submit(DWORD *cmb, DWORD cmb_size, SVGA_CMB_status_t *status, DWORD flags, DWORD DXCtxId)
 {
 	SVGA_CMB_submit_io_t iobuf;
-	SVGA_CMB_status_t status_io;;
+	SVGA_CMB_status_t status_io;
 	
 	if(!SVGA3D_enabled()) return;
 	
