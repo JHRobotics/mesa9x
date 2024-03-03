@@ -77,7 +77,7 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 	// Load D3DX
 	if (!D3DXAssembleShader || !D3DXDisassembleShader || !D3DXLoadSurfaceFromSurface)
 	{
-		const HMODULE module = LoadLibrary(TEXT("d3dx9_43.dll"));
+		const HMODULE module = LoadLibrary(TEXT("d3dx9_31.dll"));
 
 		if (module != nullptr)
 		{
@@ -85,15 +85,15 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 			D3DXDisassembleShader = reinterpret_cast<PFN_D3DXDisassembleShader>(GetProcAddress(module, "D3DXDisassembleShader"));
 			D3DXLoadSurfaceFromSurface = reinterpret_cast<PFN_D3DXLoadSurfaceFromSurface>(GetProcAddress(module, "D3DXLoadSurfaceFromSurface"));
 		}
-#ifndef WIN9X /* JH: shader probably won't work anyway... */
+#ifndef WIN9X /* JH: shader probably won't work anyway... Edit: shader works, only needed lower DLL */
 		else
 		{
 # ifndef D3D8TO9NOLOG
-			LOG << "Failed to load d3dx9_43.dll! Some features will not work correctly." << std::endl;
+			LOG << "Failed to load d3dx9_31.dll! Some features will not work correctly." << std::endl;
 # endif
 			if (MessageBox(nullptr, TEXT(
-					"Failed to load d3dx9_43.dll! Some features will not work correctly.\n\n"
-					"It's required to install the \"Microsoft DirectX End-User Runtime\" in order to use d3d8to9, or alternatively get the DLLs from this NuGet package:\nhttps://www.nuget.org/packages/Microsoft.DXSDK.D3DX\n\n"
+					"Failed to load d3dx9_31.dll! Some features will not work correctly.\n\n"
+					"It's required to install the \"Microsoft DirectX End-User Runtime\"\n\n"
 					"Please click \"OK\" to open the official download page or \"Cancel\" to continue anyway."), nullptr, MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND | MB_OKCANCEL | MB_DEFBUTTON1) == IDOK)
 			{
 				ShellExecute(nullptr, TEXT("open"), TEXT("https://www.microsoft.com/download/details.aspx?id=35"), nullptr, nullptr, SW_SHOW);

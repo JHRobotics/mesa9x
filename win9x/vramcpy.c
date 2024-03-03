@@ -137,8 +137,8 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 
 			crect.dst_x     = p1.x;
 			crect.dst_y     = p1.y;
-			crect.dst_w     = gdt->width;  //p2.x - p1.x;
-			crect.dst_h     = gdt->height; //p2.y - p1.y;
+			crect.dst_w     = /*gdt->width;  */p2.x - p1.x;
+			crect.dst_h     = /*gdt->height; */p2.y - p1.y;
 			crect.dst_bpp   = fbhda->bpp;
 			crect.dst_pitch = fbhda->pitch;
 			crect.src_x     = 0;

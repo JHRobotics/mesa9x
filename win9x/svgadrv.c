@@ -394,6 +394,12 @@ BOOL SVGACreate(svga_inst_t *svga)
 		for(i = 0; i < CMD_BUFFER_COUNT; i++)
 		{
 			svga->cmd_buf[i] = SVGA_CMB_alloc();
+			if(svga->cmd_buf[i] == NULL)
+			{
+				GUIError(svga, "Cannot allocate memory for command buffers. Please reboot the system and try it again!");
+				return FALSE;
+			}
+			
 			svga->cmd_stat[i].sStatus = SVGA_PROC_COMPLETED;
 			svga->cmd_stat[i].qStatus = &(svga->cmd_stat[i].sStatus);
 		}

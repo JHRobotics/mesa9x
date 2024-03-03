@@ -359,7 +359,7 @@ struct d3d_drawable *get_d3d_drawable(HWND hwnd)
 		GetClientRect(hwnd, &(d3d->windowRect));
 		d3d->width  = d3d->windowRect.right - d3d->windowRect.left;
 		d3d->height = d3d->windowRect.bottom - d3d->windowRect.top;
-		d3d->depth  = 32;
+		d3d->depth  = 24;
 	}
 	
 	return d3d;
@@ -643,7 +643,7 @@ static HRESULT WINAPI DRIPresent_GetWindowInfo(ID3DPresentM99 *This, HWND hWnd, 
 	mesa99_dbg("pRect: %d %d %d %d\n", pRect.left, pRect.top, pRect.right, pRect.bottom);
 	if(width != NULL)  *width = pRect.right - pRect.left;
 	if(height != NULL) *height = pRect.bottom - pRect.top;
-	if(depth != NULL)  *depth = 32; //24; //TODO
+	if(depth != NULL)  *depth = 24;
 	return D3D_OK;
 }
 

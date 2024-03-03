@@ -59,7 +59,7 @@ BASE_mesa3d.w95.dll     := 0x69500000
 BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
-BASE_mesa99.dll         := 0x00990000
+BASE_mesa99.dll         := 0x03860000
 BASE_mesa89.dll         := 0x00A30000
 BASE_mesad3d10.w95.dll  := 0x10000000
 BASE_mesad3d10.w98me.dll  := 0x10000000
@@ -342,17 +342,17 @@ else
   EXEFLAGS_CMD = -o $@ -Wl,-subsystem,console$(TUNE_LD)
   
   ifdef LTO
-    CFLAGS       += -flto -fno-fat-lto-objects  -Werror=implicit-function-declaration
+    CFLAGS       += -flto=auto -fno-fat-lto-objects  -Werror=implicit-function-declaration
     CXXFLAGS     += -flto -fno-fat-lto-objects
     ifdef LLVM
-      LDFLAGS    += $(LLVM_CXXFLAGS) -flto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -fno-strict-aliasing
     else
-      LDFLAGS    += -flto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += -flto=auto -fno-fat-lto-objects -fno-strict-aliasing
     endif
     
-    CFLAGS_APP   += -flto -fno-fat-lto-objects
-    CXXFLAGS_APP += -flto -fno-fat-lto-objects
-    LDFLAGS_APP  += -flto -fno-fat-lto-objects
+    CFLAGS_APP   += -flto=auto -fno-fat-lto-objects
+    CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects
+    LDFLAGS_APP  += -flto=auto -fno-fat-lto-objects
   endif
 		
   %.c_gen.o: %.c $(DEPS)
