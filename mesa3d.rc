@@ -23,7 +23,7 @@ BLOCK "StringFileInfo"
 		VALUE "FileDescription", "Mesa3D Compatible OpenGL ICD"
 		VALUE "FileVersion", MESA9X_VERSION_STR
 		VALUE "InternalName", "mesa3d.dll"
-		VALUE "LegalCopyright", "(C) 1999-2023 mesa3d.org / Windows 9X version by JHRobotics"
+		VALUE "LegalCopyright", "(C) 1999-2024 mesa3d.org / Windows 9X version by JHRobotics"
 		VALUE "OriginalFilename", "mesa3d.dll"
 		VALUE "PrivateBuild", MESA9X_VERSION_STR
 		VALUE "ProductName", "Mesa3D Compatible OpenGL ICD"

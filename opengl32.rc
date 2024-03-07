@@ -23,7 +23,7 @@ BLOCK "StringFileInfo"
 		VALUE "FileDescription", "Mesa3D MS Compatible Opengl32.dll"
 		VALUE "FileVersion", MESA9X_VERSION_STR
 		VALUE "InternalName", "opengl32.dll"
-		VALUE "LegalCopyright", "(C) 1999-2023 mesa3d.org / Windows 9X version by JHRobotics"
+		VALUE "LegalCopyright", "(C) 1999-2024 mesa3d.org / Windows 9X version by JHRobotics"
 		VALUE "OriginalFilename", "opengl32.dll"
 		VALUE "PrivateBuild", MESA9X_VERSION_STR
 		VALUE "ProductName", "Mesa3D MS Compatible Opengl32.dll"

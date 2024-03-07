@@ -1,4 +1,4 @@
-/* turn off some MinGW warnings */
+/* shutdown some MinGW warnings */
 #define _XMMINTRIN_H_INCLUDED 
 
 #ifdef WINDRES
@@ -8,6 +8,8 @@
 #include "winuser.h"
 
 #include "mesa9x.h"
+
+101 ICON "wgltest.ico"
 
 1 VERSIONINFO
 FILEVERSION MESA9X_VERSION_NUM
@@ -19,14 +21,14 @@ BLOCK "StringFileInfo"
 {
 	BLOCK "040904b0"
 	{
-		VALUE "CompanyName", "Mesa3D"
-		VALUE "FileDescription", "VMWare SVGA-II ICD Driver"
+		VALUE "CompanyName", "JHRobotics"
+		VALUE "FileDescription", "OpenGL quick check"
 		VALUE "FileVersion", MESA9X_VERSION_STR
-		VALUE "InternalName", "mesa3d.dll"
-		VALUE "LegalCopyright", "(C) 1999-2024 mesa3d.org / Windows 9X version by JHRobotics"
-		VALUE "OriginalFilename", "mesa3d.dll"
+		VALUE "InternalName", "wgltest.exe"
+		VALUE "LegalCopyright", "(C) 2023-2024 Jaroslav Hensl"
+		VALUE "OriginalFilename", "wgltest.exe"
 		VALUE "PrivateBuild", MESA9X_VERSION_STR
-		VALUE "ProductName", "VMWare SVGA-II ICD Driver"
+		VALUE "ProductName", "Mesa9X"
 		VALUE "ProductVersion", MESA9X_VERSION_STR
 	}
 }
