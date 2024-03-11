@@ -25,6 +25,7 @@
 #include <string.h>
 #include "debug.h"
 #include "u_string.h"
+#include "os_misc.h"
 
 uint64_t
 parse_debug_string(const char *debug,

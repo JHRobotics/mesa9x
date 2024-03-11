@@ -29,7 +29,7 @@
 #include "main/macros.h"
 #include "main/streaming-load-memcpy.h"
 
-#ifndef SSESPEED
+#if 1
 
 void
 _mesa_streaming_load_memcpy(void *restrict dst, void *restrict src, size_t len)

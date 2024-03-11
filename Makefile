@@ -342,17 +342,17 @@ else
   EXEFLAGS_CMD = -o $@ -Wl,-subsystem,console$(TUNE_LD)
   
   ifdef LTO
-    CFLAGS       += -flto=auto -fno-fat-lto-objects  -Werror=implicit-function-declaration
-    CXXFLAGS     += -flto -fno-fat-lto-objects
+    CFLAGS       += -flto=auto -fno-fat-lto-objects -pipe  -Werror=implicit-function-declaration
+    CXXFLAGS     += -flto=auto -fno-fat-lto-objects -pipe
     ifdef LLVM
-      LDFLAGS    += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -pipe -fno-strict-aliasing
     else
       LDFLAGS    += -flto=auto -fno-fat-lto-objects -fno-strict-aliasing
     endif
     
-    CFLAGS_APP   += -flto=auto -fno-fat-lto-objects
-    CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects
-    LDFLAGS_APP  += -flto=auto -fno-fat-lto-objects
+    CFLAGS_APP   += -flto=auto -fno-fat-lto-objects -pipe
+    CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects -pipe
+    LDFLAGS_APP  += -flto=auto -fno-fat-lto-objects -pipe
   endif
 	
   %.c_gen.o: %.c $(DEPS)
