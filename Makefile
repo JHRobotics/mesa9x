@@ -347,7 +347,7 @@ else
     ifdef LLVM
       LDFLAGS    += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -pipe -fno-strict-aliasing
     else
-      LDFLAGS    += -flto=auto -fno-fat-lto-objects -fno-strict-aliasing
+      LDFLAGS    += -flto=auto -fno-fat-lto-objects -fno-strict-aliasing -pipe
     endif
     
     CFLAGS_APP   += -flto=auto -fno-fat-lto-objects -pipe

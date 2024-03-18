@@ -75,7 +75,7 @@ static int
 get_refresh_rate(void)
 {
 #ifndef _GAMING_XBOX
-   DEVMODE devModes;
+   DEVMODE devModes = { .dmSize = sizeof(DEVMODE) };
 
    if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devModes)) {
    	  /* MSDN: dmDisplayFrequency member may return with the value 0 or 1. These values represent the display hardware's default refresh rate.
@@ -279,7 +279,8 @@ stw_cleanup(void)
    st_screen_destroy(stw_dev->fscreen);
    FREE(stw_dev->fscreen);
 
-   stw_dev->screen->destroy(stw_dev->screen);
+   if (stw_dev->screen)
+      stw_dev->screen->destroy(stw_dev->screen);
 
    stw_tls_cleanup();
 
