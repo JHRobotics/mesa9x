@@ -29,7 +29,7 @@ void FBHDA_load()
 	{
 		if(hda != NULL)
 		{
-			if(hda->cb == sizeof(FBHDA_t))
+			if(hda->cb == sizeof(FBHDA_t) && hda->version == API_3DACCEL_VER)
 			{
 				strcpy(strbuf, "\\\\.\\");
 				strcat(strbuf, hda->vxdname);
