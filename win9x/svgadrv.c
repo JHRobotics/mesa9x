@@ -38,10 +38,6 @@
 #define SVGA_CB_FLAG_DX_CONTEXT SVGA_CB_DX_FLAG_DX_CONTEXT
 #endif
 
-#define GMR_LIMIT_DEFAULT_MB 192
-// ^ max recomended value for 512 MB RAM
-#define GMR_LIMIT_MIN_MB 64
-
 /*
  * GUI (errors...)
  */
@@ -82,18 +78,57 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...)
 /*
  * Database (shared between processes)
  */
+ 
+#define BSTEP (sizeof(DWORD)*8)
+
+static inline DWORD map_lookup_and_set(DWORD *bitmap, DWORD start, DWORD max)
+{
+	DWORD i = start / BSTEP;
+	DWORD ii = start % BSTEP;
+	
+	bitmap += i;
+	
+	for(; i < max; i += BSTEP)
+	{
+		DWORD tmp = *bitmap;
+		if(tmp != 0) /* skip all-occupied double words */
+		{
+			for(; ii < BSTEP; ii++)
+			{
+				if(((tmp >> ii) & 0x1) != 0)
+				{
+					*bitmap &= ~((DWORD)1 << ii); /* set the bit in bitmap (to zero) */
+					return i+ii;
+				}
+			}
+			ii = 0;
+		}
+		bitmap++;
+	}
+	
+	return max;
+}
+
+static inline DWORD map_reset(DWORD *bitmap, DWORD id)
+{
+	DWORD i = id / BSTEP;
+	DWORD ii = id % BSTEP;
+	
+	bitmap += i;
+	*bitmap |= ((DWORD)1 << ii);
+}
+
 #define DB_IDNext(_t, _tname, _fname) \
 	static uint32_t SVGA ## _fname ## IDNext(svga_inst_t *svga, int start_index){ \
 	uint32_t sel_id = 0; \
 	SVGA_ASSERT; \
 	SVGA_DB_lock(); \
-	for(uint32_t id = start_index-1; id < svga->db->_tname ## _cnt; id++) { \
-		if(svga->db->_tname[id].pid == 0) { \
-			memset(&(svga->db->_tname[id]), 0, sizeof(_t)); \
-			svga->db->_tname[id].pid = svga->pid; \
-			sel_id = id+1; \
-			break; \
-	} } \
+	uint32_t id = map_lookup_and_set(svga->db->_tname ## _map, start_index-1, svga->db->_tname ## _cnt); \
+	if(id < svga->db->_tname ## _cnt) { \
+		memset(&(svga->db->_tname[id]), 0, sizeof(_t)); \
+		svga->db->_tname[id].pid = svga->pid; \
+		sel_id = id+1; \
+	} \
 	SVGA_DB_unlock(); \
 	return sel_id; }
 
@@ -119,6 +154,7 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...)
 	if(sid == 0) return; \
 	SVGA_DB_lock(); \
 	svga->db->_tname[sid-1].pid = 0; \
+	map_reset(svga->db->_tname ## _map, sid-1); \
 	SVGA_DB_unlock(); }
 
 #define DB_IDInfo(_t, _tname, _fname) \
@@ -128,7 +164,6 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...)
 	if(svga->db->_tname[sid-1].pid != 0){	\
 		return &(svga->db->_tname[sid-1]);} \
 	return NULL; }
-
 
 DB_IDNext(SVGA_DB_surface_t, surfaces, Surface);
 DB_IDPop(SVGA_DB_surface_t,  surfaces, Surface);

@@ -113,6 +113,10 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...);
 
 void SVGAZombieKiller();
 
+#define GMR_LIMIT_DEFAULT_MB 192
+// ^ max recomended value for 512 MB RAM
+#define GMR_LIMIT_MIN_MB 64
+
 //#define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
 
 #ifndef NO_VBOX_H

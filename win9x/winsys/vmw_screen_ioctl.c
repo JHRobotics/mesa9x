@@ -747,6 +747,22 @@ vboxGet3DCap(struct vmw_winsys_screen_wddm *vws_wddm, void *pvCap, size_t cbCap)
     return 0;
 }
 
+DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
+
+int get_gmr_limit()
+{
+	int limit_mb = debug_get_option_gmr_limit_mb();
+	if(limit_mb == 0)
+	{
+		limit_mb = GMR_LIMIT_DEFAULT_MB;
+	}
+	else if(limit_mb < GMR_LIMIT_MIN_MB)
+	{
+		limit_mb = GMR_LIMIT_MIN_MB;
+	}
+	
+	return limit_mb - 32;
+}
 
 boolean
 vmw_ioctl_init(struct vmw_winsys_screen *vws)
@@ -835,7 +851,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       else
          vws->ioctl.num_cap_3d = SVGA3D_DEVCAP_MAX;
 
-
+#if 0
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_MEMORY;
       ret = vboxGetParam(vws_wddm, &gp_arg);
@@ -845,6 +861,8 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       } else {
          vws->ioctl.max_mob_memory = gp_arg.value;
       }
+#endif
+      vws->ioctl.max_mob_memory = get_gmr_limit()*1024*1024;
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_SIZE;
@@ -857,7 +875,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       }
 
       /* Never early flush surfaces, mobs do accounting. */
-      vws->ioctl.max_surface_memory = ~0ULL;
+      vws->ioctl.max_surface_memory = 128*1024*1024;
 
       if (vws->ioctl.have_drm_2_9) {
 

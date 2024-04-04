@@ -88,7 +88,14 @@ vmw_winsys_create_wddm(const WDDMGalliumDriverEnv *pEnv)
    vws->base.need_to_rebind_resources = FALSE;
    vws->base.have_transfer_from_buffer_cmd = vws->base.have_vgpu10;
    vws->base.have_constant_buffer_offset_cmd = FALSE;
-   vws->cache_maps = FALSE;
+   vws->cache_maps = vws->base.have_vgpu10; //FALSE;
+#if MESA_MAJOR >= 21
+   vws->base.have_constant_buffer_offset_cmd =
+      vws->ioctl.have_drm_2_20 && vws->base.have_sm5;
+   vws->base.have_index_vertex_buffer_offset_cmd = FALSE;
+   vws->base.have_rasterizer_state_v2_cmd =
+      vws->ioctl.have_drm_2_20 && vws->base.have_sm5;
+#endif
    vws->fence_ops = vmw_fence_ops_create(vws);
    
 	if (!vws->fence_ops){
