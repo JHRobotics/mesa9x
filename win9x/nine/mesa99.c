@@ -42,27 +42,29 @@ MesaScreenCreateH MesaScreenCreate = NULL;
 MesaPresentH MesaPresent = NULL;
 MesaDimensionsH MesaDimensions = NULL;
 
-static INineNine *nineInst = NULL;
+INineNine *nineInst = NULL;
 static CRITICAL_SECTION nine_if_cs;
 
-//#ifdef DEBUG
+#ifdef DEBUG
 void mesa99_printf(const char *file, const char *fn, int line, const char *fmt, ...)
 {
   va_list args;
 	FILE *fa;
 	
-	fa = fopen("C:\\mesa99.log", "ab");
-	
-	fprintf(fa, "%s:%s:%d: ", file, fn, line);
-	
-	va_start(args, fmt);
-  vfprintf(fa, fmt, args);
-  va_end(args);
-  
-  fputs("\r\n", fa);
-	fclose(fa);
+	fa = fopen("mesa99.log", "ab");
+	if(fa)
+	{
+		fprintf(fa, "%s:%s:%d: ", file, fn, line);
+		
+		va_start(args, fmt);
+	  vfprintf(fa, fmt, args);
+	  va_end(args);
+	  
+	  fputs("\r\n", fa);
+		fclose(fa);
+	}
 }
-//#endif
+#endif
 
 void nine_lock_proc()
 {
@@ -915,20 +917,26 @@ void WINAPI DebugSetMute(void) {
 IDirect3D9 * WINAPI DECLSPEC_HOTPATCH Direct3DCreate9(UINT sdk_version)
 {
 	mesa99_dbg("enter");
+	if(mesa99_init())
+	{
+		NineNine_AddRef(nineInst);
+		return (IDirect3D9*)nineInst;
+	}
 	
-	NineNine_AddRef(nineInst);
-	
-	return (IDirect3D9*)nineInst;
+	return NULL;
 }
 
 HRESULT WINAPI DECLSPEC_HOTPATCH Direct3DCreate9Ex(UINT sdk_version, IDirect3D9Ex **d3d9ex)
 {
 	mesa99_dbg("enter");
+	if(mesa99_init())
+	{
+		NineNine_AddRef(nineInst);
+		*d3d9ex = (IDirect3D9Ex*)nineInst;
 	
-	NineNine_AddRef(nineInst);
-	*d3d9ex = (IDirect3D9Ex*)nineInst;
-	
-	return D3D_OK;
+		return D3D_OK;
+	}
+	return D3DERR_NOTAVAILABLE;
 }
 
 /*******************************************************************
@@ -1002,54 +1010,63 @@ void WINAPI D3DPERF_SetRegion(D3DCOLOR color, const WCHAR *name)
 
 BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
-	BOOL fReturn = TRUE;
-
 	switch (fdwReason)
 	{
 		case DLL_PROCESS_ATTACH:
 			InitializeCriticalSection(&nine_if_cs);
-			fReturn = LoadWinsys();
-			if(fReturn)
-			{
-				if(nine_init())
-				{
-					if(NineNine_new(&nineInst) == D3D_OK)
-					{
-						return TRUE;
-					}
-					nine_deinit();
-				}
-			}
-			
-			DeleteCriticalSection(&nine_if_cs);
-			return FALSE;
-	
-		case DLL_PROCESS_DETACH:
-			mesa99_dbg("DLL_PROCESS_DETACH: %d", lpvReserved);
-			
-			if(hMesa)
-			{
-				FreeLibrary(hMesa);
-				hMesa = NULL;
-			}
-			
-			mesa99_dbg("Cleanup, num refs: %d", nineInst->refcount);
-			
-			nine_deinit();
-			DeleteCriticalSection(&nine_if_cs);
 			break;
-	
+		case DLL_PROCESS_DETACH:
+			if(lpvReserved == NULL)
+			{
+				mesa99_cleanup();
+				DeleteCriticalSection(&nine_if_cs);
+			}
+			break;
 		case DLL_THREAD_ATTACH:
 			break;
-	
 		case DLL_THREAD_DETACH:
 			break;
-	
 		default:
 			break;
 	}
 
-	return fReturn;
+	return TRUE;
 }
 
+static BOOL mesa99_init_status = FALSE;
 
+BOOL mesa99_init()
+{
+	if(mesa99_init_status) return TRUE;
+	
+	if(LoadWinsys())
+	{
+		if(nine_init())
+		{
+			if(NineNine_new(&nineInst) == D3D_OK)
+			{
+				mesa99_init_status = TRUE;
+				return TRUE;
+			}
+			nine_deinit();
+		}
+	}
+	
+	return FALSE;	
+}
+
+void mesa99_cleanup()
+{
+	if(mesa99_init_status)
+	{
+		if(hMesa)
+		{
+			FreeLibrary(hMesa);
+			hMesa = NULL;
+		}
+				
+		mesa99_dbg("Cleanup, num refs: %d", nineInst->refcount);
+				
+		nine_deinit();
+	}
+}

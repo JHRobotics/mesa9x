@@ -24,6 +24,23 @@ typedef struct svga_cotable
 	struct svga_cotable_entry item[SVGA_COTABLE_MAX];
 } svga_cotable_t;
 
+typedef struct region_cache_item
+{
+	uint32_t id;
+	uint32_t size;
+	SVGA_DB_region_t *region;
+	struct region_cache_item *next;
+	int misses;
+} region_cache_item_t;
+
+typedef struct region_cache
+{
+	region_cache_item_t *first;
+	region_cache_item_t *last;
+	uint32_t mem_used;
+	BOOL enabled;
+} region_cache_t;
+
 #define CMD_BUFFER_COUNT 4
 
 typedef struct _svga_inst_t
@@ -59,6 +76,8 @@ typedef struct _svga_inst_t
 	/* limit */
 	uint32_t gmr_mem_limit;
 	
+	/* vGPU10 cache */
+	region_cache_t cache;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -86,6 +105,8 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *address);
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
 uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid);
 uint32_t SVGARegionsSize(svga_inst_t *svga);
+static void SVGARegionErase(svga_inst_t *svga, uint32_t regionId);
+static void SVGARegionDestroyWithCache(svga_inst_t *svga, uint32_t regionId, BOOL cacheable);
 
 uint32_t SVGAContextCreate(svga_inst_t *svga);
 void SVGACBContextCreate(svga_inst_t *svga);

@@ -33,6 +33,9 @@ extern volatile BOOL wine_hook_disabled;
 BOOL nine_init();
 void nine_deinit();
 
+BOOL mesa99_init();
+void mesa99_cleanup();
+
 void mesa99_printf(const char *file, const char *fn, int line, const char *fmt, ...);
 
 #ifdef DEBUG

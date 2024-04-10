@@ -48,6 +48,8 @@ BOOL nine_init()
 	EnumDisplaySettingsA(NULL, ENUM_CURRENT_SETTINGS, &savedMode);
 	
 	win_hook = SetWindowsHookExA(WH_CALLWNDPROC, win_hook_proc, NULL, GetCurrentThreadId());
+	
+	return win_hook != NULL ? TRUE : FALSE;
 }
 
 void nine_restore_screen()

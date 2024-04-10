@@ -350,6 +350,191 @@ void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags
 	SVGAFinish(svga, flags, DXCtxId);
 }
 
+#if 0
+static void cache_msg(const char *fmt, ...)
+{
+	FILE *f = fopen("C:\\cache.log", "ab");
+	
+	if(f)
+	{
+		va_list args;
+		va_start(args, fmt);
+		vfprintf(f, fmt, args);
+		va_end (args);
+		
+		fclose(f);
+	}
+}
+#endif
+
+static uint32_t cache_get_region(svga_inst_t *svga, uint32_t size)
+{
+	region_cache_item_t *prev = NULL;
+	region_cache_item_t *item = svga->cache.first;
+	
+	/* nothing here */
+	if(item == NULL)
+	{
+		return 0;
+	}
+	
+	if(size == 4096 && svga->cache.last->size != 4096) /* fast path for the smallest items */
+	{
+		return 0;
+	}
+	
+	while(item != NULL)
+	{
+		if(item->size == size)
+		{
+			uint32_t id = item->id;
+			
+			if(prev != NULL)
+			{
+				prev->next = item->next;
+			}
+			else
+			{
+				svga->cache.first = item->next;
+			}
+			
+			if(item->next == NULL)
+			{
+				svga->cache.last = prev;
+			}
+			
+			svga->cache.mem_used -= item->region->info.size;
+			free(item);
+			//cache_msg("HIT: size %d\r\n", size);
+			
+			return id;
+		}
+		else if(size > item->size) /* large regions are first */
+		{
+			break;
+		}
+		else
+		{
+			item->misses++;
+		}
+		
+		prev = item;
+		item = item->next;
+	}
+	
+	//cache_msg("MIS: size %d\r\n", size);
+	
+	return 0;
+}
+
+static BOOL cache_insert_region(svga_inst_t *svga, uint32_t id)
+{
+	/* disable cache on < 1GB configurations */
+	if(!svga->cache.enabled)
+	{
+		return FALSE;
+	}
+	
+	region_cache_item_t *item = malloc(sizeof(region_cache_item_t));
+	
+	if(item == NULL) return FALSE;
+	
+	item->id = id;
+	item->region = SVGAGMRIDInfo(svga, id);
+	item->size = item->region->info.size;
+	item->next = NULL;
+	item->misses = 0;
+
+	if(item->size == 4096 || svga->cache.first == NULL) /* don't waste time with smallest regions and insert them to the end */
+	{
+		if(svga->cache.last)
+		{
+			svga->cache.last->next = item;
+		}
+		else
+		{
+			svga->cache.first = item;
+		}
+		svga->cache.last = item;
+	}
+	else
+	{
+		region_cache_item_t *last = NULL;
+		region_cache_item_t *checked = svga->cache.first;
+		
+		while(checked != NULL)
+		{
+			if(checked->size <= item->size)
+			{
+				item->next = checked;
+				if(last)
+				{
+					last->next = item;
+				}
+				else
+				{
+					svga->cache.first = item;
+				}
+				break;
+			}
+			
+			last = checked;
+			checked = checked->next;
+		}
+		
+		if(checked == NULL)
+		{
+			svga->cache.last->next = item;
+			svga->cache.last = item;
+		}
+	}
+	
+	svga->cache.mem_used += item->size;
+	//cache_msg("INSERT: size %d\r\n", item->region->info.size);
+	
+	return TRUE;
+}
+
+static void cache_flush(svga_inst_t *svga, uint32_t threshold, BOOL keep_small)
+{
+	region_cache_item_t *prev = NULL;
+	region_cache_item_t *item = svga->cache.first;
+	
+	while(item != NULL)
+	{
+		if(item->misses >= threshold)
+		{
+			region_cache_item_t *ptr = item;
+			if(prev != NULL)
+			{
+				prev->next = item->next;
+			}
+			else
+			{
+				svga->cache.first = item->next;
+			}
+			
+			if(item->next == NULL)
+			{
+				svga->cache.last = prev;
+			}
+			
+			item = item->next;
+			
+			//cache_msg("FLUSH: size %d\r\n", ptr->region->info.size);
+			
+			svga->cache.mem_used -= ptr->region->info.size;
+			SVGARegionErase(svga, ptr->id);
+			free(ptr);
+		}
+		else
+		{
+			prev = item;
+			item = item->next;
+		}
+	}
+}
+
 /*
  * Inicializators
  */
@@ -405,6 +590,8 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
  * Resources
  */
 DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
+DEBUG_GET_ONCE_NUM_OPTION(gmr_min_mb,   "SVGA_GMR_MIN", 0);
+DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,   "SVGA_GMR_CACHE_ENABLED", TRUE);
 
 /* create SVGA interface */
 BOOL SVGACreate(svga_inst_t *svga)
@@ -421,6 +608,11 @@ BOOL SVGACreate(svga_inst_t *svga)
 	svga->hda = FBHDA_setup();
 	svga->pid = GetCurrentProcessId();
 	svga->db  = SVGA_DB_setup();
+	
+	svga->cache.first = NULL;
+	svga->cache.last  = NULL;
+	svga->cache.mem_used = 0;
+	svga->cache.enabled  = FALSE;
 
 	if(svga->hda->flags & FB_ACCEL_VMSVGA3D)
 	{
@@ -467,8 +659,23 @@ BOOL SVGACreate(svga_inst_t *svga)
 		{
 			limit_mb = GMR_LIMIT_MIN_MB;
 		}
+		
+		if(limit_mb < debug_get_option_gmr_min_mb())
+		{
+			limit_mb = debug_get_option_gmr_min_mb();
+		}
 
 		svga->gmr_mem_limit = limit_mb * 1024 * 1024;
+		
+		MEMORYSTATUS meminfo;
+		GlobalMemoryStatus(&meminfo);
+		if(meminfo.dwTotalPhys >= 896*1024*1024)
+		{
+			if(debug_get_option_gmr_cache())
+			{
+				svga->cache.enabled = TRUE;
+			}
+		}
 
 		return TRUE;
 	}
@@ -728,7 +935,7 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		cotable->item[type].gmr_id = new_gmrId;
 
 		/* delete old GMR */
-		SVGARegionDestroy(svga, old_gmrId);
+		SVGARegionDestroyWithCache(svga, old_gmrId, FALSE);
 
 		svga_printf(svga, "Done grow %d to %d", type, new_count);
 
@@ -778,7 +985,7 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 	{
 		if(cotable->item[i].gmr_id != 0)
 		{
-			SVGARegionDestroy(svga, cotable->item[i].gmr_id);
+			SVGARegionDestroyWithCache(svga, cotable->item[i].gmr_id, FALSE);
 			cotable->item[i].gmr_id = 0;
 		}
 	}
@@ -871,12 +1078,32 @@ void SVGADestroy(svga_inst_t *svga)
 	}
 }
 
+#define ROUND_TO_PAGES(_n) (((_n) + 4095) & 0xFFFFF000)
+
 /* create GMR */
-static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t *user_page, uint32_t start_id, BOOL mobonly)
+static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t *user_page, uint32_t start_id, BOOL mobonly, BOOL use_cache)
 {
 	SVGA_ASSERT;
+	
+	size = ROUND_TO_PAGES(size);
+	uint32_t rid;
+	
+	if(use_cache)
+	{
+		rid = cache_get_region(svga, size);
+		if(rid > 0)
+		{
+			SVGA_region_info_t *gmr = &(SVGAGMRIDInfo(svga, rid)->info);
+			if(user_page)
+			{
+				*user_page = (DWORD)gmr->address;
+			}
+			
+			return rid;
+		}
+	}
 
-	uint32_t rid = SVGAGMRIDNext(svga, start_id);
+	rid = SVGAGMRIDNext(svga, start_id);
 
 	assert(rid > 0);
 
@@ -904,14 +1131,14 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 	if(svga->dx)
 	{
 		/* we're keeping some IDs for out internal frame buffer rendering */
-		return SVGARegionCreateLimit(svga, size, user_page, 5, TRUE/*FALSE*/);
+		return SVGARegionCreateLimit(svga, size, user_page, 5, TRUE, TRUE);
 	}
 
-	return SVGARegionCreateLimit(svga, size, user_page, 1, FALSE);
+	return SVGARegionCreateLimit(svga, size, user_page, 1, FALSE, FALSE);
 }
 
 /* destroy the GMR */
-void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
+static void SVGARegionErase(svga_inst_t *svga, uint32_t regionId)
 {
 	SVGA_ASSERT;
 
@@ -927,6 +1154,39 @@ void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
 	SVGA_region_free(gmr);
 
 	SVGAGMRIDFree(svga, regionId);
+}
+
+#define CACHE_TRESHOLD 32
+
+static void SVGARegionDestroyWithCache(svga_inst_t *svga, uint32_t regionId, BOOL cacheable)
+{
+	if(cacheable)
+	{
+		if(!cache_insert_region(svga, regionId))
+		{
+			SVGARegionErase(svga, regionId);
+		}
+		else
+		{
+			cache_flush(svga, CACHE_TRESHOLD, FALSE);
+		}
+	}
+	else
+	{
+		SVGARegionErase(svga, regionId);
+	}
+}
+
+void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId)
+{
+	if(svga->dx)
+	{
+		SVGARegionDestroyWithCache(svga, regionId, TRUE);
+	}
+	else
+	{
+		SVGARegionDestroyWithCache(svga, regionId, FALSE);
+	}
 }
 
 /* read all hardware registers, fifo register and caps list to VBOXGAHWINFO struct */
@@ -998,10 +1258,11 @@ void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 	}
 
 	debug_printf("Cleaning GMRs...");
+	cache_flush(svga, 0, FALSE);
 	while((id = SVGAGMRIDPop(svga, pid)) != 0)
 	{
 		debug_printf("Cleaning region: %d\n", id);
-		SVGARegionDestroy(svga, id);
+		SVGARegionErase(svga, id);
 	}
 
 	if(free_res)
@@ -1324,12 +1585,12 @@ static BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render
 	{
 		if(svga->softblit_gmr_id)
 		{
-			SVGARegionDestroy(svga, svga->softblit_gmr_id);
+			SVGARegionDestroyWithCache(svga, svga->softblit_gmr_id, FALSE);
 			svga->softblit_gmr_id = 0;
 		}
 
 		svga->softblit_gmr_size = softblit_minsize;
-		svga->softblit_gmr_id = SVGARegionCreateLimit(svga, svga->softblit_gmr_size, (uint32_t*)(&svga->softblit_gmr_ptr), 1, FALSE);
+		svga->softblit_gmr_id = SVGARegionCreateLimit(svga, svga->softblit_gmr_size, (uint32_t*)(&svga->softblit_gmr_ptr), 1, FALSE, FALSE);
 		svga_printf(svga, "Created new display region: %d (%p)", svga->softblit_gmr_id, svga->softblit_gmr_ptr);
 		if(!svga->softblit_gmr_id)
 		{
@@ -2272,6 +2533,12 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
+	 	if(SVGARegionsSize(svga) + svga->cache.mem_used + size_round > svga->gmr_mem_limit)
+	 	{
+	 		cache_flush(svga, 0, TRUE);
+	 	}
+
+#if 1
 	 	if(SVGARegionsSize(svga) + size_round > svga->gmr_mem_limit)
 	 	{
 	 		/* forbid to create surface when exceeds memory limit, but mesa still need
@@ -2283,8 +2550,9 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 		 		return FALSE;
 		 	}
 	 	}
+#endif
 
-		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10, TRUE);
+		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10, TRUE, TRUE);
 
 		if(pCreateParms->gmrid == 0)
 		{
@@ -2367,5 +2635,5 @@ uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid)
 
 uint32_t SVGARegionsSize(svga_inst_t *svga)
 {
-	return svga->db->stat_regions_usage;
+	return svga->db->stat_regions_usage - svga->cache.mem_used;
 }

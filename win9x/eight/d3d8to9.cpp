@@ -17,8 +17,13 @@ std::ofstream LOG;
 
 #ifdef WIN9X
 struct INineNine;
-extern "C" HRESULT WINAPI NineNine_new(INineNine **ppOut);
-typedef IDirect3D9 * (WINAPI *Direct3DCreate9f)(UINT sdk_version);
+extern "C" 
+{
+	BOOL mesa99_init();
+	ULONG WINAPI NineNine_AddRef(INineNine *This);
+	extern INineNine *nineInst;
+	typedef IDirect3D9 * (WINAPI *Direct3DCreate9f)(UINT sdk_version);
+}
 #endif
 
 extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
@@ -63,7 +68,12 @@ extern "C" IDirect3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 	
 	if(d3d == nullptr)
 	{
-		NineNine_new((INineNine**)&d3d);
+		if(mesa99_init())
+		{
+			NineNine_AddRef(nineInst);
+			d3d = (IDirect3D9*)nineInst;
+			//NineNine_new((INineNine**)&d3d);
+		}
 	}
 #else
 	IDirect3D9 *const d3d = Direct3DCreate9(D3D_SDK_VERSION);

@@ -89,7 +89,7 @@ vmw_winsys_create_wddm(const WDDMGalliumDriverEnv *pEnv)
    vws->base.have_transfer_from_buffer_cmd = vws->base.have_vgpu10;
    vws->base.have_constant_buffer_offset_cmd = FALSE;
    vws->cache_maps = vws->base.have_vgpu10; //FALSE;
-#if MESA_MAJOR >= 21
+#if MESA_MAJOR >= 23
    vws->base.have_constant_buffer_offset_cmd =
       vws->ioctl.have_drm_2_20 && vws->base.have_sm5;
    vws->base.have_index_vertex_buffer_offset_cmd = FALSE;

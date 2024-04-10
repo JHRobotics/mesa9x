@@ -748,6 +748,7 @@ vboxGet3DCap(struct vmw_winsys_screen_wddm *vws_wddm, void *pvCap, size_t cbCap)
 }
 
 DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
+DEBUG_GET_ONCE_BOOL_OPTION(buffer_coherent, "SVGA_BUFFER_COHERENT", FALSE);
 
 int get_gmr_limit()
 {
@@ -783,12 +784,16 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
    vws->ioctl.have_drm_2_9 = 1;
 #if MESA_MAJOR >= 21
    vws->ioctl.have_drm_2_15 = 1;
- /* PIPE_CAP_BUFFER_MAP_PERSISTENT_COHERENT is broken in VirtualBox (<= 7.0.14)
-	   vws->ioctl.have_drm_2_16 = 1;
- */
-   vws->ioctl.have_drm_2_17 = 1;
-   vws->ioctl.have_drm_2_18 = 1;
-   vws->ioctl.have_drm_2_19 = 1;
+   /* PIPE_CAP_BUFFER_MAP_PERSISTENT_COHERENT is broken in VirtualBox (<= 7.0.14) */
+   vws->ioctl.have_drm_2_16 = debug_get_option_buffer_coherent() ? 1 : 0;
+ 
+ /*  vws->ioctl.have_drm_2_17 = 1; DRM_VMW_MSG */
+   vws->ioctl.have_drm_2_18 = 1; /* DRM_VMW_PARAM_SM5 */
+ /*  vws->ioctl.have_drm_2_19 = 1; VMX86_STATS: vmw_svga_winsys_stats_inc */
+#endif
+
+#if MESA_MAJOR >= 23
+/*   vws->ioctl.have_drm_2_20 = 1; */
 #endif
 
    vws->ioctl.drm_execbuf_version = vws->ioctl.have_drm_2_9 ? 2 : 1;
