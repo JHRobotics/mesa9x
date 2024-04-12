@@ -104,6 +104,10 @@ BOOL vramcpy_top_window(HWND win)
 	return FALSE;
 }
 
+#ifndef MIN
+#define MIN(_x, _y) (((_x) > (_y)) ? (_y) : (_x))
+#endif
+
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC)
 {
 	struct gdi_sw_displaytarget *gdt = gdi_sw_displaytarget(dt);
@@ -134,21 +138,26 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 			POINT p2 = {wrect.right, wrect.bottom};
 			ClientToScreen(hwnd, &p1);
 			ClientToScreen(hwnd, &p2);
+			
+			
 
 			crect.dst_x     = p1.x;
 			crect.dst_y     = p1.y;
-			crect.dst_w     = /*gdt->width;  */p2.x - p1.x;
-			crect.dst_h     = /*gdt->height; */p2.y - p1.y;
+			crect.dst_w     = MIN(gdt->width, p2.x - p1.x);
+			crect.dst_h     = MIN(gdt->height, p2.y - p1.y);
 			crect.dst_bpp   = fbhda->bpp;
 			crect.dst_pitch = fbhda->pitch;
 			crect.src_x     = 0;
 			crect.src_y     = 0;
 			crect.src_bpp   = gdt->bmi.bmiHeader.biBitCount;
 			crect.src_pitch = gdt->stride; // (gdt->width * vramcpy_pointsize_fast(crect.src_bpp)) & 0xFFFFFFFCUL;
-
-			FBHDA_access_begin(0);
-			vramcpy(fbhda->vram_pm32, gdt->data, &crect);
-			FBHDA_access_end(0);
+			
+			if(crect.dst_w && crect.dst_h)
+			{
+				FBHDA_access_begin(0);
+				vramcpy(fbhda->vram_pm32, gdt->data, &crect);
+				FBHDA_access_end(0);
+			}
 			
 			return;
 		}
