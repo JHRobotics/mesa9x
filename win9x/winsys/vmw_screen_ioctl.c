@@ -856,7 +856,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       else
          vws->ioctl.num_cap_3d = SVGA3D_DEVCAP_MAX;
 
-#if 0
+#if 1
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_MEMORY;
       ret = vboxGetParam(vws_wddm, &gp_arg);
@@ -866,8 +866,9 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       } else {
          vws->ioctl.max_mob_memory = gp_arg.value;
       }
-#endif
+#else
       vws->ioctl.max_mob_memory = get_gmr_limit()*1024*1024;
+#endif
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_SIZE;
