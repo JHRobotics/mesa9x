@@ -251,10 +251,22 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intrin,
    const unsigned packing_factor = get_packing_factor(*desc, slice->type);
 
    nir_deref_instr *pointer = nir_src_as_deref(intrin->src[ptr_src]);
+   const unsigned ptr_comp_width = glsl_get_bit_size(pointer->type);
+   const unsigned ptr_num_comps = glsl_get_vector_elements(pointer->type);
+
+   /* The stride is given in number of elements of the pointed type, which
+    * doesn't necessarily match the matrix element type, so we need to adjust
+    * it considering it may be a vector and have a different bit-width.
+    */
+   nir_def *stride = nir_udiv_imm(b,
+                                  nir_imul_imm(b,
+                                               intrin->src[2].ssa,
+                                               ptr_comp_width * ptr_num_comps),
+                                  glsl_base_type_get_bit_size(desc->element_type));
 
    if ((nir_intrinsic_matrix_layout(intrin) == GLSL_MATRIX_LAYOUT_ROW_MAJOR) ==
        (desc->use != GLSL_CMAT_USE_B)) {
-      nir_def *stride = nir_udiv_imm(b, intrin->src[2].ssa, packing_factor);
+      stride = nir_udiv_imm(b, stride, packing_factor);
 
       const struct glsl_type *element_type =
          glsl_scalar_type(glsl_get_base_type(slice->type));
@@ -304,8 +316,6 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intrin,
          }
       }
    } else {
-      nir_def *stride = intrin->src[2].ssa;
-
       const struct glsl_type *element_type = glsl_scalar_type(desc->element_type);
       const unsigned element_bits = glsl_base_type_get_bit_size(desc->element_type);
       const unsigned element_stride = element_bits / 8;
@@ -636,14 +646,44 @@ lower_cmat_instr(nir_builder *b, nir_instr *instr, void *_state)
       const unsigned packing_factor = get_packing_factor(dst_desc, dst_slice->type);
       const unsigned num_components = glsl_get_vector_elements(dst_slice->type);
 
+      const nir_cmat_signed cmat_signed_mask =
+         nir_intrinsic_cmat_signed_mask(intrin);
+
+      assert(((cmat_signed_mask & NIR_CMAT_A_SIGNED) == 0) ==
+             ((cmat_signed_mask & NIR_CMAT_B_SIGNED) == 0));
+      assert(((cmat_signed_mask & NIR_CMAT_A_SIGNED) == 0) ==
+             ((cmat_signed_mask & NIR_CMAT_C_SIGNED) == 0));
+      assert(((cmat_signed_mask & NIR_CMAT_A_SIGNED) == 0) ==
+             ((cmat_signed_mask & NIR_CMAT_RESULT_SIGNED) == 0));
+
+      nir_alu_type src_type =
+         nir_get_nir_type_for_glsl_base_type(src_desc.element_type);
+      nir_alu_type dest_type =
+         nir_get_nir_type_for_glsl_base_type(dst_desc.element_type);
+
+      /* For integer types, the signedness is determined by flags on the
+       * muladd instruction. The types of the sources play no role. Adjust the
+       * types passed to the dpas_intel intrinsic to match.
+       */
+      if (nir_alu_type_get_base_type(src_type) == nir_type_uint ||
+          nir_alu_type_get_base_type(src_type) == nir_type_int) {
+         if ((cmat_signed_mask & NIR_CMAT_A_SIGNED) == 0) {
+            src_type = nir_alu_type_get_type_size(src_type) | nir_type_uint;
+            dest_type = nir_alu_type_get_type_size(dest_type) | nir_type_uint;
+         } else {
+            src_type = nir_alu_type_get_type_size(src_type) | nir_type_int;
+            dest_type = nir_alu_type_get_type_size(dest_type) | nir_type_int;
+         }
+      }
+
       nir_def *result =
          nir_dpas_intel(b,
                         packing_factor * glsl_base_type_get_bit_size(dst_desc.element_type),
+                        nir_load_deref(b, accum_slice),
                         nir_load_deref(b, A_slice),
                         nir_load_deref(b, B_slice),
-                        nir_load_deref(b, accum_slice),
-                        .dest_type = nir_get_nir_type_for_glsl_base_type(dst_desc.element_type),
-                        .src_type = nir_get_nir_type_for_glsl_base_type(src_desc.element_type),
+                        .dest_type = dest_type,
+                        .src_type = src_type,
                         .saturate = nir_intrinsic_saturate(intrin),
                         .cmat_signed_mask = nir_intrinsic_cmat_signed_mask(intrin),
                         .systolic_depth = 8,

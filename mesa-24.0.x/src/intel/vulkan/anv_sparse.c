@@ -707,6 +707,7 @@ anv_init_sparse_bindings(struct anv_device *device,
       return res;
    }
 
+   p_atomic_inc(&device->num_sparse_resources);
    return VK_SUCCESS;
 }
 
@@ -719,6 +720,8 @@ anv_free_sparse_bindings(struct anv_device *device,
 
    sparse_debug("%s: address:0x%016"PRIx64" size:0x%08"PRIx64"\n",
                 __func__, sparse->address, sparse->size);
+
+   p_atomic_dec(&device->num_sparse_resources);
 
    struct anv_vm_bind unbind = {
       .bo = 0,

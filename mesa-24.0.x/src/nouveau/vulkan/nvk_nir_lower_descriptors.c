@@ -581,6 +581,9 @@ load_descriptor(nir_builder *b, unsigned num_components, unsigned bit_size,
          nir_iadd_imm(b, nir_imul_imm(b, index, binding_layout->stride),
                          binding_layout->offset + offset_B);
 
+      uint64_t max_desc_ubo_offset = binding_layout->offset +
+         binding_layout->array_size * binding_layout->stride;
+
       unsigned desc_align_mul = (1 << (ffs(binding_layout->stride) - 1));
       desc_align_mul = MIN2(desc_align_mul, 16);
       unsigned desc_align_offset = binding_layout->offset + offset_B;
@@ -593,7 +596,7 @@ load_descriptor(nir_builder *b, unsigned num_components, unsigned bit_size,
       int cbuf_idx = get_mapped_cbuf_idx(&cbuf_key, ctx);
 
       nir_def *desc;
-      if (cbuf_idx >= 0) {
+      if (cbuf_idx >= 0 && max_desc_ubo_offset <= NVK_MAX_CBUF_SIZE) {
          desc = nir_load_ubo(b, num_components, bit_size,
                              nir_imm_int(b, cbuf_idx),
                              desc_ubo_offset,

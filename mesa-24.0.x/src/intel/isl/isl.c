@@ -4064,6 +4064,13 @@ isl_swizzle_supports_rendering(const struct intel_device_info *devinfo,
        *
        *    "For Render Target, this field MUST be programmed to
        *    value = SCS_ALPHA."
+       *
+       * Bspec 57023: RENDER_SURFACE_STATE:: Shader Channel Select Red
+       *
+       *    "Render Target messages do not support swapping of colors with
+       *    alpha. The Red, Green, or Blue Shader Channel Selects do not
+       *    support SCS_ALPHA. The Shader Channel Select Alpha does not support
+       *    SCS_RED, SCS_GREEN, or SCS_BLUE."
        */
       return (swizzle.r == ISL_CHANNEL_SELECT_RED ||
               swizzle.r == ISL_CHANNEL_SELECT_GREEN ||

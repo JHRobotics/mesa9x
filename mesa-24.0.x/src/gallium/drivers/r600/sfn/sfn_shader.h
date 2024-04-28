@@ -261,7 +261,7 @@ public:
       return m_rat_return_address;
    }
 
-   PRegister emit_load_to_register(PVirtualValue src);
+   PRegister emit_load_to_register(PVirtualValue src, int chan = -1);
 
    virtual unsigned image_size_const_offset() { return 0;}
 
@@ -413,6 +413,8 @@ private:
       Instr *last_gds_instr{nullptr};
       Instr *last_ssbo_instr{nullptr};
       Instr *last_kill_instr{nullptr};
+      Instr *last_lds_access{nullptr};
+      Instr *last_group_barrier{nullptr};
       std::unordered_map<int, Instr * > last_alu_with_indirect_reg;
       bool prepare_mem_barrier{false};
    };

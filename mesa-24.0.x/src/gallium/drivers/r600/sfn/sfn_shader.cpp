@@ -938,13 +938,14 @@ lds_op_from_intrinsic(nir_atomic_op op, bool ret)
 }
 
 PRegister
-Shader::emit_load_to_register(PVirtualValue src)
+Shader::emit_load_to_register(PVirtualValue src, int chan)
 {
    assert(src);
    PRegister dest = src->as_register();
 
-   if (!dest) {
-      dest = value_factory().temp_register();
+   if (!dest || chan >= 0) {
+      dest = value_factory().temp_register(chan);
+      dest->set_pin(pin_free);
       emit_instruction(new AluInstr(op1_mov, dest, src, AluInstr::last_write));
    }
    return dest;
@@ -1364,6 +1365,22 @@ void Shader::InstructionChain::visit(AluInstr *instr)
          }
       }
    }
+
+   if (instr->has_lds_access()) {
+      last_lds_access = instr;
+      if (last_group_barrier)
+         instr->add_required_instr(last_group_barrier);
+   }
+
+   if (!instr->has_alu_flag(alu_is_lds) &&
+       instr->opcode() == op0_group_barrier) {
+      last_group_barrier = instr;
+      if (last_lds_access)
+         instr->add_required_instr(last_group_barrier);
+      if (last_ssbo_instr)
+         instr->add_required_instr(last_ssbo_instr);
+   }
+
 }
 
 void
@@ -1402,6 +1419,9 @@ Shader::InstructionChain::visit(RatInstr *instr)
 
    if (last_kill_instr)
       instr->add_required_instr(last_kill_instr);
+
+   if (last_group_barrier)
+      instr->add_required_instr(last_group_barrier);
 }
 
 void
@@ -1464,13 +1484,9 @@ Shader::emit_group_barrier(nir_intrinsic_instr *intr)
 {
    assert(m_control_flow_depth == 0);
    (void)intr;
-   /* Put barrier into it's own block, so that optimizers and the
-    * scheduler don't move code */
-   start_new_block(0);
    auto op = new AluInstr(op0_group_barrier, 0);
    op->set_alu_flag(alu_last_instr);
    emit_instruction(op);
-   start_new_block(0);
    return true;
 }
 

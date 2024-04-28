@@ -20,6 +20,7 @@ use std::collections::HashSet;
 use std::ffi::CString;
 use std::mem::size_of;
 use std::ptr;
+use std::ptr::addr_of;
 use std::slice;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -55,7 +56,7 @@ fn get_disk_cache() -> &'static Option<DiskCache> {
         DISK_CACHE_ONCE.call_once(|| {
             DISK_CACHE = DiskCache::new("rusticl", &func_ptrs, 0);
         });
-        &DISK_CACHE
+        &*addr_of!(DISK_CACHE)
     }
 }
 
@@ -313,9 +314,11 @@ fn prepare_options(options: &str, dev: &Device) -> Vec<CString> {
     res.push(&options[old..]);
 
     res.iter()
-        .map(|&a| match a {
-            "-cl-denorms-are-zero" => "-fdenormal-fp-math=positive-zero",
-            _ => a,
+        .filter_map(|&a| match a {
+            "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
+            // We can ignore it as long as we don't support ifp
+            "-cl-no-subgroup-ifp" => None,
+            _ => Some(a),
         })
         .map(CString::new)
         .map(Result::unwrap)

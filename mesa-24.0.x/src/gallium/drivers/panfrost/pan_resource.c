@@ -1181,7 +1181,7 @@ panfrost_ptr_map(struct pipe_context *pctx, struct pipe_resource *resource,
    bool create_new_bo = usage & PIPE_MAP_DISCARD_WHOLE_RESOURCE;
    bool copy_resource = false;
 
-   if (!create_new_bo && !(usage & PIPE_MAP_UNSYNCHRONIZED) &&
+   if (!(usage & PIPE_MAP_UNSYNCHRONIZED) &&
        !(resource->flags & PIPE_RESOURCE_FLAG_MAP_PERSISTENT) &&
        (usage & PIPE_MAP_WRITE) && panfrost_any_batch_reads_rsrc(ctx, rsrc)) {
       /* When a resource to be modified is already being used by a

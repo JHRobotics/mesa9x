@@ -168,7 +168,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_GetQueryPoolResults(
                *dest32++ = (uint32_t)
                   MIN2(result.so_statistics.primitives_storage_needed, UINT32_MAX);
             } else {
-               *dest32++ = (uint32_t) MIN2(result.u64, UINT32_MAX);
+               *dest32++ = (uint32_t) (result.u64 & UINT32_MAX);
             }
          } else {
             if (pool->type == VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT) {

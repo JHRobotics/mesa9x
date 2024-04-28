@@ -744,7 +744,8 @@ void r300_translate_index_buffer(struct r300_context *r300,
                                  const struct pipe_draw_info *info,
                                  struct pipe_resource **out_index_buffer,
                                  unsigned *index_size, unsigned index_offset,
-                                 unsigned *start, unsigned count);
+                                 unsigned *start, unsigned count,
+                                 const uint8_t **export_ptr);
 
 /* r300_render_stencilref.c */
 void r300_plug_in_stencil_ref_fallback(struct r300_context *r300);

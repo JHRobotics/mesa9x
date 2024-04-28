@@ -61,6 +61,16 @@ radv_get_pipelinestat_query_size(struct radv_device *device)
    return num_results * 8;
 }
 
+static bool
+radv_occlusion_query_use_l2(const struct radv_physical_device *pdev)
+{
+   /* Occlusion query writes don't go through L2 on GFX6-8 which means the driver would need to
+    * flush caches before every read in shaders or use MTYPE=3 (ie. uncached) in the buffer
+    * descriptor to bypass L2. Use the WAIT_REG_MEM logic instead which is easier to implement.
+    */
+   return pdev->rad_info.gfx_level >= GFX9;
+}
+
 static void
 radv_store_availability(nir_builder *b, nir_def *flags, nir_def *dst_buf, nir_def *offset, nir_def *value32)
 {
@@ -148,29 +158,31 @@ build_occlusion_query_shader(struct radv_device *device)
    nir_store_var(&b, outer_counter, nir_imm_int(&b, 0), 0x1);
    nir_store_var(&b, available, nir_imm_true(&b), 0x1);
 
-   nir_def *query_result_wait = nir_test_mask(&b, flags, VK_QUERY_RESULT_WAIT_BIT);
-   nir_push_if(&b, query_result_wait);
-   {
-      /* Wait on the upper word of the last DB entry. */
-      nir_push_loop(&b);
+   if (radv_occlusion_query_use_l2(device->physical_device)) {
+      nir_def *query_result_wait = nir_test_mask(&b, flags, VK_QUERY_RESULT_WAIT_BIT);
+      nir_push_if(&b, query_result_wait);
       {
-         const uint32_t rb_avail_offset = 16 * util_last_bit64(enabled_rb_mask) - 4;
-
-         /* Prevent the SSBO load to be moved out of the loop. */
-         nir_scoped_memory_barrier(&b, SCOPE_INVOCATION, NIR_MEMORY_ACQUIRE, nir_var_mem_ssbo);
-
-         nir_def *load_offset = nir_iadd_imm(&b, input_base, rb_avail_offset);
-         nir_def *load = nir_load_ssbo(&b, 1, 32, src_buf, load_offset, .align_mul = 4, .access = ACCESS_COHERENT);
-
-         nir_push_if(&b, nir_ige_imm(&b, load, 0x80000000));
+         /* Wait on the upper word of the last DB entry. */
+         nir_push_loop(&b);
          {
-            nir_jump(&b, nir_jump_break);
+            const uint32_t rb_avail_offset = 16 * util_last_bit64(enabled_rb_mask) - 4;
+
+            /* Prevent the SSBO load to be moved out of the loop. */
+            nir_scoped_memory_barrier(&b, SCOPE_INVOCATION, NIR_MEMORY_ACQUIRE, nir_var_mem_ssbo);
+
+            nir_def *load_offset = nir_iadd_imm(&b, input_base, rb_avail_offset);
+            nir_def *load = nir_load_ssbo(&b, 1, 32, src_buf, load_offset, .align_mul = 4, .access = ACCESS_COHERENT);
+
+            nir_push_if(&b, nir_ige_imm(&b, load, 0x80000000));
+            {
+               nir_jump(&b, nir_jump_break);
+            }
+            nir_pop_if(&b, NULL);
          }
-         nir_pop_if(&b, NULL);
+         nir_pop_loop(&b, NULL);
       }
-      nir_pop_loop(&b, NULL);
+      nir_pop_if(&b, NULL);
    }
-   nir_pop_if(&b, NULL);
 
    nir_push_loop(&b);
 
@@ -1667,6 +1679,8 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
    RADV_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    RADV_FROM_HANDLE(radv_query_pool, pool, queryPool);
    RADV_FROM_HANDLE(radv_buffer, dst_buffer, dstBuffer);
+   struct radv_device *device = cmd_buffer->device;
+   struct radv_physical_device *pdev = device->physical_device;
    struct radeon_cmdbuf *cs = cmd_buffer->cs;
    uint64_t va = radv_buffer_get_va(pool->bo);
    uint64_t dest_va = radv_buffer_get_va(dst_buffer->bo);
@@ -1697,6 +1711,22 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
 
    switch (pool->vk.query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
+      if (!radv_occlusion_query_use_l2(pdev)) {
+         if (flags & VK_QUERY_RESULT_WAIT_BIT) {
+            uint64_t enabled_rb_mask = pdev->rad_info.enabled_rb_mask;
+            uint32_t rb_avail_offset = 16 * util_last_bit64(enabled_rb_mask) - 4;
+            for (unsigned i = 0; i < queryCount; ++i, dest_va += stride) {
+               unsigned query = firstQuery + i;
+               uint64_t src_va = va + query * pool->stride + rb_avail_offset;
+
+               radeon_check_space(device->ws, cs, 7);
+
+               /* Waits on the upper word of the last DB entry */
+               radv_cp_wait_mem(cs, cmd_buffer->qf, WAIT_REG_MEM_GREATER_OR_EQUAL, src_va, 0x80000000, 0xffffffff);
+            }
+         }
+      }
+
       radv_query_shader(cmd_buffer, &cmd_buffer->device->meta_state.query.occlusion_query_pipeline, pool->bo,
                         dst_buffer->bo, firstQuery * pool->stride, dst_buffer->offset + dstOffset, pool->stride, stride,
                         dst_size, queryCount, flags, 0, 0, false);

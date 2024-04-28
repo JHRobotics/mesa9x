@@ -1585,15 +1585,26 @@ radv_meta_image_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta
    }
 
    u_foreach_bit (i, dst->aspect_mask) {
-      unsigned aspect_mask = 1u << i;
+      unsigned dst_aspect_mask = 1u << i;
+      unsigned src_aspect_mask = dst_aspect_mask;
       VkFormat depth_format = 0;
-      if (aspect_mask == VK_IMAGE_ASPECT_STENCIL_BIT)
+      if (dst_aspect_mask == VK_IMAGE_ASPECT_STENCIL_BIT)
          depth_format = vk_format_stencil_only(dst->image->vk.format);
-      else if (aspect_mask == VK_IMAGE_ASPECT_DEPTH_BIT)
+      else if (dst_aspect_mask == VK_IMAGE_ASPECT_DEPTH_BIT)
          depth_format = vk_format_depth_only(dst->image->vk.format);
+      else {
+         /*
+          * "Multi-planar images can only be copied on a per-plane basis, and the subresources used in each region when
+          * copying to or from such images must specify only one plane, though different regions can specify different
+          * planes."
+          */
+         assert((dst->aspect_mask & (dst->aspect_mask - 1)) == 0);
+         assert((src->aspect_mask & (src->aspect_mask - 1)) == 0);
+         src_aspect_mask = src->aspect_mask;
+      }
 
-      create_iview(cmd_buffer, src, &src_view, depth_format, aspect_mask);
-      create_iview(cmd_buffer, dst, &dst_view, depth_format, aspect_mask);
+      create_iview(cmd_buffer, src, &src_view, depth_format, src_aspect_mask);
+      create_iview(cmd_buffer, dst, &dst_view, depth_format, dst_aspect_mask);
 
       itoi_bind_descriptors(cmd_buffer, &src_view, &dst_view);
 

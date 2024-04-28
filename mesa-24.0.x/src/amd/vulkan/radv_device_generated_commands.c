@@ -589,7 +589,7 @@ dgc_emit_pkt3_draw_indirect(nir_builder *b, struct dgc_cmdbuf *cs, nir_def *vtx_
 
 static void
 dgc_emit_draw_indirect(nir_builder *b, struct dgc_cmdbuf *cs, nir_def *stream_base, nir_def *draw_params_offset,
-                       bool indexed)
+                       nir_def *sequence_id, bool indexed)
 {
    nir_def *vtx_base_sgpr = load_param16(b, vtx_base_sgpr);
    nir_def *stream_offset = nir_iadd(b, draw_params_offset, stream_base);
@@ -597,8 +597,14 @@ dgc_emit_draw_indirect(nir_builder *b, struct dgc_cmdbuf *cs, nir_def *stream_ba
    nir_def *stream_addr = load_param64(b, stream_addr);
    nir_def *va = nir_iadd(b, stream_addr, nir_u2u64(b, stream_offset));
 
+   dgc_emit_sqtt_begin_api_marker(b, cs, indexed ? ApiCmdDrawIndexedIndirect : ApiCmdDrawIndirect);
+   dgc_emit_sqtt_marker_event(b, cs, sequence_id, indexed ? EventCmdDrawIndexedIndirect : EventCmdDrawIndirect);
+
    dgc_emit_pkt3_set_base(b, cs, va);
    dgc_emit_pkt3_draw_indirect(b, cs, vtx_base_sgpr, indexed);
+
+   dgc_emit_sqtt_thread_trace_marker(b, cs);
+   dgc_emit_sqtt_end_api_marker(b, cs, indexed ? ApiCmdDrawIndexedIndirect : ApiCmdDrawIndirect);
 }
 
 static nir_def *
@@ -1307,7 +1313,8 @@ build_dgc_prepare_shader(struct radv_device *dev)
             }
             nir_push_else(&b, NULL);
             {
-               dgc_emit_draw_indirect(&b, &cmd_buf, stream_base, load_param16(&b, draw_params_offset), true);
+               dgc_emit_draw_indirect(&b, &cmd_buf, stream_base, load_param16(&b, draw_params_offset), sequence_id,
+                                      true);
             }
 
             nir_pop_if(&b, NULL);

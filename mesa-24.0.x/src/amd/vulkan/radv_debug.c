@@ -1081,7 +1081,7 @@ radv_GetDeviceFaultInfoEXT(VkDevice _device, VkDeviceFaultCountsEXT *pFaultCount
 
    if (vm_fault_occurred) {
       VkDeviceFaultAddressInfoEXT addr_fault_info = {
-         .reportedAddress = fault_info.addr,
+         .reportedAddress = ((int64_t)fault_info.addr << 16) >> 16,
          .addressPrecision = 4096, /* 4K page granularity */
       };
 

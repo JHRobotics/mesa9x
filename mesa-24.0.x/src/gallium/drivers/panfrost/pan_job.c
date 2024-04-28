@@ -635,16 +635,19 @@ panfrost_batch_submit(struct panfrost_context *ctx,
       struct pipe_surface *surf = batch->key.zsbuf;
       struct panfrost_resource *z_rsrc = pan_resource(surf->texture);
 
-      /* Shared depth/stencil resources are not supported, and would
-       * break this optimisation. */
-      assert(!(z_rsrc->base.bind & PAN_BIND_SHARED_MASK));
+      /* if there are multiple levels or layers, we optimize only the first */
+      if (surf->u.tex.level == 0 && surf->u.tex.first_layer == 0) {
+         /* Shared depth/stencil resources are not supported, and would
+          * break this optimisation. */
+         assert(!(z_rsrc->base.bind & PAN_BIND_SHARED_MASK));
 
-      if (batch->clear & PIPE_CLEAR_STENCIL) {
-         z_rsrc->stencil_value = batch->clear_stencil;
-         z_rsrc->constant_stencil = true;
-      } else if (z_rsrc->constant_stencil) {
-         batch->clear_stencil = z_rsrc->stencil_value;
-         batch->clear |= PIPE_CLEAR_STENCIL;
+         if (batch->clear & PIPE_CLEAR_STENCIL) {
+            z_rsrc->stencil_value = batch->clear_stencil;
+            z_rsrc->constant_stencil = true;
+         } else if (z_rsrc->constant_stencil) {
+            batch->clear_stencil = z_rsrc->stencil_value;
+            batch->clear |= PIPE_CLEAR_STENCIL;
+         }
       }
 
       if (batch->draws & PIPE_CLEAR_STENCIL)

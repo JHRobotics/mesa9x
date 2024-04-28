@@ -88,6 +88,7 @@ struct rendering_state {
    bool blend_dirty;
    bool rs_dirty;
    bool dsa_dirty;
+   bool dsa_no_stencil;
    bool stencil_ref_dirty;
    bool clip_state_dirty;
    bool blend_color_dirty;
@@ -470,8 +471,16 @@ static void emit_state(struct rendering_state *state)
    }
 
    if (state->dsa_dirty) {
+      bool s0_enabled = state->dsa_state.stencil[0].enabled;
+      bool s1_enabled = state->dsa_state.stencil[1].enabled;
+      if (state->dsa_no_stencil) {
+         state->dsa_state.stencil[0].enabled = false;
+         state->dsa_state.stencil[1].enabled = false;
+      }
       cso_set_depth_stencil_alpha(state->cso, &state->dsa_state);
       state->dsa_dirty = false;
+      state->dsa_state.stencil[0].enabled = s0_enabled;
+      state->dsa_state.stencil[1].enabled = s1_enabled;
    }
 
    if (state->sample_mask_dirty) {
@@ -1784,6 +1793,8 @@ handle_begin_rendering(struct vk_cmd_queue_entry *cmd,
 
    render_att_init(&state->depth_att, info->pDepthAttachment, state->poison_mem, false);
    render_att_init(&state->stencil_att, info->pStencilAttachment, state->poison_mem, true);
+   state->dsa_no_stencil = !state->stencil_att.imgv;
+   state->dsa_dirty = true;
    if (state->depth_att.imgv || state->stencil_att.imgv) {
       assert(state->depth_att.imgv == NULL ||
              state->stencil_att.imgv == NULL ||
@@ -2647,7 +2658,7 @@ static void handle_index_buffer2(struct vk_cmd_queue_entry *cmd,
       state->index_buffer = lvp_buffer_from_handle(ib->buffer)->bo;
    } else {
       state->index_size = 4;
-      state->index_buffer_size = sizeof(uint32_t);
+      state->index_buffer_size = UINT32_MAX;
       state->index_offset = 0;
       state->index_buffer = state->device->zero_buffer;
    }

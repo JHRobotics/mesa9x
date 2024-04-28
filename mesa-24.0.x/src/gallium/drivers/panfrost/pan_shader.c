@@ -383,10 +383,6 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    struct panfrost_context *ctx = pan_context(pctx);
 
    if (so->nir->xfb_info) {
-      nir_shader *xfb = nir_shader_clone(NULL, so->nir);
-      xfb->info.name = ralloc_asprintf(xfb, "%s@xfb", xfb->info.name);
-      xfb->info.internal = true;
-
       so->xfb = calloc(1, sizeof(struct panfrost_compiled_shader));
       so->xfb->key.vs_is_xfb = true;
 

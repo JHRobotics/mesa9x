@@ -29,20 +29,21 @@ void r300_translate_index_buffer(struct r300_context *r300,
                                  const struct pipe_draw_info *info,
                                  struct pipe_resource **out_buffer,
                                  unsigned *index_size, unsigned index_offset,
-                                 unsigned *start, unsigned count)
+                                 unsigned *start, unsigned count,
+                                 const uint8_t **export_ptr)
 {
     unsigned out_offset;
-    void *ptr;
+    void **ptr = (void **)export_ptr;
 
     switch (*index_size) {
     case 1:
         *out_buffer = NULL;
         u_upload_alloc(r300->uploader, 0, count * 2, 4,
-                       &out_offset, out_buffer, &ptr);
+                       &out_offset, out_buffer, ptr);
 
         util_shorten_ubyte_elts_to_userptr(
                 &r300->context, info, PIPE_MAP_UNSYNCHRONIZED, index_offset,
-                *start, count, ptr);
+                *start, count, *ptr);
 
         *index_size = 2;
         *start = out_offset / 2;
@@ -52,12 +53,12 @@ void r300_translate_index_buffer(struct r300_context *r300,
         if (index_offset) {
             *out_buffer = NULL;
             u_upload_alloc(r300->uploader, 0, count * 2, 4,
-                           &out_offset, out_buffer, &ptr);
+                           &out_offset, out_buffer, ptr);
 
             util_rebuild_ushort_elts_to_userptr(&r300->context, info,
                                                 PIPE_MAP_UNSYNCHRONIZED,
                                                 index_offset, *start,
-                                                count, ptr);
+                                                count, *ptr);
 
             *start = out_offset / 2;
         }
@@ -67,12 +68,12 @@ void r300_translate_index_buffer(struct r300_context *r300,
         if (index_offset) {
             *out_buffer = NULL;
             u_upload_alloc(r300->uploader, 0, count * 4, 4,
-                           &out_offset, out_buffer, &ptr);
+                           &out_offset, out_buffer, ptr);
 
             util_rebuild_uint_elts_to_userptr(&r300->context, info,
                                               PIPE_MAP_UNSYNCHRONIZED,
                                               index_offset, *start,
-                                              count, ptr);
+                                              count, *ptr);
 
             *start = out_offset / 4;
         }

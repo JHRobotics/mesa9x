@@ -1046,7 +1046,7 @@ dri2_setup_extensions(_EGLDisplay *disp)
 
    extensions = dri2_dpy->core->getExtensions(dri2_dpy->dri_screen_render_gpu);
 
-   if (dri2_dpy->image_driver || dri2_dpy->dri2 || disp->Options.Zink) {
+   if (dri2_dpy->image_driver || dri2_dpy->dri2) {
       if (!loader_bind_extensions(dri2_dpy, dri2_core_extensions,
                                   ARRAY_SIZE(dri2_core_extensions), extensions))
          return EGL_FALSE;
@@ -1066,17 +1066,15 @@ dri2_setup_extensions(_EGLDisplay *disp)
        (dri2_dpy->present_major_version == 1 &&
         dri2_dpy->present_minor_version >= 2)) &&
       (dri2_dpy->image && dri2_dpy->image->base.version >= 15);
-#endif
    if (disp->Options.Zink && !disp->Options.ForceSoftware &&
-#ifdef HAVE_DRI3_MODIFIERS
        dri2_dpy->dri3_major_version != -1 &&
        !dri2_dpy->multibuffers_available &&
-#endif
        /* this is enum _egl_platform_type */
        (disp->Platform == _EGL_PLATFORM_X11 ||
         disp->Platform == _EGL_PLATFORM_XCB) &&
        !debug_get_bool_option("LIBGL_KOPPER_DRI2", false))
       return EGL_FALSE;
+#endif
 
    loader_bind_extensions(dri2_dpy, optional_core_extensions,
                           ARRAY_SIZE(optional_core_extensions), extensions);

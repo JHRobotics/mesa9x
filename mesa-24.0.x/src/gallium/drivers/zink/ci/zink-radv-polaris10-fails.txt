@@ -13,13 +13,8 @@ glx@extension string sanity,Fail
 # #6322
 spec@arb_framebuffer_object@fbo-blit-scaled-linear,Fail
 
-spec@arb_arrays_of_arrays@execution@image_store@basic-imagestore-mixed-const-non-const-uniform-index2,Fail
-spec@arb_arrays_of_arrays@execution@image_store@basic-imagestore-mixed-const-non-const-uniform-index,Fail
-spec@arb_arrays_of_arrays@execution@image_store@basic-imagestore-non-const-uniform-index,Fail
 spec@arb_bindless_texture@compiler@samplers@arith-bound-sampler-texture2d.frag,Crash
 
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query,Fail
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query@MS8,Fail
 spec@arb_gpu_shader_fp64@execution@arb_gpu_shader_fp64-tf-separate,Fail
 spec@arb_gpu_shader_fp64@execution@conversion@frag-conversion-explicit-dmat2-mat2,Fail
 spec@arb_gpu_shader_fp64@execution@conversion@frag-conversion-explicit-dmat2x3-mat2x3,Fail
@@ -198,64 +193,8 @@ spec@!opengl 3.0@clearbuffer-depth-cs-probe,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_gs_linked,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_tes_linked,Fail
 
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_FLOAT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_UNSIGNED_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_UNSIGNED_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ABGR_EXT and GL_UNSIGNED_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_FLOAT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_UNSIGNED_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_UNSIGNED_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_ALPHA and GL_UNSIGNED_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_FLOAT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_INT_10_10_10_2,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_INT_2_10_10_10_REV,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_INT_8_8_8_8,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_INT_8_8_8_8_REV,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_SHORT_4_4_4_4,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_BGRA and GL_UNSIGNED_SHORT_4_4_4_4_REV,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_FLOAT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_UNSIGNED_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_UNSIGNED_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_LUMINANCE_ALPHA and GL_UNSIGNED_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_FLOAT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_BYTE,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_INT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_INT_10_10_10_2,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_INT_2_10_10_10_REV,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_INT_8_8_8_8,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_INT_8_8_8_8_REV,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_SHORT,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_SHORT_4_4_4_4,Fail
-spec@!opengl 1.1@teximage-colors gl_sluminance8_alpha8@GL_SLUMINANCE8_ALPHA8 texture with GL_RGBA and GL_UNSIGNED_SHORT_4_4_4_4_REV,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yuv420,Fail
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-sample_yvu420,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats-s3tc,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats-s3tc@GL_COMPRESSED_SLUMINANCE_ALPHA,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats-s3tc@GL_COMPRESSED_SLUMINANCE_ALPHA NPOT,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats@GL_SLUMINANCE8_ALPHA8,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats@GL_SLUMINANCE8_ALPHA8 NPOT,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats@GL_SLUMINANCE_ALPHA,Fail
-spec@ext_texture_srgb@fbo-generatemipmap-formats@GL_SLUMINANCE_ALPHA NPOT,Fail
 spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
 
 # Introduced with the uprev of piglit (70ce1dcacc92 - "ci: Update piglit with s3 support")
@@ -380,69 +319,11 @@ dEQP-GLES3.functional.texture.specification.texsubimage2d_depth.depth24_stencil8
 dEQP-GLES3.functional.texture.specification.texsubimage2d_depth.depth32f_stencil8,Fail
 dEQP-GLES3.functional.texture.specification.texsubimage3d_depth.depth24_stencil8_2d_array,Fail
 dEQP-GLES3.functional.texture.specification.texsubimage3d_depth.depth32f_stencil8_2d_array,Fail
-dEQP-GLES31.functional.fbo.no_attachments.maximums.all,Fail
-dEQP-GLES31.functional.fbo.no_attachments.maximums.height,Fail
-dEQP-GLES31.functional.fbo.no_attachments.maximums.samples,Fail
-dEQP-GLES31.functional.fbo.no_attachments.maximums.size,Fail
-dEQP-GLES31.functional.fbo.no_attachments.maximums.width,Fail
-dEQP-GLES31.functional.fbo.no_attachments.multisample.samples0,Fail
-dEQP-GLES31.functional.fbo.no_attachments.multisample.samples1,Fail
-dEQP-GLES31.functional.fbo.no_attachments.multisample.samples2,Fail
-dEQP-GLES31.functional.fbo.no_attachments.multisample.samples3,Fail
-dEQP-GLES31.functional.fbo.no_attachments.multisample.samples4,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.1023x1023,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.1025x1025,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.127x127,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.127x15,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.129x127,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.129x129,Fail
 dEQP-GLES31.functional.fbo.no_attachments.npot_size.15x15,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.15x511,Fail
 dEQP-GLES31.functional.fbo.no_attachments.npot_size.17x17,Fail
 dEQP-GLES31.functional.fbo.no_attachments.npot_size.1x1,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.2047x1025,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.2047x2047,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.255x255,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.257x257,Fail
 dEQP-GLES31.functional.fbo.no_attachments.npot_size.31x31,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.33x33,Fail
 dEQP-GLES31.functional.fbo.no_attachments.npot_size.3x3,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.511x127,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.511x511,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.513x513,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.63x63,Fail
-dEQP-GLES31.functional.fbo.no_attachments.npot_size.65x65,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.0,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.1,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.10,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.11,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.12,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.13,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.14,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.15,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.2,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.3,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.4,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.5,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.6,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.7,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.8,Fail
-dEQP-GLES31.functional.fbo.no_attachments.random.9,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.1024x1024,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.1024x16,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.1024x256,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.1024x64,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.16x1024,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.16x256,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.16x64,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.256x1024,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.256x16,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.256x256,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.256x64,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.64x1024,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.64x16,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.64x256,Fail
-dEQP-GLES31.functional.fbo.no_attachments.size.64x64,Fail
 dEQP-GLES31.functional.texture.specification.texstorage3d.format.depth24_stencil8_cube_array,Fail
 dEQP-GLES31.functional.texture.specification.texstorage3d.format.depth32f_stencil8_cube_array,Fail
 dEQP-GLES31.functional.texture.specification.texsubimage3d_depth.depth24_stencil8_cube_array,Fail
@@ -488,10 +369,6 @@ spec@arb_depth_buffer_float@fbo-clear-formats,Fail
 spec@arb_depth_buffer_float@fbo-clear-formats@GL_DEPTH32F_STENCIL8,Fail
 spec@arb_es2_compatibility@texwrap formats bordercolor-swizzled,Fail
 spec@arb_es2_compatibility@texwrap formats bordercolor-swizzled@GL_RGB565- swizzled- border color only,Fail
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query@Basic,Fail
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query@discard,Fail
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query@fb resize,Fail
-spec@arb_framebuffer_no_attachments@arb_framebuffer_no_attachments-query@glViewport,Fail
 spec@arb_sample_locations@test,Fail
 spec@arb_sample_locations@test@MSAA: 1- X: 0- Y: 0- Grid: false,Fail
 spec@arb_sample_locations@test@MSAA: 1- X: 0- Y: 0- Grid: true,Fail

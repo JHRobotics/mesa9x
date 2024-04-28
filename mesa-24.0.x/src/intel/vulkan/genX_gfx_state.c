@@ -1028,7 +1028,7 @@ genX(cmd_buffer_flush_gfx_runtime_state)(struct anv_cmd_buffer *cmd_buffer)
       SET(PS_BLEND, ps_blend.ColorBufferBlendEnable, GET(blend.rts[0].ColorBufferBlendEnable));
       SET(PS_BLEND, ps_blend.SourceAlphaBlendFactor, GET(blend.rts[0].SourceAlphaBlendFactor));
       SET(PS_BLEND, ps_blend.DestinationAlphaBlendFactor, gfx->alpha_blend_zero ?
-                                                          BLENDFACTOR_CONST_COLOR :
+                                                          BLENDFACTOR_CONST_ALPHA :
                                                           GET(blend.rts[0].DestinationAlphaBlendFactor));
       SET(PS_BLEND, ps_blend.SourceBlendFactor, GET(blend.rts[0].SourceBlendFactor));
       SET(PS_BLEND, ps_blend.DestinationBlendFactor, gfx->color_blend_zero ?
@@ -1189,12 +1189,12 @@ genX(cmd_buffer_flush_gfx_runtime_state)(struct anv_cmd_buffer *cmd_buffer)
        * number of viewport programmed previously was larger than what we need
        * now, no need to reemit we can just keep the old programmed values.
        */
-      if (BITSET_SET(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_SF_CLIP) ||
+      if (BITSET_TEST(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_SF_CLIP) ||
           hw_state->vp_sf_clip.count < dyn->vp.viewport_count) {
          hw_state->vp_sf_clip.count = dyn->vp.viewport_count;
          BITSET_SET(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_SF_CLIP);
       }
-      if (BITSET_SET(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_CC) ||
+      if (BITSET_TEST(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_CC) ||
           hw_state->vp_cc.count < dyn->vp.viewport_count) {
          hw_state->vp_cc.count = dyn->vp.viewport_count;
          BITSET_SET(hw_state->dirty, ANV_GFX_STATE_VIEWPORT_CC);
@@ -1260,7 +1260,7 @@ genX(cmd_buffer_flush_gfx_runtime_state)(struct anv_cmd_buffer *cmd_buffer)
        * number of viewport programmed previously was larger than what we need
        * now, no need to reemit we can just keep the old programmed values.
        */
-      if (BITSET_SET(hw_state->dirty, ANV_GFX_STATE_SCISSOR) ||
+      if (BITSET_TEST(hw_state->dirty, ANV_GFX_STATE_SCISSOR) ||
           hw_state->scissor.count < dyn->vp.scissor_count) {
          hw_state->scissor.count = dyn->vp.scissor_count;
          BITSET_SET(hw_state->dirty, ANV_GFX_STATE_SCISSOR);

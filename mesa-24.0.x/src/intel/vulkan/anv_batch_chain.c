@@ -1389,8 +1389,6 @@ anv_queue_submit_sparse_bind_locked(struct anv_queue *queue,
       return vk_queue_set_lost(&queue->vk, "Sparse binding not supported");
    }
 
-   device->using_sparse = true;
-
    assert(submit->command_buffer_count == 0);
 
    if (INTEL_DEBUG(DEBUG_SPARSE)) {
