@@ -121,8 +121,8 @@ If targeting Windows 98/Me you can use actual MinGW from [MSYS2 project](https:/
 
 For targeting WIN95/NT, you need MinGW build without SSE instructions in runtime. Current releases are compiled by [this MinGW build](https://github.com/niXman/mingw-builds-binaries/releases/download/13.1.0-rt_v11-rev1/i686-13.1.0-release-posix-dwarf-msvcrt-rt_v11-rev1.7z) from [this project](https://github.com/niXman/mingw-builds-binaries/).
 
-### LLVM
-Mesa3D require LLVM 3.9 and later, and 6.0.1 was last one before our Mesa version was released, so newer version may works but additional modification may be required. Usually newer LLVM is faster. 
+### LLVM (6.0.1)
+Mesa3D require LLVM 3.9 and later, and 6.0.1 was last one before Mesa version 17.3.9 was released, so newer version may works but additional modification may be required. Usually newer LLVM is faster. 
 https://releases.llvm.org/download.html#6.0.1 and download *LLVM source code* (`llvm-6.0.1.src.tar.xz`)
 https://releases.llvm.org/5.0.2/llvm-5.0.2.src.tar.xz
 
@@ -150,6 +150,60 @@ After complete (take some time), install to prefix directory
 mingw32-make install
 ```
 
+### LLVM (18.x.x)
+Experimentally it is possible usage of current LLVM version.
+
+You need LLVM self (for example: `llvm-18.1.4.src.tar.xz`) + extra cmake files (for example: `cmake-18.1.4.src.tar.xz`). Extract archives to somewhere (in examples it is `C:\source\llvm`) and rename `cmake-x.y.z.src` to just `cmake`. Also create `llvm-build` directory for build files and `llvm-win32` for installation. Copy also `llvm-9x-18.1.4.patch` from Mesa9x repository here.  Directory tree should like:
+
+ ```
+├───cmake
+│   └───Modules
+├───llvm-18.1.4.src
+│   ├───benchmarks
+│   ├───bindings
+│   ├───cmake
+│   └─── ...
+├───llvm-build (empty)
+├───llvm-win32 (empty)
+└───llvm-9x-18.1.4.patch
+
+```
+
+Now apply LLVM 9x patch:
+
+```
+cd C:\source\llvm\llvm-18.1.4.src
+patch -p1 < ../llvm-9x-18.1.4.patch
+```
+
+Run `cmake`:
+
+```
+cd C:\source\llvm\llvm-build
+cmake -G"MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_INSTALL_PREFIX=C:/source/llvm/llvm-win32 ../llvm-18.1.4.src
+```
+
+Run `make` (`-j8` is number if building threads, please adjust this value for your CPU):
+
+```
+mingw32-make -j8
+```
+
+After complete (take some time), install to prefix directory
+```
+mingw32-make install
+```
+
+For this example, the entry to Mesa9x `config.mk` should like this:
+
+```
+MESA_VER = mesa-24.0.x
+LLVM_DIR = C:/source/llvm/llvm-win32
+LLVM_VER = 0x120E
+LLVM_2024 = 1
+```
+
+
 ### Mesa3D
 I omitted classic configure file and create only GNU Make file - target is only one and this is more portable.
 
@@ -160,7 +214,7 @@ Now you can build project
 mingw32-make -j8
 ```
 
-### Visual studio
+### Visual studio (outdated and not much tested)
 Microsoft Visual Studio 2005 (at last Professional, not free Express Edition) is last official with Windows 9x target support. And we need at last version 2015 to build this project (required is C++11 or C++14 support) - Visual Studio IS NOT WAY to produce Windows 95/98/Me binary. But it can be useful at debug. So short description how to build:
 
 At first, build LLVM:

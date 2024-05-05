@@ -1,0 +1,553 @@
+diff -ruN llvm-18.1.4.orig/CMakeLists.txt llvm-18.1.4.src/CMakeLists.txt
+--- llvm-18.1.4.orig/CMakeLists.txt	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/CMakeLists.txt	2024-04-29 22:45:04.649399400 +0200
+@@ -1171,7 +1171,13 @@
+ if( MINGW AND NOT "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" )
+   # People report that -O3 is unreliable on MinGW. The traditional
+   # build also uses -O2 for that reason:
+-  llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
++  # llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
++  # JH: ^ many mingw versions are broken, but my not! :-)
++  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.0)
++    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=pentium2 -mtune=core2")
++    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=pentium2 -mtune=core2")
++  endif()
++  # JH: ^safe flags for W95, you can use -march=core2 (SSSE3) or -march=westmere (SSE4) for faster code for W98/Me
+ endif()
+ 
+ if(LLVM_INCLUDE_TESTS)
+diff -ruN llvm-18.1.4.orig/lib/Support/CrashRecoveryContext.cpp llvm-18.1.4.src/lib/Support/CrashRecoveryContext.cpp
+--- llvm-18.1.4.orig/lib/Support/CrashRecoveryContext.cpp	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/CrashRecoveryContext.cpp	2024-05-03 00:19:53.903418200 +0200
+@@ -314,16 +314,21 @@
+   // handler as the front of the list, though there's no assurances that
+   // it will remain at the front (another call could install itself before
+   // our handler).  This 1) isn't likely, and 2) shouldn't cause problems.
++#if 0
+   PVOID handle = ::AddVectoredExceptionHandler(1, ExceptionHandler);
+   sCurrentExceptionHandle = handle;
++#else
++  sCurrentExceptionHandle = NULL;
++#endif
+ }
+ 
+ static void uninstallExceptionOrSignalHandlers() {
+   PVOID currentHandle = const_cast<PVOID>(sCurrentExceptionHandle);
+   if (currentHandle) {
+     // Now we can remove the vectored exception handler from the chain
++#if 0
+     ::RemoveVectoredExceptionHandler(currentHandle);
+-
++#endif
+     // Reset the handle in our thread-local set.
+     sCurrentExceptionHandle = NULL;
+   }
+diff -ruN llvm-18.1.4.orig/lib/Support/MemAlloc.cpp llvm-18.1.4.src/lib/Support/MemAlloc.cpp
+--- llvm-18.1.4.orig/lib/Support/MemAlloc.cpp	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/MemAlloc.cpp	2024-05-04 21:04:17.082430000 +0200
+@@ -14,7 +14,7 @@
+ LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
+ llvm::allocate_buffer(size_t Size, size_t Alignment) {
+   return ::operator new(Size
+-#ifdef __cpp_aligned_new
++#if 0 /*__cpp_aligned_new*/
+                         ,
+                         std::align_val_t(Alignment)
+ #endif
+@@ -27,7 +27,7 @@
+                     ,
+                     Size
+ #endif
+-#ifdef __cpp_aligned_new
++#if 0 /*__cpp_aligned_new*/
+                     ,
+                     std::align_val_t(Alignment)
+ #endif
+diff -ruN llvm-18.1.4.orig/lib/Support/RandomNumberGenerator.cpp llvm-18.1.4.src/lib/Support/RandomNumberGenerator.cpp
+--- llvm-18.1.4.orig/lib/Support/RandomNumberGenerator.cpp	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/RandomNumberGenerator.cpp	2024-04-29 23:00:17.512909700 +0200
+@@ -21,6 +21,8 @@
+ #include "llvm/Support/raw_ostream.h"
+ #ifdef _WIN32
+ #include "llvm/Support/Windows/WindowsSupport.h"
++#include <cstdlib>
++#include <ctime>
+ #else
+ #include "Unix/Unix.h"
+ #endif
+@@ -67,6 +69,7 @@
+ // Get random vector of specified size
+ std::error_code llvm::getRandomBytes(void *Buffer, size_t Size) {
+ #ifdef _WIN32
++#if 0
+   HCRYPTPROV hProvider;
+   if (CryptAcquireContext(&hProvider, 0, 0, PROV_RSA_FULL,
+                            CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+@@ -76,6 +79,17 @@
+   }
+   return std::error_code(GetLastError(), std::system_category());
+ #else
++  uint8_t *ptr = (uint8_t *)Buffer;
++  srand(time(NULL));
++  
++  for(size_t i = 0; i < Size; i++)
++  {
++  	ptr[i] = rand() & 0xFF;
++  }
++#endif
++  
++  return std::error_code();
++#else
+   int Fd = open("/dev/urandom", O_RDONLY);
+   if (Fd != -1) {
+     std::error_code Ret;
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/DynamicLibrary.inc llvm-18.1.4.src/lib/Support/Windows/DynamicLibrary.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/DynamicLibrary.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/DynamicLibrary.inc	2024-04-29 22:45:04.661377400 +0200
+@@ -68,6 +68,7 @@
+ static bool GetProcessModules(HANDLE H, DWORD &Bytes, HMODULE *Data = nullptr) {
+   // EnumProcessModules will fail on Windows 64 while some versions of
+   // MingW-32 don't have EnumProcessModulesEx.
++#if 0
+   if (
+ #ifdef _WIN64
+       !EnumProcessModulesEx(H, Data, Bytes, &Bytes, LIST_MODULES_64BIT)
+@@ -81,6 +82,9 @@
+     return false;
+   }
+   return true;
++#else
++	return false;
++#endif
+ }
+ 
+ void *DynamicLibrary::HandleSet::DLSym(void *Handle, const char *Symbol) {
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Memory.inc llvm-18.1.4.src/lib/Support/Windows/Memory.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Memory.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Memory.inc	2024-05-04 20:19:18.284139900 +0200
+@@ -62,7 +62,11 @@
+ // sucessfull, we return the minimal large memory page size.
+ static size_t enableProcessLargePages() {
+   HANDLE Token = 0;
++#if 0
+   size_t LargePageMin = GetLargePageMinimum();
++#else
++  size_t LargePageMin = 0;
++#endif
+   if (LargePageMin)
+     OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+                      &Token);
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Path.inc llvm-18.1.4.src/lib/Support/Windows/Path.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Path.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Path.inc	2024-05-04 19:27:45.556231500 +0200
+@@ -165,15 +165,20 @@
+ }
+ 
+ ErrorOr<space_info> disk_space(const Twine &Path) {
+-  ULARGE_INTEGER Avail, Total, Free;
+-  if (!::GetDiskFreeSpaceExA(Path.str().c_str(), &Avail, &Total, &Free))
++  DWORD lpSectorsPerCluster;
++  DWORD lpBytesPerSector;
++  DWORD lpNumberOfFreeClusters;
++  DWORD lpTotalNumberOfClusters;
++//  ULARGE_INTEGER Avail, Total, Free;
++//  if (!::GetDiskFreeSpaceExA(Path.str().c_str(), &Avail, &Total, &Free))
++//    return mapWindowsError(::GetLastError());
++  if(GetDiskFreeSpaceA(Path.str().c_str(), &lpSectorsPerCluster, &lpBytesPerSector, &lpNumberOfFreeClusters, &lpTotalNumberOfClusters))
+     return mapWindowsError(::GetLastError());
++
+   space_info SpaceInfo;
+-  SpaceInfo.capacity =
+-      (static_cast<uint64_t>(Total.HighPart) << 32) + Total.LowPart;
+-  SpaceInfo.free = (static_cast<uint64_t>(Free.HighPart) << 32) + Free.LowPart;
+-  SpaceInfo.available =
+-      (static_cast<uint64_t>(Avail.HighPart) << 32) + Avail.LowPart;
++  SpaceInfo.capacity = (uint64_t)lpBytesPerSector * (uint64_t)lpSectorsPerCluster * (uint64_t)lpTotalNumberOfClusters;
++  SpaceInfo.free = (uint64_t)lpBytesPerSector * (uint64_t)lpSectorsPerCluster * (uint64_t)lpNumberOfFreeClusters;
++  SpaceInfo.available = SpaceInfo.free;
+   return SpaceInfo;
+ }
+ 
+@@ -253,6 +258,7 @@
+ 
+ // We can't use symbolic links for windows.
+ std::error_code create_link(const Twine &to, const Twine &from) {
++#if 0
+   // Convert to utf-16.
+   SmallVector<wchar_t, 128> wide_from;
+   SmallVector<wchar_t, 128> wide_to;
+@@ -265,6 +271,9 @@
+     return mapWindowsError(::GetLastError());
+ 
+   return std::error_code();
++#else
++  return mapWindowsError(ERROR_ACCESS_DENIED); // links on fat32...
++#endif
+ }
+ 
+ std::error_code create_hard_link(const Twine &to, const Twine &from) {
+@@ -305,6 +314,7 @@
+ 
+ static std::error_code is_local_internal(SmallVectorImpl<wchar_t> &Path,
+                                          bool &Result) {
++#if 0
+   SmallVector<wchar_t, 128> VolumePath;
+   size_t Len = 128;
+   while (true) {
+@@ -343,6 +353,10 @@
+     return make_error_code(errc::no_such_file_or_directory);
+   }
+   llvm_unreachable("Unreachable!");
++#else
++  Result = true;
++  return std::error_code();
++#endif
+ }
+ 
+ std::error_code is_local(const Twine &path, bool &result) {
+@@ -359,17 +373,34 @@
+   return is_local_internal(WidePath, result);
+ }
+ 
++extern "C" typedef DWORD (WINAPI * GetFinalPathNameByHandleW_t)(HANDLE, LPWSTR, DWORD, DWORD);
++
++static DWORD GetFinalPathNameByHandleW9x(HANDLE hFile, LPWSTR lpszFilePath, DWORD  cchFilePath, DWORD  dwFlags)
++{
++	HMODULE hKernel = GetModuleHandleA("kernel32.dll");
++	if(hKernel)
++	{
++		GetFinalPathNameByHandleW_t fn = (GetFinalPathNameByHandleW_t)GetProcAddress(hKernel, "GetFinalPathNameByHandleW");
++		if(fn)
++		{
++			return fn(hFile, lpszFilePath, cchFilePath, dwFlags);
++		}
++	}
++	
++	return 0;
++}
++
+ static std::error_code realPathFromHandle(HANDLE H,
+                                           SmallVectorImpl<wchar_t> &Buffer,
+                                           DWORD flags = VOLUME_NAME_DOS) {
+   Buffer.resize_for_overwrite(Buffer.capacity());
+-  DWORD CountChars = ::GetFinalPathNameByHandleW(
++  DWORD CountChars = GetFinalPathNameByHandleW9x(
+       H, Buffer.begin(), Buffer.capacity(), FILE_NAME_NORMALIZED | flags);
+   if (CountChars && CountChars >= Buffer.capacity()) {
+     // The buffer wasn't big enough, try again.  In this case the return value
+     // *does* indicate the size of the null terminator.
+     Buffer.resize_for_overwrite(CountChars);
+-    CountChars = ::GetFinalPathNameByHandleW(H, Buffer.begin(), Buffer.size(),
++    CountChars = GetFinalPathNameByHandleW9x(H, Buffer.begin(), Buffer.size(),
+                                              FILE_NAME_NORMALIZED | flags);
+   }
+   Buffer.truncate(CountChars);
+@@ -419,6 +450,7 @@
+ }
+ 
+ static std::error_code setDeleteDisposition(HANDLE Handle, bool Delete) {
++#if 0
+   // Clear the FILE_DISPOSITION_INFO flag first, before checking if it's a
+   // network file. On Windows 7 the function realPathFromHandle() below fails
+   // if the FILE_DISPOSITION_INFO flag was already set to 'DeleteFile = true' by
+@@ -451,11 +483,13 @@
+   if (!SetFileInformationByHandle(Handle, FileDispositionInfo, &Disposition,
+                                   sizeof(Disposition)))
+     return mapWindowsError(::GetLastError());
++#endif
+   return std::error_code();
+ }
+ 
+ static std::error_code rename_internal(HANDLE FromHandle, const Twine &To,
+                                        bool ReplaceIfExists) {
++#if 0
+   SmallVector<wchar_t, 0> ToWide;
+   if (auto EC = widenPath(To, ToWide))
+     return EC;
+@@ -477,8 +511,10 @@
+       Error = ERROR_CALL_NOT_IMPLEMENTED; // Wine doesn't always set error code.
+     return mapWindowsError(Error);
+   }
+-
+   return std::error_code();
++#else
++  return std::error_code(ERROR_CALL_NOT_IMPLEMENTED, std::system_category());
++#endif
+ }
+ 
+ static std::error_code rename_handle(HANDLE FromHandle, const Twine &To) {
+@@ -1035,9 +1071,14 @@
+ 
+   //  Get the first directory entry.
+   WIN32_FIND_DATAW FirstFind;
++#if 0
+   ScopedFindHandle FindHandle(::FindFirstFileExW(
+       c_str(PathUTF16), FindExInfoBasic, &FirstFind, FindExSearchNameMatch,
+       NULL, FIND_FIRST_EX_LARGE_FETCH));
++#else
++  ScopedFindHandle FindHandle(::FindFirstFileW(
++      c_str(PathUTF16), &FirstFind));
++#endif
+   if (!FindHandle)
+     return mapWindowsError(::GetLastError());
+ 
+@@ -1386,7 +1427,8 @@
+   shfos.pFrom = Path16.data();
+   shfos.fFlags = FOF_NO_UI;
+ 
+-  int result = ::SHFileOperationW(&shfos);
++  //int result = ::SHFileOperationW(&shfos);
++  int result = -1;
+   if (result != 0 && !IgnoreErrors)
+     return mapWindowsError(result);
+   return std::error_code();
+@@ -1458,6 +1500,7 @@
+ namespace path {
+ static bool getKnownFolderPath(KNOWNFOLDERID folderId,
+                                SmallVectorImpl<char> &result) {
++#if 0
+   wchar_t *path = nullptr;
+   if (::SHGetKnownFolderPath(folderId, KF_FLAG_CREATE, nullptr, &path) != S_OK)
+     return false;
+@@ -1467,6 +1510,9 @@
+   if (ok)
+     llvm::sys::path::make_preferred(result);
+   return ok;
++#else
++  return false;
++#endif
+ }
+ 
+ bool home_directory(SmallVectorImpl<char> &result) {
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Process.inc llvm-18.1.4.src/lib/Support/Windows/Process.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Process.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Process.inc	2024-04-29 22:50:05.905294600 +0200
+@@ -57,7 +57,8 @@
+   // GetNativeSystemInfo() provides the physical page size which may differ
+   // from GetSystemInfo() in 32-bit applications running under WOW64.
+   SYSTEM_INFO info;
+-  GetNativeSystemInfo(&info);
++  //GetNativeSystemInfo(&info);
++  GetSystemInfo(&info);
+   // FIXME: FileOffset in MapViewOfFile() should be aligned to not dwPageSize,
+   // but dwAllocationGranularity.
+   return static_cast<unsigned>(info.dwPageSize);
+@@ -459,6 +460,7 @@
+ }
+ 
+ unsigned Process::GetRandomNumber() {
++#if 0
+   // Try to use CryptGenRandom.
+   HCRYPTPROV HCPC;
+   if (::CryptAcquireContextW(&HCPC, NULL, NULL, PROV_RSA_FULL,
+@@ -472,6 +474,9 @@
+ 
+   // If that fails, fall back to pseudo-random numbers.
+   return GetPseudoRandomNumber();
++#else
++  return (unsigned)rand();
++#endif
+ }
+ 
+ typedef NTSTATUS(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Program.inc llvm-18.1.4.src/lib/Support/Windows/Program.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Program.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Program.inc	2024-05-04 15:32:28.833664100 +0200
+@@ -314,6 +314,7 @@
+ 
+   // Assign the process to a job if a memory limit is defined.
+   ScopedJobHandle hJob;
++#if 0
+   if (MemoryLimit != 0) {
+     hJob = CreateJobObjectW(0, 0);
+     bool success = false;
+@@ -336,6 +337,7 @@
+       return false;
+     }
+   }
++#endif
+ 
+   // Set the affinity mask
+   if (AffinityMask) {
+@@ -442,6 +444,7 @@
+   }
+ 
+   // Get process execution statistics.
++#if 0
+   if (ProcStat) {
+     FILETIME CreationTime, ExitTime, KernelTime, UserTime;
+     PROCESS_MEMORY_COUNTERS MemInfo;
+@@ -456,6 +459,7 @@
+       *ProcStat = ProcessStatistics{UserT + KernelT, UserT, PeakMemory};
+     }
+   }
++#endif
+ 
+   // Get its exit status.
+   DWORD status;
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Signals.inc llvm-18.1.4.src/lib/Support/Windows/Signals.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Signals.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Signals.inc	2024-05-04 15:34:19.050924700 +0200
+@@ -234,6 +234,7 @@
+                                               HANDLE hProcess, HANDLE hThread,
+                                               STACKFRAME64 &StackFrameOrig,
+                                               CONTEXT *ContextOrig) {
++#if 0
+   // StackWalk64 modifies the incoming stack frame and context, so copy them.
+   STACKFRAME64 StackFrame = StackFrameOrig;
+ 
+@@ -257,6 +258,9 @@
+   }
+ 
+   return printSymbolizedStackTrace(Argv0, &StackTrace[0], Depth, OS);
++#else
++  return false;
++#endif
+ }
+ 
+ namespace {
+@@ -541,8 +545,12 @@
+   STACKFRAME64 StackFrame{};
+   CONTEXT Context{};
+   if (!C) {
++#if 0
+     ::RtlCaptureContext(&Context);
+     C = &Context;
++#else
++    return;
++#endif
+   }
+ #if defined(_M_X64)
+   StackFrame.AddrPC.Offset = Context.Rip;
+@@ -657,7 +665,7 @@
+ /// \returns true if a valid value for DumpFolder exists, false otherwise.
+ static bool GetDumpFolder(HKEY Key,
+                           llvm::SmallVectorImpl<char> &ResultDirectory) {
+-  using llvm::sys::windows::UTF16ToUTF8;
++  /*using llvm::sys::windows::UTF16ToUTF8;
+ 
+   if (!Key)
+     return false;
+@@ -689,7 +697,8 @@
+   if (UTF16ToUTF8(ExpandBuffer.data(), ExpandBufferSize - 1, ResultDirectory))
+     return false;
+ 
+-  return true;
++  return true;*/
++  return false;
+ }
+ 
+ /// Populate ResultType with a valid MINIDUMP_TYPE based on the value of
+@@ -706,7 +715,7 @@
+ ///
+ /// \returns true if a valid value for ResultType can be set, false otherwise.
+ static bool GetDumpType(HKEY Key, MINIDUMP_TYPE &ResultType) {
+-  if (!Key)
++ /* if (!Key)
+     return false;
+ 
+   DWORD DumpType;
+@@ -735,7 +744,8 @@
+   default:
+     return false;
+   }
+-  return true;
++  return true;*/
++  return false;
+ }
+ 
+ /// Write a Windows dump file containing process information that can be
+diff -ruN llvm-18.1.4.orig/lib/Support/Windows/Threading.inc llvm-18.1.4.src/lib/Support/Windows/Threading.inc
+--- llvm-18.1.4.orig/lib/Support/Windows/Threading.inc	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Support/Windows/Threading.inc	2024-05-04 15:37:08.725524800 +0200
+@@ -49,9 +49,9 @@
+   }
+ }
+ 
+-DWORD llvm_thread_get_id_impl(HANDLE hThread) { return ::GetThreadId(hThread); }
++DWORD llvm_thread_get_id_impl(HANDLE hThread) { return (DWORD)hThread /*::GetThreadId(hThread)*/; }
+ 
+-DWORD llvm_thread_get_current_id_impl() { return ::GetCurrentThreadId(); }
++DWORD llvm_thread_get_current_id_impl() { return (DWORD)::GetCurrentThread() /*::GetCurrentThreadId()*/; }
+ 
+ } // namespace llvm
+ 
+@@ -137,6 +137,7 @@
+ 
+ template <typename F>
+ static bool IterateProcInfo(LOGICAL_PROCESSOR_RELATIONSHIP Relationship, F Fn) {
++#if 0
+   DWORD Len = 0;
+   BOOL R = ::GetLogicalProcessorInformationEx(Relationship, NULL, &Len);
+   if (R || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+@@ -157,10 +158,14 @@
+   }
+   free(Info);
+   return true;
++#else
++	return false;
++#endif
+ }
+ 
+ static std::optional<std::vector<USHORT>> getActiveGroups() {
+   USHORT Count = 0;
++#if 0
+   if (::GetProcessGroupAffinity(GetCurrentProcess(), &Count, nullptr))
+     return std::nullopt;
+ 
+@@ -173,6 +178,9 @@
+     return std::nullopt;
+ 
+   return Groups;
++#else
++  return std::nullopt;
++#endif
+ }
+ 
+ static ArrayRef<ProcessorGroup> getProcessorGroups() {
+@@ -307,10 +315,13 @@
+   GROUP_AFFINITY Affinity{};
+   Affinity.Group = Groups[*Socket].ID;
+   Affinity.Mask = Groups[*Socket].Affinity;
++#if 0
+   SetThreadGroupAffinity(GetCurrentThread(), &Affinity, nullptr);
++#endif
+ }
+ 
+ llvm::BitVector llvm::get_thread_affinity_mask() {
++#if 0
+   GROUP_AFFINITY Affinity{};
+   GetThreadGroupAffinity(GetCurrentThread(), &Affinity);
+ 
+@@ -330,6 +341,10 @@
+       V.set(StartOffset + I);
+   }
+   return V;
++#else
++	llvm::BitVector V;
++	return V;
++#endif
+ }
+ 
+ unsigned llvm::get_cpus() { return getProcessorGroups().size(); }
+diff -ruN llvm-18.1.4.orig/lib/Target/X86/X86ISelLowering.cpp llvm-18.1.4.src/lib/Target/X86/X86ISelLowering.cpp
+--- llvm-18.1.4.orig/lib/Target/X86/X86ISelLowering.cpp	2024-04-17 02:21:15.000000000 +0200
++++ llvm-18.1.4.src/lib/Target/X86/X86ISelLowering.cpp	2024-04-29 22:45:04.709627500 +0200
+@@ -57735,8 +57735,17 @@
+   // We need a stack probe to conform to the Windows ABI. Choose the right
+   // symbol.
+   if (Subtarget.is64Bit())
++#if 0
+     return Subtarget.isTargetCygMing() ? "___chkstk_ms" : "__chkstk";
++#else
++    return "___chkstk_ms";
++#endif
++
++#if 0
+   return Subtarget.isTargetCygMing() ? "_alloca" : "_chkstk";
++#else
++  return "_alloca";
++#endif
+ }
+ 
+ unsigned

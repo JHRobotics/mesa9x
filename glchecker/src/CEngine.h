@@ -29,7 +29,6 @@ All rights reserved. Read the license for more information.
 #include <limits.h>
 //#include <iostream>
 //#include <fstream>
-using namespace std;
 
 /* Windows */
 #if defined(COS_WIN32)
@@ -163,6 +162,8 @@ extern PFNGLINDEXPOINTEREXTPROC glIndexPointerEXT;
 extern PFNGLNORMALPOINTEREXTPROC glNormalPointerEXT;
 extern PFNGLTEXCOORDPOINTEREXTPROC glTexCoordPointerEXT;
 extern PFNGLVERTEXPOINTEREXTPROC glVertexPointerEXT;
+
+using namespace std;
 
 /* BASS */
 /*

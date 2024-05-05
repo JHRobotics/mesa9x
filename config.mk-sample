@@ -15,8 +15,14 @@ MESA_VER = mesa-23.1.x
 # If LLVM enabled, set this path to LLVM instalation dir
 #LLVM_DIR = ../path/to/llvm
 
-# LLVM version in hex internal format (e.g. 6.0.1 => 0x0601, 5.0.2 => 0x0502)
+# LLVM version in hex internal format (e.g. 6.0.1 => 0x0601, 5.0.2 => 0x0502, 18.1.4 => 0x120E)
 #LLVM_VER = 0x0601
+
+# define when you're using current LLVM (18 for example...)
+#LLVM_2024 = 1
+
+# use newer C standard (LLVM_2024 enable it automatically)
+#C_NEWER_STD = 1
 
 # force using detele utility - microsoft or GNU one
 #RM = rm -f
@@ -104,3 +110,8 @@ TUNE += -pipe
 # don't remove thread-safe data, but in Windows 95 fail to load this library
 # by LoadLibrary api call.
 #NO_STATIC_TLS_REMOVE=1
+
+# redirect debug output to specific file
+#ifdef DEBUG
+#TUNE += -DDEBUG_FILE="mesa.log"
+#endif

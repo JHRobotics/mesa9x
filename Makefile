@@ -42,10 +42,20 @@ ifeq ($(MESA_VER),mesa-24.0.x)
   MESA_GPU10 := 1
 endif
 
+# new LLVM required newer C++ standard
+ifdef LLVM_2024
+  C_NEWER_STD := 1
+endif
+
 # only usefull with gcc/mingw
-CSTD=c99
+CSTD=gnu99
 ifdef MESA_GPU10
-  CXXSTD=gnu++14
+  ifdef C_NEWER_STD
+    CXXSTD=gnu++17
+    #CSTD=gnu17 # not yet!
+  else
+    CXXSTD=gnu++14
+  endif
 else
   CXXSTD=gnu++11
 endif
@@ -92,6 +102,14 @@ include $(MESA_VER).mk
 
 PACKAGE_VERSION := 9x $(MESA_DIST_VERSION).$(VERSION_BUILD)
 
+LLVM_modules := bitwriter engine mcdisassembler mcjit
+ifdef LLVM_2024
+  LLVM_modules += native passes
+  ifdef LTO
+    LLVM_modules += lto
+  endif
+endif
+
 ifdef MSC
 #
 # MSC configuration
@@ -120,7 +138,7 @@ ifdef MSC
     SIMD_INCLUDE += $(CL_INCLUDE) /I$(LLVM_DIR)/include
     
     opengl_simd_LIBS := MesaLibSimd.lib MesaUtilLibSimd.lib MesaGalliumLLVMPipe.lib MesaGalliumAuxLibSimd.lib
-    opengl_simd_LIBS := $(opengl_simd_LIBS) $(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static bitwriter engine mcdisassembler mcjit)
+    opengl_simd_LIBS := $(opengl_simd_LIBS) $(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static $(LLVM_modules))
     
     # LLVMpipe 6.x required zlib
     MESA_SIMD_LIBS = $(MESA_LIBS) psapi.lib ole32.lib
@@ -291,10 +309,10 @@ else
     SIMD_INCLUDE += $(INCLUDE) -I$(LLVM_DIR)/include
     
     opengl_simd_LIBS := -L. -L$(LLVM_DIR)/lib -lMesaLibSimd -lMesaUtilLibSimd -lMesaGalliumLLVMPipe -lMesaGalliumAuxLibSimd -lMesaLibSimd -lMesaUtilLibSimd
-    opengl_simd_LIBS := $(opengl_simd_LIBS) $(filter-out -lshell32,$(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static bitwriter engine mcdisassembler mcjit))
+    opengl_simd_LIBS := $(opengl_simd_LIBS) $(filter-out -lshell32,$(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static $(LLVM_modules)))
     
     # LLVMpipe 6.x required zlib
-    MESA_SIMD_LIBS := $(MESA_LIBS) -lpsapi -lole32 -lz
+    MESA_SIMD_LIBS := $(MESA_LIBS) -lpsapi -lole32 -lz -lws2_32
     
     LIBS_TO_BUILD += $(LIBPREFIX)MesaGalliumLLVMPipe$(LIBSUFFIX)
     LIBS_TO_BUILD += $(LIBPREFIX)MesaUtilLibSimd$(LIBSUFFIX)
@@ -309,11 +327,19 @@ else
     LLVM_CXXFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cxxflags)
     ifndef LP_DEBUG
       SIMD_CFLAGS   = -std=$(CSTD) $(filter-out -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
-      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
+      SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11 -std=c++17,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
     else
       SIMD_CFLAGS = -std=$(CSTD) -O1 -g  $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)
       SIMD_CXXFLAGS = -std=$(CXXSTD) -O1 -g $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(DD_DEFS)
     endif
+    
+    ifdef LLVM_2024
+      ifndef LP_DEBUG
+        SIMD_CFLAGS += -O3
+        SIMD_CXXFLAGS += -O3
+      endif
+    endif
+    
     SIMD_LDFLAGS = -std=$(CXXSTD)
   endif
   
