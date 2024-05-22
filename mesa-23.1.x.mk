@@ -964,7 +964,9 @@ MesaSVGAWinsysLib_SRC  = \
 	win9x/winsys/vmw_screen_wddm.c \
 	win9x/gadrv9x.cpp \
 	win9x/gadrv9xenv.cpp \
-	win9x/svgadrv.c
+	win9x/svgadrv.c \
+	win9x/svgadrv_cb.c \
+	win9x/svgadrv_present.c
 	
 MesaGdiLib_SRC = \
   $(MESA_VER)/src/gallium/winsys/sw/gdi/gdi_sw_winsys.c \

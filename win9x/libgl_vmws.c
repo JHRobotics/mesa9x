@@ -119,7 +119,7 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
 {
 #endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
-
+    
     if (pEnv)
     {
     	  svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);
@@ -143,7 +143,7 @@ static void wddm_present_window(struct pipe_screen *screen, struct pipe_context 
 {
 #endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
-
+    
     if (pEnv)
     {
     	  svga_inst_t *svga = (svga_inst_t *)(pEnv->pvEnv);

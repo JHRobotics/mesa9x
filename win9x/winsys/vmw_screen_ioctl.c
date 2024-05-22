@@ -279,7 +279,7 @@ vmw_ioctl_surface_req(const struct vmw_winsys_screen *vws,
 		case WINSYS_HANDLE_TYPE_FD:
 			*needs_unref = FALSE;
 			req->handle_type = DRM_VMW_HANDLE_LEGACY;
-			req->sid = whandle->handle;
+			req->sid = (uint32_t)whandle->handle;
 			break;
 		default:
 			return -EINVAL;
@@ -479,6 +479,11 @@ vmw_ioctl_syncforcpu(struct vmw_region *region,
 {
     //RT_NOREF4(region, dont_block, readonly, allow_cs);
     // ???
+    
+    FILE *f = fopen("C:\\assert.log", "ab");
+    fprintf(f, "vmw_ioctl_syncforcpu\r\n");
+    fclose(f);
+    
     return -1;
 }
 
@@ -496,7 +501,10 @@ vmw_ioctl_releasefromcpu(struct vmw_region *region,
 {
     //RT_NOREF3(region, readonly, allow_cs);
     // ???
-    return;
+
+		FILE *f = fopen("C:\\assert.log", "ab");
+		fprintf(f, "vmw_ioctl_releasefromcpu\r\n");
+		fclose(f);
 }
 
 void
@@ -568,7 +576,11 @@ vmw_ioctl_shader_create(struct vmw_winsys_screen *vws,
 {
     //RT_NOREF3(vws, type, code_len);
     // DeviceCallbacks.pfnAllocateCb(pDevice->hDevice, pDdiAllocate);
-    debug_printf("vmw_ioctl_shader_create: FIALED\n");
+
+		FILE *f = fopen("C:\\assert.log", "ab");
+    fprintf(f, "vmw_ioctl_shader_create\r\n");
+    fclose(f);
+
     return 0;
 }
 
@@ -577,6 +589,11 @@ vmw_ioctl_shader_destroy(struct vmw_winsys_screen *vws, uint32 shid)
 {
     //RT_NOREF2(vws, shid);
     // ??? DeviceCallbacks.pfnDeallocateCb(pDevice->hDevice, pDdiAllocate);
+    
+		FILE *f = fopen("C:\\assert.log", "ab");
+    fprintf(f, "vmw_ioctl_shader_destroy\r\n");
+    fclose(f);
+    
     return;
 }
 
@@ -1037,6 +1054,17 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
             vws->base.have_sm5 = TRUE;
          }
       }
+      
+#if MESA_MAJOR >= 24
+      if (vws->ioctl.have_drm_2_20 && vws->base.have_sm5) {
+         memset(&gp_arg, 0, sizeof(gp_arg));
+         gp_arg.param = DRM_VMW_PARAM_GL43;
+         ret = vboxGetParam(vws_wddm, &gp_arg);
+         if (ret == 0 && gp_arg.value != 0) {
+            vws->base.have_gl43 = true;
+         }
+      }
+#endif
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_3D_CAPS_SIZE;

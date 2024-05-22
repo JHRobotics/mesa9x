@@ -122,6 +122,8 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
   uint32_t cnt_cmds = 0;
   uint32_t cnt_cb   = 0;
   
+  SVGAWaitAll(svga);
+  
   SVGAStart(svga);
   
   while(next < last)
@@ -213,11 +215,15 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 			break;
 		}
 	}
-		
+	
+#if 1	
 	if(pFenceQuery)
 	{
 		flags |= SVGA_CB_FORCE_FENCE;
 	}
+#else
+	flags |= SVGA_CB_FORCE_FENCE;
+#endif
 	
 	SVGAFinish(svga, flags, cid_dx);
 	

@@ -78,6 +78,9 @@ typedef struct _svga_inst_t
 	
 	/* vGPU10 cache */
 	region_cache_t cache;
+	BOOL           st_defined;
+	uint32_t       st_width;
+	uint32_t       st_height;
 } svga_inst_t;
 
 BOOL IsSVGA(HDC gdi_ctx);
@@ -100,6 +103,7 @@ void SVGAPush(svga_inst_t *svga, const void *cmd, const size_t size);
 void *SVGAPull(svga_inst_t *svga, const size_t size);
 void SVGAFinish(svga_inst_t *svga, DWORD flags, DWORD DXCtxId);
 void SVGASend(svga_inst_t *svga, const void *cmd, const size_t size, DWORD flags, DWORD DXCtxId);
+void SVGAWaitAll(svga_inst_t *svga);
 
 uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *address);
 void SVGARegionDestroy(svga_inst_t *svga, uint32_t regionId);
@@ -107,6 +111,9 @@ uint32_t SVGARegionSize(svga_inst_t *svga, uint32_t gmrid);
 uint32_t SVGARegionsSize(svga_inst_t *svga);
 static void SVGARegionErase(svga_inst_t *svga, uint32_t regionId);
 static void SVGARegionDestroyWithCache(svga_inst_t *svga, uint32_t regionId, BOOL cacheable);
+
+SVGA_DB_surface_t *SVGASurfaceGet(svga_inst_t *svga, uint32_t sid);
+SVGA_DB_region_t *SVGARegionGet(svga_inst_t *svga, uint32_t rid);
 
 uint32_t SVGAContextCreate(svga_inst_t *svga);
 void SVGACBContextCreate(svga_inst_t *svga);
@@ -137,6 +144,9 @@ void SVGAZombieKiller();
 #define GMR_LIMIT_DEFAULT_MB 192
 // ^ max recomended value for 512 MB RAM
 #define GMR_LIMIT_MIN_MB 64
+
+BOOL set_fb_blitsid(svga_inst_t *svga, uint32_t render_width, uint32_t render_height, uint32_t screen_bpp);
+BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render_height);
 
 //#define SVGA_CB_CONTEXT_DEFAULT SVGA_CB_CONTEXT_0
 
@@ -268,9 +278,12 @@ SVGACOTableDXUAViewEntry;
 
 #pragma pack(pop)
 
-
 #ifdef __cplusplus
 }
+#endif
+
+#ifndef SVGA_CB_FLAG_DX_CONTEXT
+#define SVGA_CB_FLAG_DX_CONTEXT SVGA_CB_DX_FLAG_DX_CONTEXT
 #endif
 
 #endif /* __SVGADRV_H__INCLUDED__ */

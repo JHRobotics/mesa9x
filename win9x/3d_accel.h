@@ -33,7 +33,7 @@ THE SOFTWARE.
 #endif
 #endif
 
-#define API_3DACCEL_VER 20240404
+#define API_3DACCEL_VER 20240514
 
 /* function codes */
 #define OP_FBHDA_SETUP        0x110B /* VXD, DRV, ExtEscape */
@@ -62,6 +62,7 @@ THE SOFTWARE.
 #define OP_SVGA_DB_SETUP      0x200F  /* VXD */
 #define OP_SVGA_OT_SETUP      0x2010  /* VXD */
 #define OP_SVGA_FLUSHCACHE    0x2011  /* VXD */
+#define OP_SVGA_VXDCMD        0x2012  /* VXD */
 
 #define OP_VBE_VALID          0x3000 /* VXD, DRV */
 #define OP_VBE_SETMODE        0x3001 /* DRV */
@@ -118,6 +119,8 @@ typedef struct FBHDA
 #define FB_ACCEL_VMSVGA10      64
 #define FB_MOUSE_NO_BLIT      128
 #define FB_FORCE_SOFTWARE     256
+#define FB_ACCEL_VMSVGA10_ST  512
+#define FB_SURFACE_LOCK      1024
 
 /* for internal use in RING-0 by VXD only */
 BOOL FBHDA_init_hw(); 
@@ -134,6 +137,7 @@ void FBHDA_free();
 #endif
 
 #define FBHDA_IGNORE_CURSOR 1
+#define FBHDA_GPU_ACCESS 2
 
 void FBHDA_access_begin(DWORD flags);
 void FBHDA_access_end(DWORD flags);
@@ -218,7 +222,10 @@ typedef struct SVGA_DB_surface
 	DWORD gmrId; /* != 0 for GB surfaces */
 	DWORD gmrMngt; /* 1 when auto destroy MOB and region when releasing surface */
 	DWORD size; /* surface size in bytes */
+	DWORD flags;
 } SVGA_DB_surface_t;
+
+#define SVGA_SURFACE_CPULOCK 1
 
 typedef struct SVGA_DB
 {
@@ -246,6 +253,14 @@ BOOL SVGA_valid();
 #define SVGA_CB_SYNC               0x40000000UL
 #define SVGA_CB_FORCE_FIFO         0x20000000UL
 #define SVGA_CB_FORCE_FENCE        0x10000000UL
+//#define SVGA_CB_LOCK               0x08000000UL
+/* ^ lock all fb operation duging command:
+ * when combination with SVGA_CB_SYNC framebuffer is locked during command
+ * when asynchronous create fence (implied SVGA_CB_FORCE_FENCE) and comands waits for this fence
+ */
+//#define SVGA_CB_LEVEL1            0x04000000UL
+//#define SVGA_CB_PRESENT           0x02000000UL
+
 // SVGA_CB_FLAG_DX_CONTEXT
 
 BOOL SVGA_setmode(DWORD w, DWORD h, DWORD bpp);
@@ -303,6 +318,8 @@ typedef struct SVGA_OT_info_entry
 SVGA_OT_info_entry_t *SVGA_OT_setup();
 
 void SVGA_flushcache();
+
+BOOL SVGA_vxdcmd(DWORD cmd);
 
 #endif /* SVGA */
 

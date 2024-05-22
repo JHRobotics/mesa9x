@@ -185,6 +185,7 @@ os_get_android_option(const char *name)
 
 #if DETECT_OS_WINDOWS
 
+#ifndef WIN9X
 /* getenv doesn't necessarily reflect changes to the environment
  * that have been made during the process lifetime, if either the
  * setter uses a different CRT (e.g. due to static linking) or the
@@ -199,19 +200,6 @@ os_get_option(const char *name)
 
 #else
 
-#ifndef WIN9X
-const char *
-os_get_option(const char *name)
-{
-   const char *opt = getenv(name);
-#if DETECT_OS_ANDROID
-   if (!opt) {
-      opt = os_get_android_option(name);
-   }
-#endif
-   return opt;
-}
-#else
 #define OS_GET_BUFFER_SIZE 128
 static char os_get_buffer[OS_GET_BUFFER_SIZE];
 
@@ -313,6 +301,19 @@ os_get_option(const char *name)
 }
 #endif /* WIN9x */
 
+#else
+
+const char *
+os_get_option(const char *name)
+{
+   const char *opt = getenv(name);
+#if DETECT_OS_ANDROID
+   if (!opt) {
+      opt = os_get_android_option(name);
+   }
+#endif
+   return opt;
+}
 #endif
 
 static struct hash_table *options_tbl;

@@ -81,7 +81,7 @@ GaDrvGetSurfaceId(struct pipe_screen *pScreen, struct pipe_resource *pResource)
 #if MESA_MAJOR < 21
         	PIPE_HANDLE_USAGE_READ
 #else
-          0
+          PIPE_HANDLE_USAGE_EXPLICIT_FLUSH
 #endif
         ))
         {
