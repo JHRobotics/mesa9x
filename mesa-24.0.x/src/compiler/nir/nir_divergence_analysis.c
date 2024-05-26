@@ -216,6 +216,7 @@ visit_intrinsic(nir_shader *shader, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_rasterization_primitive_amd:
    case nir_intrinsic_load_global_constant_uniform_block_intel:
    case nir_intrinsic_cmat_length:
+   case nir_intrinsic_load_printf_buffer_address:
       is_divergent = false;
       break;
 

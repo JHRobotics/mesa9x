@@ -19,7 +19,7 @@ SHA256 checksum
 
 ::
 
-    TBD.
+    8b7a92dbe6468c18f2383700135b5fe9de836cdf0cc8fd7dbae3c7110237d604  mesa-24.0.6.tar.xz
 
 
 New features

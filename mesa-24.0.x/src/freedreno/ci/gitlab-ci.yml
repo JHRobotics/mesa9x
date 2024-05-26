@@ -10,6 +10,25 @@ a306_gl:
     FDO_CI_CONCURRENT: 6
   parallel: 5
 
+# New jobs. Leave it as manual for now.
+.a306_piglit:
+  extends:
+    - .piglit-test
+    - .a306-test
+    - .google-freedreno-manual-rules
+  variables:
+    HWCI_START_XORG: 1
+
+# Something happened and now this hangchecks and doesn't recover.  Unkown when
+# it started.
+.a306_piglit_gl:
+  extends:
+    - .a306_piglit
+  variables:
+    PIGLIT_PROFILES: quick_gl
+    BM_KERNEL_EXTRA_ARGS: "msm.num_hw_submissions=1"
+    FDO_CI_CONCURRENT: 3
+
 a306_piglit_shader:
   extends:
     - .a306_piglit

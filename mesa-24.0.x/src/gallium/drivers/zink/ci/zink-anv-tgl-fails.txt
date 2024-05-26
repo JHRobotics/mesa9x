@@ -96,10 +96,6 @@ glx@glx_arb_create_context_es2_profile@invalid opengl es version,Fail
 glx@glx_arb_create_context_no_error@no error,Fail
 glx@glx_arb_create_context_robustness@invalid reset notification strategy,Fail
 
-# See also the EGL buffer age failures
-glx@glx-buffer-age,Fail
-glx@glx-buffer-age vblank_mode=0,Fail
-
 glx@glx-swap-pixmap-bad,Fail
 
 # ../src/gallium/drivers/zink/zink_kopper.c:859: zink_kopper_update: Assertion `pres->bind & PIPE_BIND_DISPLAY_TARGET' failed.

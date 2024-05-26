@@ -155,3 +155,9 @@ _glapi_get_dispatch(void)
 {
    return _glapi_tls_Dispatch;
 }
+
+struct _glapi_table *
+glapi_get_dispatch(void)
+{
+   return _glapi_tls_Dispatch;
+}

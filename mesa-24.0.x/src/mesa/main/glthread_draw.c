@@ -790,7 +790,8 @@ draw_elements(GLuint drawid, GLenum mode, GLsizei count, GLenum type,
        ctx->Dispatch.Current == ctx->Dispatch.ContextLost ||
        /* This will just generate GL_INVALID_OPERATION, as it should. */
        ctx->GLThread.inside_begin_end ||
-       ctx->GLThread.ListMode) {
+       ctx->GLThread.ListMode ||
+       mode >= 32 || !((1u << mode) & ctx->SupportedPrimMask)) {
       if (instance_count == 1 && baseinstance == 0 && drawid == 0) {
          int cmd_size = sizeof(struct marshal_cmd_DrawElementsBaseVertex);
          struct marshal_cmd_DrawElementsBaseVertex *cmd =
@@ -1059,7 +1060,8 @@ _mesa_marshal_MultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count,
     */
    if (draw_count > 0 && is_index_type_valid(type) &&
        ctx->Dispatch.Current != ctx->Dispatch.ContextLost &&
-       !ctx->GLThread.inside_begin_end) {
+       !ctx->GLThread.inside_begin_end &&
+       !(mode >= 32 || !((1u << mode) & ctx->SupportedPrimMask))) {
       user_buffer_mask = _mesa_is_desktop_gl_core(ctx) ? 0 : get_user_buffer_mask(ctx);
       has_user_indices = vao->CurrentElementBufferName == 0;
    }

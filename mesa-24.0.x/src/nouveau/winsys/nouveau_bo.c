@@ -10,6 +10,9 @@
 #include <sys/mman.h>
 #include <xf86drm.h>
 
+#include "nvidia/classes/cl9097.h"
+#include "nvidia/classes/clc597.h"
+
 static void
 bo_bind(struct nouveau_ws_device *dev,
         uint32_t handle, uint64_t addr,
@@ -170,9 +173,10 @@ nouveau_ws_bo_new_mapped(struct nouveau_ws_device *dev,
 }
 
 static struct nouveau_ws_bo *
-nouveau_ws_bo_new_locked(struct nouveau_ws_device *dev,
-                         uint64_t size, uint64_t align,
-                         enum nouveau_ws_bo_flags flags)
+nouveau_ws_bo_new_tiled_locked(struct nouveau_ws_device *dev,
+                               uint64_t size, uint64_t align,
+                               uint8_t pte_kind, uint16_t tile_mode,
+                               enum nouveau_ws_bo_flags flags)
 {
    struct drm_nouveau_gem_new req = {};
 
@@ -204,6 +208,9 @@ nouveau_ws_bo_new_locked(struct nouveau_ws_device *dev,
 
    if (flags & NOUVEAU_WS_BO_NO_SHARE)
       req.info.domain |= NOUVEAU_GEM_DOMAIN_NO_SHARE;
+
+   req.info.tile_flags = (uint32_t)pte_kind << 8;
+   req.info.tile_mode = tile_mode;
 
    req.info.size = size;
    req.align = align;
@@ -242,17 +249,27 @@ fail_gem_new:
 }
 
 struct nouveau_ws_bo *
-nouveau_ws_bo_new(struct nouveau_ws_device *dev,
-                  uint64_t size, uint64_t align,
-                  enum nouveau_ws_bo_flags flags)
+nouveau_ws_bo_new_tiled(struct nouveau_ws_device *dev,
+                        uint64_t size, uint64_t align,
+                        uint8_t pte_kind, uint16_t tile_mode,
+                        enum nouveau_ws_bo_flags flags)
 {
    struct nouveau_ws_bo *bo;
 
    simple_mtx_lock(&dev->bos_lock);
-   bo = nouveau_ws_bo_new_locked(dev, size, align, flags);
+   bo = nouveau_ws_bo_new_tiled_locked(dev, size, align,
+                                       pte_kind, tile_mode, flags);
    simple_mtx_unlock(&dev->bos_lock);
 
    return bo;
+}
+
+struct nouveau_ws_bo *
+nouveau_ws_bo_new(struct nouveau_ws_device *dev,
+                  uint64_t size, uint64_t align,
+                  enum nouveau_ws_bo_flags flags)
+{
+   return nouveau_ws_bo_new_tiled(dev, size, align, 0, 0, flags);
 }
 
 static struct nouveau_ws_bo *
@@ -265,8 +282,11 @@ nouveau_ws_bo_from_dma_buf_locked(struct nouveau_ws_device *dev, int fd)
 
    struct hash_entry *entry =
       _mesa_hash_table_search(dev->bos, (void *)(uintptr_t)handle);
-   if (entry != NULL)
-      return entry->data;
+   if (entry != NULL) {
+      struct nouveau_ws_bo *bo = entry->data;
+      nouveau_ws_bo_ref(bo);
+      return bo;
+   }
 
    /*
     * If we got here, no BO exists for the retrieved handle. If we error

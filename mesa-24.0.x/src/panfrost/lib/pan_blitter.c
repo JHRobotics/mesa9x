@@ -457,10 +457,11 @@ pan_blitter_get_blit_shader(struct panfrost_device *dev,
 
       coord_comps = MAX2(coord_comps, (key->surfaces[i].dim ?: 3) +
                                          (key->surfaces[i].array ? 1 : 0));
-      first = false;
 
-      if (sig_offset >= sizeof(sig))
+      if (sig_offset >= sizeof(sig)) {
+         first = false;
          continue;
+      }
 
       sig_offset +=
          snprintf(sig + sig_offset, sizeof(sig) - sig_offset,
@@ -468,6 +469,8 @@ pan_blitter_get_blit_shader(struct panfrost_device *dev,
                   first ? "" : ",", gl_frag_result_name(key->surfaces[i].loc),
                   type_str, dim_str, key->surfaces[i].array ? "[]" : "",
                   key->surfaces[i].src_samples, key->surfaces[i].dst_samples);
+
+      first = false;
    }
 
    nir_builder b = nir_builder_init_simple_shader(

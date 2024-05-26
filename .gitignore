@@ -75,6 +75,7 @@ mesa-21.3.x/src/util/format/u_format_pack.c
 mesa-21.3.x/src/util/format/u_format_table.c
 mesa-21.3.x/src/util/format/u_format_pack.h
 mesa-21.3.x/src/util/format_srgb.c
+mesa-21.3.x/src/mapi/glapi/gen/glapi_x86.S
 mesa-23.1.x/src/compiler/nir/nir_builder_opcodes.h
 mesa-23.1.x/src/compiler/nir/nir_constant_expressions.c
 mesa-23.1.x/src/compiler/nir/nir_opcodes.h
@@ -141,6 +142,7 @@ mesa-23.1.x/src/gallium/auxiliary/indices/u_unfilled_gen.c
 mesa-23.1.x/src/util/format/u_format_pack.h
 mesa-23.1.x/src/util/format/u_format_table.c
 mesa-23.1.x/src/util/format_srgb.c
+mesa-23.1.x/src/mapi/glapi/gen/glapi_x86.S
 mesa-24.0.x/src/compiler/builtin_types.h
 mesa-24.0.x/src/compiler/builtin_types.c
 mesa-24.0.x/src/compiler/nir/nir_builder_opcodes.h
@@ -209,3 +211,6 @@ mesa-24.0.x/src/gallium/auxiliary/indices/u_unfilled_gen.c
 mesa-24.0.x/src/util/format/u_format_pack.h
 mesa-24.0.x/src/util/format/u_format_table.c
 mesa-24.0.x/src/util/format_srgb.c
+mesa-24.0.x/src/mapi/glapi/gen/glapi_x86.S
+
+mesa.log

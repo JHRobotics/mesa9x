@@ -622,6 +622,7 @@ panfrost_emit_frag_shader_meta(struct panfrost_batch *batch)
    struct panfrost_compiled_shader *ss = ctx->prog[PIPE_SHADER_FRAGMENT];
 
    panfrost_batch_add_bo(batch, ss->bin.bo, PIPE_SHADER_FRAGMENT);
+   panfrost_batch_add_bo(batch, ss->state.bo, PIPE_SHADER_FRAGMENT);
 
    struct panfrost_ptr xfer;
 
@@ -1380,7 +1381,8 @@ panfrost_emit_const_buf(struct panfrost_batch *batch,
             PAN_SYSVAL_TYPE(ss->sysvals.sysvals[sysval_idx]);
          mali_ptr ptr = push_transfer.gpu + (4 * i);
 
-         if (sysval_type == PAN_SYSVAL_NUM_WORK_GROUPS)
+         if (sysval_type == PAN_SYSVAL_NUM_WORK_GROUPS &&
+             sysval_comp < ARRAY_SIZE(batch->num_wg_sysval))
             batch->num_wg_sysval[sysval_comp] = ptr;
       }
       /* Map the UBO, this should be cheap. For some buffers this may

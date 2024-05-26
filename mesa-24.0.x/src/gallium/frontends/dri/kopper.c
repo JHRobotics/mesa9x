@@ -115,6 +115,8 @@ kopper_init_screen(struct dri_screen *screen)
    const __DRIconfig **configs;
    struct pipe_screen *pscreen = NULL;
 
+   (void) mtx_init(&screen->opencl_func_mutex, mtx_plain);
+
    if (!screen->kopper_loader) {
       fprintf(stderr, "mesa: Kopper interface not found!\n"
                       "      Ensure the versions of %s built with this version of Zink are\n"
@@ -134,7 +136,7 @@ kopper_init_screen(struct dri_screen *screen)
       pscreen = pipe_loader_create_screen(screen->dev);
 
    if (!pscreen)
-      goto fail;
+      return NULL;
 
    dri_init_options(screen);
    screen->unwrapped_screen = trace_screen_unwrap(pscreen);
@@ -167,7 +169,7 @@ kopper_init_screen(struct dri_screen *screen)
 
    return configs;
 fail:
-   dri_release_screen(screen);
+   pipe_loader_release(&screen->dev, 1);
    return NULL;
 }
 
@@ -606,6 +608,7 @@ XXX do this once swapinterval is hooked up
             assert(data);
             drawable->textures[statts[i]] =
                screen->base.screen->resource_create_drawable(screen->base.screen, &templ, data);
+            drawable->window_valid = !!drawable->textures[statts[i]];
          }
 #ifdef VK_USE_PLATFORM_XCB_KHR
          else if (is_pixmap && statts[i] == ST_ATTACHMENT_FRONT_LEFT && !screen->is_sw) {
@@ -928,6 +931,9 @@ kopperSetSwapInterval(__DRIdrawable *dPriv, int interval)
                                 drawable->textures[ST_ATTACHMENT_BACK_LEFT] :
                                 drawable->textures[ST_ATTACHMENT_FRONT_LEFT];
 
+   /* can't set swap interval on non-windows */
+   if (!drawable->window_valid)
+      return;
    /* the conditional is because we can be called before buffer allocation.  If
     * we're before allocation, then the initial_swap_interval will be used when
     * the swapchain is eventually created.
@@ -945,6 +951,10 @@ kopperQueryBufferAge(__DRIdrawable *dPriv)
    struct pipe_resource *ptex = drawable->textures[ST_ATTACHMENT_BACK_LEFT] ?
                                 drawable->textures[ST_ATTACHMENT_BACK_LEFT] :
                                 drawable->textures[ST_ATTACHMENT_FRONT_LEFT];
+
+   /* can't get buffer age from non-window swapchain */
+   if (!drawable->window_valid)
+      return 0;
 
    /* Wait for glthread to finish because we can't use pipe_context from
     * multiple threads.

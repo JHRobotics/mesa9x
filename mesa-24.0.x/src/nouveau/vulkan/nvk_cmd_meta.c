@@ -130,6 +130,7 @@ nvk_meta_end(struct nvk_cmd_buffer *cmd,
 {
    if (save->desc0) {
       cmd->state.gfx.descriptors.sets[0] = save->desc0;
+      cmd->state.gfx.descriptors.set_sizes[0] = save->desc0->size;
       cmd->state.gfx.descriptors.root.sets[0] = nvk_descriptor_set_addr(save->desc0);
       cmd->state.gfx.descriptors.sets_dirty |= BITFIELD_BIT(0);
       cmd->state.gfx.descriptors.push_dirty &= ~BITFIELD_BIT(0);

@@ -180,14 +180,17 @@ static BOOL SVGAScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_si
 			SVGAStart(svga);
 		  SVGAPush(svga, &blit_cmd, sizeof(blit_cmd));
 		  SVGAPush(svga, &stupdate, sizeof(stupdate));
-		  SVGAFinish(svga, SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		  SVGAFinish(svga, SVGA_CB_FLAG_DX_CONTEXT, cid);
+		  SVGA_vxdcmd(SVGA_CMD_INVALIDATE_FB);
 		}
 		else
 		{
+			FBHDA_access_begin(0);
 			SVGAPush(svga, &gbupdate, sizeof(gbupdate)); /* copy vram from host to guest */
 			SVGAPush(svga, &blit_cmd, sizeof(blit_cmd)); /* present */
 			SVGAPush(svga, &gbreread, sizeof(gbreread)); /* read result back to framebuffer */
 			SVGAFinish(svga, SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+			FBHDA_access_end(0);
 		}
 		
 		return TRUE;
@@ -332,7 +335,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		}
 		else
 		{
-			FBHDA_access_begin(FBHDA_GPU_ACCESS);
+			FBHDA_access_begin(0);
 		  if(svga->dx)
 		  {
 		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
@@ -341,7 +344,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		  {
 		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
 		  }
-			FBHDA_access_end(FBHDA_GPU_ACCESS);
+			FBHDA_access_end(0);
 		}
 	}
 	/*
@@ -369,8 +372,6 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		gmr = SVGARegionGet(svga, sinfo->gmrId)->info.address;
 		assert(gmr);
 		
-		sinfo->flags |= SVGA_SURFACE_CPULOCK;
-
 		vrect.dst_pitch   = svga->hda->pitch;
 		vrect.dst_x       = render_left;
 		vrect.dst_y       = render_top;
@@ -413,8 +414,6 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			vramcpy(svga->hda->vram_pm32, gmr, &vrect);
 			FBHDA_access_end(0);	
 		}
-		
-		sinfo->flags &= ~SVGA_SURFACE_CPULOCK;
 	}
 	/*
 	 * harder way: we'll need render surface to some GMR region and copy to frame buffer manualy

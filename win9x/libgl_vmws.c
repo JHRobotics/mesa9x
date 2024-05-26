@@ -277,9 +277,12 @@ struct stw_winsys stw_winsys = {
 #else
    NULL, /* get_adapter_luid */
 #endif
-   &wddm_shared_surface_open,
-   &wddm_shared_surface_close,
-   &wddm_compose,
+//   &wddm_shared_surface_open,
+//   &wddm_shared_surface_close,
+ //  &wddm_compose,
+   NULL,
+   NULL,
+   NULL,
    &wddm_get_pfd_flags,
    NULL,  //&wddm_create_framebuffer,
    &wddm_get_name,

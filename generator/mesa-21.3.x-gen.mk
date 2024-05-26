@@ -53,7 +53,8 @@ GENERATE_FILES = \
 	$(MESA_VER)/src/util/format/u_format_pack.c \
 	$(MESA_VER)/src/util/format/u_format_table.c \
 	$(MESA_VER)/src/util/format/u_format_pack.h \
-	$(MESA_VER)/src/util/format_srgb.c
+	$(MESA_VER)/src/util/format_srgb.c \
+	$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S \
 
 all: $(GENERATE_FILES)
 
@@ -187,6 +188,9 @@ $(MESA_VER)/src/mesa/main/marshal_generated7.c:
 
 $(MESA_VER)/src/mesa/main/remap_helper.h:
 	cd $(MESA_VER)/src/mapi/glapi/gen && $(PYTHON) remap_helper.py -f gl_and_es_API.xml > ../../../mesa/main/$(notdir $@)
+
+$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S:
+	cd $(dir $@) && $(PYTHON) gl_x86_asm.py -f gl_and_es_API.xml > $(notdir $@)
 
 $(MESA_VER)/src/mesa/program/lex.yy.c:
 	cd $(dir $@) && $(FLEX) -o $(notdir $@) program_lexer.l

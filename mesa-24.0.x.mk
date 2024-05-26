@@ -1,6 +1,6 @@
-# rules for mesa 24.0.6
+# rules for mesa 24.0.8
 
-MESA_DIST_VERSION=24.0.6
+MESA_DIST_VERSION=24.0.8
 
 MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/anon_file.c \
@@ -623,6 +623,7 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mapi/glapi/glapi_entrypoint.c \
 	$(MESA_VER)/src/mapi/glapi/glapi_getproc.c \
 	$(MESA_VER)/src/mapi/glapi/glapi_nop.c \
+	$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S \
 	$(MESA_VER)/src/mapi/u_current.c
 
 MesaWglLib_SRC = \

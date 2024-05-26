@@ -1438,13 +1438,15 @@ nvk_flush_ms_state(struct nvk_cmd_buffer *cmd)
       });
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_SAMPLE_LOCATIONS) ||
+   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_SAMPLE_LOCATIONS) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_SAMPLE_LOCATIONS_ENABLE)) {
       const struct vk_sample_locations_state *sl;
       if (dyn->ms.sample_locations_enable) {
          sl = dyn->ms.sample_locations;
       } else {
-         sl = vk_standard_sample_locations_state(dyn->ms.rasterization_samples);
+         const uint32_t samples = MAX2(1, dyn->ms.rasterization_samples);
+         sl = vk_standard_sample_locations_state(samples);
       }
 
       for (uint32_t i = 0; i < sl->per_pixel; i++) {

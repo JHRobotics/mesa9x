@@ -137,7 +137,7 @@ zink_context_destroy(struct pipe_context *pctx)
       simple_mtx_lock((&ctx->program_lock[i]));
       hash_table_foreach(&ctx->program_cache[i], entry) {
          struct zink_program *pg = entry->data;
-         util_queue_fence_wait(&pg->cache_fence);
+         zink_program_finish(ctx, pg);
          pg->removed = true;
       }
       simple_mtx_unlock((&ctx->program_lock[i]));
@@ -4846,8 +4846,11 @@ zink_resource_commit(struct pipe_context *pctx, struct pipe_resource *pres, unsi
    VkSemaphore sem = VK_NULL_HANDLE;
    bool ret = zink_bo_commit(ctx, res, level, box, commit, &sem);
    if (ret) {
-      if (sem)
+      if (sem) {
          zink_batch_add_wait_semaphore(&ctx->batch, sem);
+         zink_batch_reference_resource_rw(&ctx->batch, res, true);
+         ctx->batch.has_work = true;
+      }
    } else {
       check_device_lost(ctx);
    }

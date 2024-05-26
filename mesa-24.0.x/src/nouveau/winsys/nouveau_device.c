@@ -380,3 +380,13 @@ nouveau_ws_device_destroy(struct nouveau_ws_device *device)
    close(device->fd);
    FREE(device);
 }
+
+bool
+nouveau_ws_device_has_tiled_bo(struct nouveau_ws_device *device)
+{
+   uint64_t has = 0;
+   if (nouveau_ws_param(device->fd, NOUVEAU_GETPARAM_HAS_VMA_TILEMODE, &has))
+      return false;
+
+   return has != 0;
+}

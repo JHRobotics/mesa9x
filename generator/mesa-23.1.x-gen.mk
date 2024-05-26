@@ -58,6 +58,7 @@ GENERATE_FILES = \
 	$(MESA_VER)/src/mapi/glapi/gen/indirect_init.c \
 	$(MESA_VER)/src/mapi/glapi/gen/indirect_size.h \
 	$(MESA_VER)/src/mapi/glapi/gen/indirect_size.c \
+	$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S \
 	$(MESA_VER)/src/mesa/main/format_fallback.c \
 	$(MESA_VER)/src/mesa/main/get_hash.h \
 	$(MESA_VER)/src/mesa/main/format_info.h \
@@ -238,6 +239,9 @@ $(MESA_VER)/src/mapi/glapi/gen/indirect_size.h:
 
 $(MESA_VER)/src/mapi/glapi/gen/indirect_size.c:
 	cd $(dir $@) && $(PYTHON) glX_proto_size.py -f gl_API.xml --only-set -m size_c > $(notdir $@)
+
+$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S:
+	cd $(dir $@) && $(PYTHON) gl_x86_asm.py -f gl_and_es_API.xml > $(notdir $@)
 
 $(MESA_VER)/src/mesa/main/format_fallback.c:
 	cd $(dir $@) && $(PYTHON) format_fallback.py formats.csv $(notdir $@)

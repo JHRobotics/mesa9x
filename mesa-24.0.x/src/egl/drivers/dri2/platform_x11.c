@@ -1518,7 +1518,8 @@ dri2_initialize_x11_swrast(_EGLDisplay *disp)
     */
    dri2_dpy->driver_name = strdup(disp->Options.Zink ? "zink" : "swrast");
    if (disp->Options.Zink &&
-       !debug_get_bool_option("LIBGL_DRI3_DISABLE", false))
+       !debug_get_bool_option("LIBGL_DRI3_DISABLE", false) &&
+       !debug_get_bool_option("LIBGL_KOPPER_DRI2", false))
       dri3_x11_connect(dri2_dpy);
    if (!dri2_load_driver_swrast(disp))
       goto cleanup;

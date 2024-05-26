@@ -1,4 +1,4 @@
-#
+#f
 # This is GNU make file DON'T use it with nmake/wmake or whatever even if you
 # plan to use MS compiler!
 #
@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-21.3.x
-DEPS = config.mk Makefile
+#DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
@@ -265,8 +265,11 @@ else
     -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE \
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
     -DPACKAGE_VERSION="\"$(PACKAGE_VERSION)\"" -DPACKAGE_BUGREPORT="\"$(PACKAGE_VERSION)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX \
-    -DHAVE_OPENGL=1 -DHAVE_OPENGL_ES_2=1 -DHAVE_OPENGL_ES_1=1 -DWINDOWS_NO_FUTEX -DGALLIUM_SOFTPIPE
-  
+    -DHAVE_OPENGL=1 -DHAVE_OPENGL_ES_2=1 -DHAVE_OPENGL_ES_1=1 -DWINDOWS_NO_FUTEX -DGALLIUM_SOFTPIPE \
+    -DUSE_X86_ASM -DGLX_X86_READONLY_TEXT
+
+  DEFS_AS = -DGNU_ASSEMBLER -DSTDCALL_API -D__MINGW32__
+
 #  VBOX_WITH_MESA3D_D3D_FROM_SYSTEMMEM Create D3DPOOL_SYSTEMMEM textures from provided system memory pointer.
 #  VBOX_WITH_MESA3D_NINE_SVGA          Make the D3D state tracker to work together with VMSVGA.
 #  VBOX_WITH_MESA3D_SVGA_GPU_FINISHED  PIPE_QUERY_GPU_FINISHED in VMSVGA driver.
@@ -401,7 +404,13 @@ else
 		
   %.res: %.rc $(DEPS)
 		$(WINDRES) -DWINDRES $(DEFS) --input $< --output $@ --output-format=coff
-	
+		
+  %.S_gen.o: %.S $(DEPS)
+		$(CC) $(CFLAGS) $(DEFS_AS) -c -o $@ $<
+
+  %.S_simd.o: %.S $(DEPS)
+		$(CC) $(SIMD_CFLAGS) $(DEFS_AS) -c -o $@ $<
+
   LIBSTATIC = ar rcs -o $@ 
 
 endif
@@ -463,12 +472,14 @@ $(LIBPREFIX)MesaUtilLibSimd$(LIBSUFFIX): $(MesaUtilLibSimd_OBJS)
 
 MesaLib_OBJS := $(MesaLib_SRC:.c=.c_gen$(OBJ))
 MesaLib_OBJS := $(MesaLib_OBJS:.cpp=.cpp_gen$(OBJ))
+MesaLib_OBJS := $(MesaLib_OBJS:.S=.S_gen$(OBJ))
 $(LIBPREFIX)MesaLib$(LIBSUFFIX): $(MesaLib_OBJS)
 	-$(RM) $@
 	$(LIBSTATIC) $(MesaLib_OBJS)
 
 MesaLibSimd_OBJS := $(MesaLib_SRC:.c=.c_simd$(OBJ))
 MesaLibSimd_OBJS := $(MesaLibSimd_OBJS:.cpp=.cpp_simd$(OBJ))
+MesaLibSimd_OBJS := $(MesaLibSimd_OBJS:.S=.S_simd$(OBJ))
 $(LIBPREFIX)MesaLibSimd$(LIBSUFFIX): $(MesaLibSimd_OBJS)
 	-$(RM) $@
 	$(LIBSTATIC) $(MesaLibSimd_OBJS)

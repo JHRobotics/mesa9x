@@ -64,6 +64,8 @@ struct nouveau_ws_device {
 struct nouveau_ws_device *nouveau_ws_device_new(struct _drmDevice *drm_device);
 void nouveau_ws_device_destroy(struct nouveau_ws_device *);
 
+bool nouveau_ws_device_has_tiled_bo(struct nouveau_ws_device *device);
+
 #ifdef __cplusplus
 }
 #endif
