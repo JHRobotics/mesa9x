@@ -180,8 +180,7 @@ static BOOL SVGAScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_si
 			SVGAStart(svga);
 		  SVGAPush(svga, &blit_cmd, sizeof(blit_cmd));
 		  SVGAPush(svga, &stupdate, sizeof(stupdate));
-		  SVGAFinish(svga, SVGA_CB_FLAG_DX_CONTEXT, cid);
-		  SVGA_vxdcmd(SVGA_CMD_INVALIDATE_FB);
+		  SVGAFinish(svga, SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT_ASYNC | SVGA_CB_PRESENT_GPU, cid);
 		}
 		else
 		{
@@ -326,11 +325,11 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		{
 		  if(svga->dx)
 		  {
-		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_FLAG_DX_CONTEXT, cid);
+		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT_ASYNC, cid);
 		  }
 		  else
 		  {
-		  	SVGASend(svga, &command, sizeof(command), 0, 0);
+		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_PRESENT_ASYNC, 0);
 		  }
 		}
 		else
@@ -405,7 +404,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 				command_update.rect.width  = render_width;
 				command_update.rect.height = render_height;
 
-				SVGASend(svga, &command_update, sizeof(command_update), 0, 0);
+				SVGASend(svga, &command_update, sizeof(command_update), SVGA_CB_PRESENT_ASYNC, 0);
 			}
 		}
 		else
@@ -544,7 +543,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		if((svga->hda->flags & FB_MOUSE_NO_BLIT) && !need_reread)
 		{
 			SVGAPush(svga, &command_update, sizeof(command_update));
-			SVGAFinish(svga, 0, 0);
+			SVGAFinish(svga, SVGA_CB_PRESENT_ASYNC, 0);
 		}
 		else
 		{
