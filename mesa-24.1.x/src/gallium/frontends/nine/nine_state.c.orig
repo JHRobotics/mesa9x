@@ -2734,7 +2734,11 @@ nine_context_get_query_result(struct NineDevice9 *device, struct pipe_query *que
     return ret;
 }
 
+#ifndef VBOX_WITH_MESA3D_COMPILE
 CSMT_ITEM_NO_WAIT(nine_context_pipe_flush)
+#else
+CSMT_ITEM_NO_WAIT(nine_context_pipe_flush, ARG_VAL(UINT, unused))
+#endif
 {
     struct nine_context *context = &device->context;
 
