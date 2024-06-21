@@ -42,6 +42,11 @@ ifeq ($(MESA_VER),mesa-24.0.x)
   MESA_GPU10 := 1
 endif
 
+ifeq ($(MESA_VER),mesa-24.1.x)
+  MESA_MAJOR := 24
+  MESA_GPU10 := 1
+endif
+
 # new LLVM required newer C++ standard
 ifdef LLVM_2024
   C_NEWER_STD := 1
@@ -266,7 +271,7 @@ else
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
     -DPACKAGE_VERSION="\"$(PACKAGE_VERSION)\"" -DPACKAGE_BUGREPORT="\"$(PACKAGE_VERSION)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX \
     -DHAVE_OPENGL=1 -DHAVE_OPENGL_ES_2=1 -DHAVE_OPENGL_ES_1=1 -DWINDOWS_NO_FUTEX -DGALLIUM_SOFTPIPE \
-    -DUSE_X86_ASM -DGLX_X86_READONLY_TEXT
+    -DUSE_X86_ASM -DGLX_X86_READONLY_TEXT -DGLX_USE_WINDOWSGL -DTHREAD_SANITIZER=0 -DNO_REGEX -DWITH_XMLCONFIG=0
 
   DEFS_AS = -DGNU_ASSEMBLER -DSTDCALL_API -D__MINGW32__
 
@@ -298,9 +303,9 @@ else
   MESA89_LIBS := -lgdi32
   
   ifdef DEBUG
-    DD_DEFS = -DDEBUG
+    DD_DEFS = -DDEBUG -DMESA_DEBUG=1
   else
-    DD_DEFS = -DNDEBUG -DD3D8TO9NOLOG
+    DD_DEFS = -DNDEBUG -DMESA_DEBUG=0 -DD3D8TO9NOLOG
   endif
     
   ifdef GUI_ERRORS
@@ -615,8 +620,15 @@ icdtest.exe: icdtest.c_app$(OBJ) $(DEPS) $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) icdtest.c_app$(OBJ) $(app_LIBS) $(EXEFLAGS_CMD)
 
 # WGL tester
+ifdef DEBUG
+wgltest.exe: wgltest.c_app$(OBJ) wgltest.res $(DEPS) $(LD_DEPS)
+	$(LD) $(APP_LDFLAGS) wgltest.c_app$(OBJ) wgltest.res $(app_LIBS) $(EXEFLAGS_CMD)
+
+else
 wgltest.exe: wgltest.c_app$(OBJ) wgltest.res $(DEPS) $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) wgltest.c_app$(OBJ) wgltest.res $(app_LIBS) $(EXEFLAGS_WIN)
+
+endif
 
 ifdef OBJ
 clean:

@@ -828,12 +828,12 @@ int main(int argc, char **argv)
 	HDC dc;
 	HGLRC ctx;
 	int pixel_format;
-	
+
 	if(!gl_test())
 	{
 		return -1;
 	}
-	
+
 	wc.lpfnWndProc       = WndProc;
 	wc.hbrBackground     = (HBRUSH)(COLOR_BACKGROUND);
 	wc.lpszClassName     = WND_CLASS_NAME;
@@ -863,7 +863,8 @@ int main(int argc, char **argv)
 	
 	dc = GetDC(win);
 
-	pixel_format = wrpChoosePixelFormat(dc, &pfd); 
+	pixel_format = wrpChoosePixelFormat(dc, &pfd);
+	//printf("pixel format = %d\n", pixel_format);
 	wrpSetPixelFormat(dc, pixel_format, &pfd);
 
 	ctx = wrpCreateContext(dc);
