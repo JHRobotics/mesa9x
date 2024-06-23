@@ -524,9 +524,45 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
 /*
  * Resources
  */
-DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
-DEBUG_GET_ONCE_NUM_OPTION(gmr_min_mb,   "SVGA_GMR_MIN", 0);
 DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,   "SVGA_GMR_CACHE_ENABLED", TRUE);
+
+static BOOL SVGA_can_allocate(svga_inst_t *svga, DWORD bytes)
+{
+	MEMORYSTATUS meminfo;
+	GlobalMemoryStatus(&meminfo);
+	
+	DWORD max_safe_10 = (meminfo.dwTotalPhys / 10); /* 10% */
+	
+	DWORD mem_free =  meminfo.dwTotalPhys - meminfo.dwAvailPhys;
+	
+	if(bytes == 4*1024*1024) /* small hack for wine + software vertex processing */
+	{
+		if(mem_free + bytes < max_safe_10*9)
+		{
+			return TRUE;
+		}
+	}
+	else if(mem_free + bytes < max_safe_10*8)
+	{
+		return TRUE;
+	}
+	
+	return FALSE;	
+}
+
+BOOL SVGAFlushingCheck(svga_inst_t *svga, DWORD bytes)
+{
+	if(!SVGA_can_allocate(svga, bytes))
+	{
+		cache_flush(svga, 0, TRUE);
+		if(!SVGA_can_allocate(svga, bytes))
+		{
+			return FALSE;
+		}
+	}
+	
+	return TRUE;
+}
 
 /* create SVGA interface */
 BOOL SVGACreate(svga_inst_t *svga)
@@ -585,33 +621,11 @@ BOOL SVGACreate(svga_inst_t *svga)
 			SVGAInitOTables(svga);
 		}
 
-		int limit_mb = debug_get_option_gmr_limit_mb();
-		if(limit_mb == 0)
+		if(debug_get_option_gmr_cache())
 		{
-			limit_mb = GMR_LIMIT_DEFAULT_MB;
-		}
-		else if(limit_mb < GMR_LIMIT_MIN_MB)
-		{
-			limit_mb = GMR_LIMIT_MIN_MB;
+			svga->cache.enabled = TRUE;
 		}
 		
-		if(limit_mb < debug_get_option_gmr_min_mb())
-		{
-			limit_mb = debug_get_option_gmr_min_mb();
-		}
-
-		svga->gmr_mem_limit = limit_mb * 1024 * 1024;
-		
-		MEMORYSTATUS meminfo;
-		GlobalMemoryStatus(&meminfo);
-		if(meminfo.dwTotalPhys >= 896*1024*1024)
-		{
-			if(debug_get_option_gmr_cache())
-			{
-				svga->cache.enabled = TRUE;
-			}
-		}
-
 		return TRUE;
 	}
 	else
@@ -1069,7 +1083,7 @@ uint32_t SVGARegionCreate(svga_inst_t *svga, uint32_t size, uint32_t *user_page)
 		return SVGARegionCreateLimit(svga, size, user_page, 5, TRUE, TRUE);
 	}
 
-	return SVGARegionCreateLimit(svga, size, user_page, 1, FALSE, FALSE);
+	return SVGARegionCreateLimit(svga, size, user_page, 2, FALSE, FALSE);
 }
 
 /* destroy the GMR */
@@ -1757,24 +1771,10 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
-	 	if(SVGARegionsSize(svga) + svga->cache.mem_used + size_round > svga->gmr_mem_limit)
-	 	{
-	 		cache_flush(svga, 0, TRUE);
-	 	}
-
-#if 1
-	 	if(SVGARegionsSize(svga) + size_round > svga->gmr_mem_limit)
-	 	{
-	 		/* forbid to create surface when exceeds memory limit, but mesa still need
-	 		   some temporary buffers, allow them
-	 		 */
-	 		if(!(pCreateParms->s.format == SVGA3D_BUFFER && pCreateParms->s.size.width == 1024*1024))
-	 		{
-	 			SVGASurfaceIDFree(svga, sid);
-		 		return FALSE;
-		 	}
-	 	}
-#endif
+		if(!SVGAFlushingCheck(svga, size_round))
+		{
+			return FALSE;
+		}
 
 		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10, TRUE, TRUE);
 

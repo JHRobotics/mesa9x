@@ -290,6 +290,14 @@ bool CEngine::CSetupEngine(CWindow* attribs) // Creates a fully functional CEngi
 		strcpy(inerr ,"Unable to activate the rendering context.");
 		return false;
 	}
+	
+	PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = NULL;
+	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC) wglGetProcAddress("wglSwapIntervalEXT");
+	if(wglSwapIntervalEXT)
+	{
+		wglSwapIntervalEXT(0);
+	}
+	
 	vers[0] = 1;
 	glGetIntegerv(GL_MAJOR_VERSION, &i);
 	glv[0] = i;

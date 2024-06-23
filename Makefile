@@ -343,8 +343,11 @@ else
     
     ifdef LLVM_2024
       ifndef LP_DEBUG
-        SIMD_CFLAGS += -O3
-        SIMD_CXXFLAGS += -O3
+        SIMD_CFLAGS += -O3 -fomit-frame-pointer -fno-exceptions -DNDEBUG
+        SIMD_CXXFLAGS += -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti -DNDEBUG
+      else
+        SIMD_CFLAGS += -DDEBUG
+        SIMD_CXXFLAGS += -DDEBUG
       endif
     endif
     

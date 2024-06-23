@@ -268,11 +268,11 @@ static int vboxVxdRegionCreate(void *pvEnv, uint32_t u32RegionSize, uint32_t *pu
   uint32_t user_address;
   HRESULT hr = E_FAIL;
 
- 	if(SVGARegionsSize(svga) + u32RegionSize > svga->gmr_mem_limit)
+ 	if(!SVGAFlushingCheck(svga, u32RegionSize))
  	{
  		return E_FAIL;
  	}
-
+ 	
 	region = SVGARegionCreate(svga, u32RegionSize, &user_address);
 
 	if(region > 0)
