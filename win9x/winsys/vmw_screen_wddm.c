@@ -106,7 +106,7 @@ svga_wddm_winsys_screen_create(const WDDMGalliumDriverEnv *pEnv)
    /* XXX do this properly */
    vws->base.base.surface_from_handle = vws->base.base.have_gb_objects ?
       vmw_drm_gb_surface_from_handle : vmw_drm_surface_from_handle;
-   vws->base.base.surface_get_handle = vmw_drm_surface_get_handle;
+   vws->base.base.surface_get_handle = (void*)vmw_drm_surface_get_handle; /* fuck you GCC */
 
    return &vws->base.base;
 
@@ -153,7 +153,7 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
 	return FALSE;
 
     vsrf = vmw_svga_winsys_surface(surface);
-    whandle->handle = vsrf->sid;
+    whandle->handle = (HANDLE)vsrf->sid;
     whandle->stride = stride;
     whandle->offset = 0;
 
@@ -175,10 +175,10 @@ vmw_drm_surface_get_handle(struct svga_winsys_screen *sws,
     switch (whandle->type) {
     case WINSYS_HANDLE_TYPE_SHARED:
     case WINSYS_HANDLE_TYPE_KMS:
-       whandle->handle = vsrf->sid;
+       whandle->handle = (HANDLE)vsrf->sid;
        break;
     case WINSYS_HANDLE_TYPE_FD:
-       whandle->handle = vsrf->sid; /// @todo will this be enough for WDDM?
+       whandle->handle = (HANDLE)vsrf->sid; /// @todo will this be enough for WDDM?
        break;
     default:
        vmw_error("Attempt to export unsupported handle type %d.\n",
