@@ -479,11 +479,6 @@ vmw_ioctl_syncforcpu(struct vmw_region *region,
 {
     //RT_NOREF4(region, dont_block, readonly, allow_cs);
     // ???
-    
-    FILE *f = fopen("C:\\assert.log", "ab");
-    fprintf(f, "vmw_ioctl_syncforcpu\r\n");
-    fclose(f);
-    
     return -1;
 }
 
@@ -501,10 +496,6 @@ vmw_ioctl_releasefromcpu(struct vmw_region *region,
 {
     //RT_NOREF3(region, readonly, allow_cs);
     // ???
-
-		FILE *f = fopen("C:\\assert.log", "ab");
-		fprintf(f, "vmw_ioctl_releasefromcpu\r\n");
-		fclose(f);
 }
 
 void
@@ -576,11 +567,6 @@ vmw_ioctl_shader_create(struct vmw_winsys_screen *vws,
 {
     //RT_NOREF3(vws, type, code_len);
     // DeviceCallbacks.pfnAllocateCb(pDevice->hDevice, pDdiAllocate);
-
-		FILE *f = fopen("C:\\assert.log", "ab");
-    fprintf(f, "vmw_ioctl_shader_create\r\n");
-    fclose(f);
-
     return 0;
 }
 
@@ -589,11 +575,6 @@ vmw_ioctl_shader_destroy(struct vmw_winsys_screen *vws, uint32 shid)
 {
     //RT_NOREF2(vws, shid);
     // ??? DeviceCallbacks.pfnDeallocateCb(pDevice->hDevice, pDdiAllocate);
-    
-		FILE *f = fopen("C:\\assert.log", "ab");
-    fprintf(f, "vmw_ioctl_shader_destroy\r\n");
-    fclose(f);
-    
     return;
 }
 
@@ -745,7 +726,12 @@ vboxGetParam(struct vmw_winsys_screen_wddm *vws_wddm, struct drm_vmw_getparam_ar
         case DRM_VMW_PARAM_SM5:
             gp_arg->value = (vboxGetShaderModel(vws_wddm) >= SVGA_SM_5);
             break;
+#if MESA_MAJOR >= 24
+        case DRM_VMW_PARAM_GL43:
+            gp_arg->value = vws_wddm->HwInfo.au32Caps[SVGA3D_DEVCAP_GL43];
+            break;
 #endif
+#endif /* MESA_MAJOR >= 21 */
         default: return -1;
     }
     return 0;
@@ -766,6 +752,8 @@ vboxGet3DCap(struct vmw_winsys_screen_wddm *vws_wddm, void *pvCap, size_t cbCap)
 
 DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
 DEBUG_GET_ONCE_BOOL_OPTION(buffer_coherent, "SVGA_BUFFER_COHERENT", FALSE);
+DEBUG_GET_ONCE_BOOL_OPTION(force_coherent, "SVGA_FORCE_COHERENT", FALSE);
+
 
 int get_gmr_limit()
 {
@@ -810,7 +798,9 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 #endif
 
 #if MESA_MAJOR >= 23
-/*   vws->ioctl.have_drm_2_20 = 1; */
+   vws->ioctl.have_drm_2_17 = 1;
+   vws->ioctl.have_drm_2_19 = 1;
+   vws->ioctl.have_drm_2_20 = 1;
 #endif
 
    vws->ioctl.drm_execbuf_version = vws->ioctl.have_drm_2_9 ? 2 : 1;
@@ -985,8 +975,12 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
    vws->base.have_vgpu10 = FALSE;
    vws->base.have_sm4_1 = FALSE;
    vws->base.have_intra_surface_copy = FALSE;
+#if MESA_MAJOR >= 24
+   vws->base.device_id = 0x0405; /* assume SVGA II */
+#endif
 
    if (vws->base.have_gb_objects) {
+#if 0
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_MEMORY;
       ret = vboxGetParam(vws_wddm, &gp_arg);
@@ -996,6 +990,8 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       } else {
          vws->ioctl.max_mob_memory = gp_arg.value;
       }
+#endif
+      vws->ioctl.max_mob_memory = 128*1024*1024;
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_SIZE;
@@ -1081,6 +1077,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
 
       if (vws->ioctl.have_drm_2_16) {
          vws->base.have_coherent = TRUE;
+         vws->force_coherent = debug_get_option_force_coherent();
       }
    } else {
       vws->ioctl.num_cap_3d = SVGA3D_DEVCAP_MAX;

@@ -34,6 +34,9 @@
 
 #define SVGA_ASSERT assert(svga != NULL)
 
+/* global cache usability */
+int svga_cache_operatable = 0;
+
 /*
  * GUI (errors...)
  */
@@ -364,8 +367,12 @@ static uint32_t cache_get_region(svga_inst_t *svga, uint32_t size)
 
 static BOOL cache_insert_region(svga_inst_t *svga, uint32_t id)
 {
-	/* disable cache on < 1GB configurations */
 	if(!svga->cache.enabled)
+	{
+		return FALSE;
+	}
+	
+	if(svga_cache_operatable == 0)
 	{
 		return FALSE;
 	}
@@ -533,16 +540,21 @@ static BOOL SVGA_can_allocate(svga_inst_t *svga, DWORD bytes)
 	
 	DWORD max_safe_10 = (meminfo.dwTotalPhys / 10); /* 10% */
 	
-	DWORD mem_free =  meminfo.dwTotalPhys - meminfo.dwAvailPhys;
+	DWORD mem_used =  meminfo.dwTotalPhys - meminfo.dwAvailPhys;
+	
+	if(mem_used + bytes < max_safe_10*6)
+		svga_cache_operatable = 1;
+	else
+		svga_cache_operatable = 0;
 	
 	if(bytes == 4*1024*1024) /* small hack for wine + software vertex processing */
 	{
-		if(mem_free + bytes < max_safe_10*9)
+		if(mem_used + bytes < max_safe_10*9)
 		{
 			return TRUE;
 		}
 	}
-	else if(mem_free + bytes < max_safe_10*8)
+	else if(mem_used + bytes < max_safe_10*8)
 	{
 		return TRUE;
 	}
@@ -1148,8 +1160,8 @@ BOOL SVGAReadHwInfo(svga_inst_t *svga, VBOXGAHWINFO *pHwInfo)
 	pHwInfo->u32HwType = VBOX_GA_HW_TYPE_VMSVGA;
 	pHwInfo->u.svga.cbInfoSVGA = sizeof(VBOXGAHWINFOSVGA);
 	SVGA_query_vector(SVGA_QUERY_REGS, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Regs[0]));
-	SVGA_query_vector(SVGA_QUERY_FIFO, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Fifo[0]));
-	SVGA_query_vector(SVGA_QUERY_CAPS, 0, GA_HWINFO_REGS, (DWORD*)&(pHwInfo->u.svga.au32Caps[0]));
+	SVGA_query_vector(SVGA_QUERY_FIFO, 0, GA_HWINFO_FIFO, (DWORD*)&(pHwInfo->u.svga.au32Fifo[0]));
+	SVGA_query_vector(SVGA_QUERY_CAPS, 0, GA_HWINFO_CAPS, (DWORD*)&(pHwInfo->u.svga.au32Caps[0]));
 
 #if 0
   /* dump caps */

@@ -49,6 +49,8 @@
 
 #include "../wddm_screen.h"
 
+DEBUG_GET_ONCE_BOOL_OPTION(cache_maps_disabled, "SVGA_FORCE_KERNEL_UNMAPS", TRUE)
+
 /* Called from vmw_drm_create_screen(), creates and initializes the
  * vmw_winsys_screen structure, which is the main entity in this
  * module.
@@ -88,8 +90,7 @@ vmw_winsys_create_wddm(const WDDMGalliumDriverEnv *pEnv)
    vws->base.need_to_rebind_resources = FALSE;
    vws->base.have_transfer_from_buffer_cmd = vws->base.have_vgpu10;
    vws->base.have_constant_buffer_offset_cmd = FALSE;
-//   vws->cache_maps = vws->base.have_vgpu10; //FALSE;
-   vws->cache_maps = FALSE;
+   vws->cache_maps = vws->base.have_vgpu10 && !debug_get_option_cache_maps_disabled();
 #if MESA_MAJOR >= 23
    vws->base.have_constant_buffer_offset_cmd =
       vws->ioctl.have_drm_2_20 && vws->base.have_sm5;

@@ -36,12 +36,31 @@
 #include "svga_cmd.h"
 
 #if !(defined(VBOX_WITH_MESA3D_NINE_SVGA) || defined(VBOX_WITH_MESA3D_DXFIX))
-#define SVGA_SURFACE_CACHE_ENABLED true
+#define SVGA_SURFACE_CACHE_ENABLED 2
 #else
-#define SVGA_SURFACE_CACHE_ENABLED false
+#define SVGA_SURFACE_CACHE_ENABLED 1
 #endif
 
-DEBUG_GET_ONCE_BOOL_OPTION(surface_cache_enabled, "SVGA_SURFACE_CACHE_ENABLED", SVGA_SURFACE_CACHE_ENABLED)
+DEBUG_GET_ONCE_NUM_OPTION(surface_cache_enabled, "SVGA_SURFACE_CACHE_ENABLED", SVGA_SURFACE_CACHE_ENABLED)
+
+extern int svga_cache_operatable; /* in svgadrv.c */
+
+static bool surface_cache_enabled(bool vgpu10)
+{
+	if(svga_cache_operatable == 0) return false;
+	
+	switch(debug_get_option_surface_cache_enabled())
+	{
+		case 0:
+			return false;
+		case 1:
+			return vgpu10;
+		case 2:
+			return true;
+	}
+	return true;
+}
+
 
 /**
  * Return the size of the surface described by the key (in bytes).
@@ -500,7 +519,7 @@ svga_screen_surface_create(struct svga_screen *svgascreen,
 {
    struct svga_winsys_screen *sws = svgascreen->sws;
    struct svga_winsys_surface *handle = NULL;
-   bool cachable = debug_get_option_surface_cache_enabled() && key->cachable;
+   bool cachable = surface_cache_enabled(sws->have_vgpu10) && key->cachable;
 
    SVGA_DBG(DEBUG_CACHE|DEBUG_DMA,
             "%s sz %dx%dx%d mips %d faces %d arraySize %d cachable %d\n",
@@ -628,7 +647,7 @@ svga_screen_surface_destroy(struct svga_screen *svgascreen,
     * exclusive owner.  So just hold onto our existing reference in
     * that case.
     */
-   if (debug_get_option_surface_cache_enabled() && key->cachable) {
+   if (surface_cache_enabled(sws->have_vgpu10) && key->cachable) {
       svga_screen_cache_add(svgascreen, key, to_invalidate, p_handle);
    }
    else {
