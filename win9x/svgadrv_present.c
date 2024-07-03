@@ -567,8 +567,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
  **/
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
-	SVGAWaitAll(svga);
-	
+//	SVGAWaitAll(svga);
 #pragma pack(push)
 #pragma pack(1)
 	struct

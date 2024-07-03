@@ -584,6 +584,7 @@ vmw_svga_winsys_surface_create(struct svga_winsys_screen *sws,
              */
             vmw_svga_winsys_buffer_destroy(sws, surface->buf);
             surface->buf = NULL;
+#ifndef WIN9X
             surface->sid = vmw_ioctl_gb_surface_create(vws, flags, format, usage,
                                                        size, numLayers,
                                                        numMipLevels, sampleCount,
@@ -591,6 +592,10 @@ vmw_svga_winsys_surface_create(struct svga_winsys_screen *sws,
                                                        quality_level,
                                                        &desc.region);
             if (surface->sid == SVGA3D_INVALID_ID)
+#else
+           surface->sid = SVGA3D_INVALID_ID;
+#endif
+
                goto no_sid;
          }
       }

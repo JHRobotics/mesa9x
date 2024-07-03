@@ -1971,7 +1971,7 @@ BOOL set_fb_blitsid(svga_inst_t *svga, uint32_t render_width, uint32_t render_he
 	};
 
 	debug_printf("set_fb_blitsid: %d, %d\n", render_width, render_height);
-	return SVGASurfaceCreate(svga, &createParms, &size, 1, &(svga->blitsid));
+	return SVGASurfaceCreate(svga, &createParms, &size, 2, &(svga->blitsid));
 }
 
 SVGA_DB_surface_t *SVGASurfaceGet(svga_inst_t *svga, uint32_t sid)

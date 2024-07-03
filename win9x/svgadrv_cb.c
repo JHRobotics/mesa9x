@@ -88,9 +88,17 @@ void SVGAWaitAll(svga_inst_t *svga)
 		to_wait = 0;
 		for(i = 0; i < CMD_BUFFER_COUNT; i++)
 		{
-			if(*svga->cmd_stat[i].qStatus != SVGA_PROC_COMPLETED)
+			switch(*(svga->cmd_stat[i].qStatus))
 			{
-				to_wait++;
+				case SVGA_PROC_COMPLETED:
+				case SVGA_PROC_ERROR:
+					break;
+				case SVGA_PROC_FENCE:
+					SVGA_fence_wait(svga->cmd_stat[i].fifo_fence_used);
+					break;
+				default:
+					to_wait++;
+					break;
 			}
 		}
 	} while(to_wait != 0);

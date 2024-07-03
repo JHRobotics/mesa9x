@@ -165,7 +165,7 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
     
     ret = vws_wddm->pEnv->pfnSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms, &sizes[0], numFaces * numMipLevels, &u32Sid);
     if (ret) {
-        return (uint32_t)-1;
+        return SVGA3D_INVALID_ID;
     }
 
     return u32Sid;
@@ -750,25 +750,8 @@ vboxGet3DCap(struct vmw_winsys_screen_wddm *vws_wddm, void *pvCap, size_t cbCap)
     return 0;
 }
 
-DEBUG_GET_ONCE_NUM_OPTION(gmr_limit_mb, "SVGA_GMR_LIMIT", GMR_LIMIT_DEFAULT_MB);
 DEBUG_GET_ONCE_BOOL_OPTION(buffer_coherent, "SVGA_BUFFER_COHERENT", FALSE);
 DEBUG_GET_ONCE_BOOL_OPTION(force_coherent, "SVGA_FORCE_COHERENT", FALSE);
-
-
-int get_gmr_limit()
-{
-	int limit_mb = debug_get_option_gmr_limit_mb();
-	if(limit_mb == 0)
-	{
-		limit_mb = GMR_LIMIT_DEFAULT_MB;
-	}
-	else if(limit_mb < GMR_LIMIT_MIN_MB)
-	{
-		limit_mb = GMR_LIMIT_MIN_MB;
-	}
-	
-	return limit_mb - 32;
-}
 
 boolean
 vmw_ioctl_init(struct vmw_winsys_screen *vws)
@@ -863,7 +846,6 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       else
          vws->ioctl.num_cap_3d = SVGA3D_DEVCAP_MAX;
 
-#if 1
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_MEMORY;
       ret = vboxGetParam(vws_wddm, &gp_arg);
@@ -873,9 +855,6 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       } else {
          vws->ioctl.max_mob_memory = gp_arg.value;
       }
-#else
-      vws->ioctl.max_mob_memory = get_gmr_limit()*1024*1024;
-#endif
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_SIZE;
