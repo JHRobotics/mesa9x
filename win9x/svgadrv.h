@@ -133,7 +133,11 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid);
 void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t destSid, LPCRECT pRect);
 
-BOOL SVGAFlushingCheck(svga_inst_t *svga, DWORD bytes);
+#define SVGA_ALLOC_CREATE_GB_SURF 1
+#define SVGA_ALLOC_CREATE_GB_SURF_BUF 3
+#define SVGA_ALLOC_CREATE_REGION  2
+
+BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src);
 
 #ifdef DEBUG
 void svga_printf(svga_inst_t *svga, const char *fmt, ...);

@@ -122,7 +122,7 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
   uint32_t cnt_cmds = 0;
   uint32_t cnt_cb   = 0;
   
-  SVGAWaitAll(svga);
+  //SVGAWaitAll(svga);
   
   SVGAStart(svga);
   
@@ -268,7 +268,12 @@ static int vboxVxdRegionCreate(void *pvEnv, uint32_t u32RegionSize, uint32_t *pu
   uint32_t user_address;
   HRESULT hr = E_FAIL;
 
- 	if(!SVGAFlushingCheck(svga, u32RegionSize))
+ 	if(!SVGACanAllocate(svga, u32RegionSize, SVGA_ALLOC_CREATE_REGION))
+ 	{
+ 		return E_FAIL;
+ 	}
+ 	
+ 	if(u32RegionSize == 0)
  	{
  		return E_FAIL;
  	}

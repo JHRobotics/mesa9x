@@ -531,49 +531,105 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
 /*
  * Resources
  */
-DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,   "SVGA_GMR_CACHE_ENABLED", TRUE);
+DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,    "SVGA_GMR_CACHE_ENABLED", FALSE);
 
-static BOOL SVGA_can_allocate(svga_inst_t *svga, DWORD bytes)
+/* well working set got 1G: 32, 64, 200, 400 */
+
+#define SVGA_SAFE_RAM_FAIL    32*1024*1024 /* no memory allocation under this value */
+#define SVGA_SAFE_RAM_STOP    64*1024*1024 /* no valid allocation under this value */
+#define SVGA_SAFE_RAM_CACHE  200*1024*1024 /* stop cache under this value */
+#define SVGA_MEM_MAX         400*1024*1024 /* max safe allocation */
+
+#define ALLOC_STATUS_OK    0
+#define ALLOC_STATUS_CACHE 1
+#define ALLOC_STATUS_STOP  2
+#define ALLOC_STATUS_FAIL  3
+
+static int SVGA_allocation_status(svga_inst_t *svga)
 {
 	MEMORYSTATUS meminfo;
 	GlobalMemoryStatus(&meminfo);
 	
-	DWORD max_safe_10 = (meminfo.dwTotalPhys / 10); /* 10% */
+	DWORD phys = meminfo.dwTotalPhys;
 	
-	DWORD mem_used =  meminfo.dwTotalPhys - meminfo.dwAvailPhys;
-	
-	if(mem_used + bytes < max_safe_10*6)
-		svga_cache_operatable = 1;
-	else
-		svga_cache_operatable = 0;
-	
-	if(bytes == 4*1024*1024) /* small hack for wine + software vertex processing */
+	if(phys > SVGA_MEM_MAX)
 	{
-		if(mem_used + bytes < max_safe_10*9)
-		{
-			return TRUE;
-		}
-	}
-	else if(mem_used + bytes < max_safe_10*8)
-	{
-		return TRUE;
+		phys = SVGA_MEM_MAX;
 	}
 	
-	return FALSE;	
+	DWORD phys_free = phys - svga->db->stat_regions_usage;
+	
+	if(phys_free > meminfo.dwAvailPhys)
+	{
+		phys_free = meminfo.dwAvailPhys;
+	}
+	
+#if 0
+	FILE *f = fopen("C:\\alloc.log", "ab");
+	if(f)
+	{
+		fprintf(f, "phys_free: %u, regions_usage: %u, load %d\r\n",
+			phys_free, svga->db->stat_regions_usage, meminfo.dwMemoryLoad);
+		fclose(f);
+	}
+#endif
+	
+	if(phys_free < SVGA_SAFE_RAM_FAIL)
+	{
+		return ALLOC_STATUS_FAIL;
+	}
+	
+	if(phys_free < SVGA_SAFE_RAM_STOP)
+	{
+		return ALLOC_STATUS_STOP;
+	}
+	
+	if(phys_free < SVGA_SAFE_RAM_CACHE)
+	{
+		return ALLOC_STATUS_CACHE;
+	}
+	
+	return ALLOC_STATUS_OK;
 }
 
-BOOL SVGAFlushingCheck(svga_inst_t *svga, DWORD bytes)
+
+BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src)
 {
-	if(!SVGA_can_allocate(svga, bytes))
+	int status = SVGA_allocation_status(svga);
+	
+#if 0
+	FILE *f = fopen("C:\\alloc.log", "ab");
+	if(f)
 	{
+		fprintf(f, "  bytes: %u, src: %d, status %d\r\n", bytes, src, status);
+		fclose(f);
+	}
+#endif
+	
+	if(status >= ALLOC_STATUS_CACHE)
+	{
+		svga_cache_operatable = 0;
 		cache_flush(svga, 0, TRUE);
-		if(!SVGA_can_allocate(svga, bytes))
+	}
+	else
+	{
+		svga_cache_operatable = 1;
+	}
+	
+	if((src == SVGA_ALLOC_CREATE_GB_SURF_BUF && bytes == 1024*1024)
+		|| bytes == 4*1024*1024)
+	{
+		if(status >= ALLOC_STATUS_FAIL)
 		{
 			return FALSE;
 		}
 	}
+	else if(status >= ALLOC_STATUS_STOP)
+	{
+		return FALSE;
+	}
 	
-	return TRUE;
+	return TRUE;	
 }
 
 /* create SVGA interface */
@@ -1783,8 +1839,15 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	/* Allocate GMR, if not already supplied. */
 	if(pCreateParms->gmrid == SVGA3D_INVALID_ID)
 	{
-		if(!SVGAFlushingCheck(svga, size_round))
+		int t = SVGA_ALLOC_CREATE_GB_SURF;
+		if(pCreateParms->s.format == SVGA3D_BUFFER)
 		{
+			t = SVGA_ALLOC_CREATE_GB_SURF_BUF;
+		}
+			
+		if(!SVGACanAllocate(svga, size_round, t))
+		{
+			SVGASurfaceIDFree(svga, sid);
 			return FALSE;
 		}
 
