@@ -1,7 +1,7 @@
 # Mesa3D port for Windows 9x
 This project is simple way to use OpenGL accelerated applications under Windows 98/Me in virtual machine even without real HW acceleration support. OpenGL support can be pure software though Mesa3D library with LLVMpipe driver. This project is also providing some support for accelerated framebuffer support and real hardware acceleration (through VMWare SVGA3D protocol).
 
-There are also some disadvantages - at first, software rendering is much slower and for gaming you need high performance host CPU. Second, the guest system must support SSE instruction set (Windows 98 + Me, but no Windows 95). You also need attach more memory to virtual machine - the library is huge (about ~30~ 50 MB) and need fit to RAM itself + it's emulation of GPU memory.
+There are also some disadvantages - at first, software rendering is much slower and for gaming you need high performance host CPU. Second, the guest system must support SSE instruction set (Windows 98 + Me, but no Windows 95). You also need attach more memory to virtual machine - the library is huge (about 100 MB) and need fit to RAM itself + it's emulation of GPU memory.
 
 ## Full accelerated package
 This is only OpenGL driver, if you need ready-to-use package for running DirectX, OpenglGL, Glide application and games use this: https://github.com/JHRobotics/softgpu
@@ -49,7 +49,7 @@ Some useful variables:
 - `GALLIUM_DRIVER`: `llvmpipe` (default) or `softpipe` for reference (and slower) driver if you have problem with `llvmpipe`
 - `LP_NATIVE_VECTOR_WIDTH`: only usable values are `128` for SSE accelerated LLVM code or `256` for AVX accelerated code, any other values lead to crash.
 
-## Optimalizations
+## Optimizations
 For Windows 95 you can enable SSE and use 98 version with LLVMpipe. But here is one big warning: Windows 95 doesn't save/restore XMM registers on task switch, so if you run more than one application which using SSE you'll see errors and faults. You can do it copying `simd95.com` to `C:\` and add following line to `autoexec.bat`
 ```
 C:\simd95.com
@@ -79,7 +79,6 @@ HINT: You can set this setting to specific application(s) because isn't safe run
 For VirtualBox 7.0.x use following command to turn on acceleration: (*My Windows 98* is your virtual machine name)
 ```
 VBoxManage modifyvm "My Windows 98" --graphicscontroller=vmsvga
-VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVGA10" "0"
 ```
 You can enable switch GPU in GUI *but* Oracle software tries to be smarter than its users, so every setting in GUI consequence GPU change back to VBoxVGA (and without acceleration).
 
@@ -89,7 +88,36 @@ VBoxManage setextradata "My Windows 98" --os-type=Linux
 ```
 VirtualBox is now happy with you virtual GPU choose.
 
-Disabling VMSVGA10 is required! But in future I plan to support VMSVGA10 too.
+VirtualBox 7.0.x can use 2 variant of virtual GPU (vGPU):
+
+#### vGPU9
+
+Allow OpenGL 2.1, combination width [Wine](https://github.com/JHRobotics/wine9x/) allows using using DirectX up to 9, but without shaders. 
+
+Default and only one variant in VirtualBox 6.x, but for VirtualBox 7, you have to use this command to set **vGPU9**:
+
+```
+VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVGA10" "0"
+```
+
+When using vGPU9, please set system RAM to at last 256 MB.
+
+#### vGPU10
+
+This is default option in VirtualBox 7 and currently allow OpenGL 4.1. Is more flexible and have more features compared to vGPU9, but needs more RAM and in some case (for example Quake 2 based games) is slower than vGPU10. You can force using vGPU10 by this command:
+
+```
+VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVGA10" "0"
+```
+
+When using vGPU9, please set system RAM to at last 512 MB, but for later DX9 applications you need 1 GB RAM.
+
+VirtualBox can choose between vGPU9 and vGPU10 and turn off GPU10 for example when you have unsupported HW, to set default behaviour, you can use this command:
+
+```
+VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVGA10" ""
+```
+
 
 ## Source code
 This repository contains more projects modified for Win9x:
@@ -153,34 +181,34 @@ mingw32-make install
 ### LLVM (18.x.x)
 Experimentally it is possible usage of current LLVM version.
 
-You need LLVM self (for example: `llvm-18.1.4.src.tar.xz`) + extra cmake files (for example: `cmake-18.1.4.src.tar.xz`). Extract archives to somewhere (in examples it is `C:\source\llvm`) and rename `cmake-x.y.z.src` to just `cmake`. Also create `llvm-build` directory for build files and `llvm-win32` for installation. Copy also `llvm-9x-18.1.4.patch` from Mesa9x repository here.  Directory tree should like:
+You need LLVM self (for example: `llvm-18.1.8.src.tar.xz`) + extra cmake files (for example: `cmake-18.1.8.src.tar.xz`). Extract archives to somewhere (in examples it is `C:\source\llvm`) and rename `cmake-x.y.z.src` to just `cmake`. Also create `llvm-build` directory for build files and `llvm-win32` for installation. Copy also `llvm-9x-18.1.8.patch` from Mesa9x repository here.  Directory tree should like:
 
  ```
 ├───cmake
 │   └───Modules
-├───llvm-18.1.4.src
+├───llvm-18.1.8.src
 │   ├───benchmarks
 │   ├───bindings
 │   ├───cmake
 │   └─── ...
 ├───llvm-build (empty)
 ├───llvm-win32 (empty)
-└───llvm-9x-18.1.4.patch
+└───llvm-9x-18.1.8.patch
 
 ```
 
 Now apply LLVM 9x patch:
 
 ```
-cd C:\source\llvm\llvm-18.1.4.src
-patch -p1 < ../llvm-9x-18.1.4.patch
+cd C:\source\llvm\llvm-18.1.8.src
+patch -p1 < ../llvm-9x-18.1.8.patch
 ```
 
 Run `cmake`:
 
 ```
 cd C:\source\llvm\llvm-build
-cmake -G"MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_INSTALL_PREFIX=C:/source/llvm/llvm-win32 ../llvm-18.1.4.src
+cmake -G"MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZSTD=OFF -DCMAKE_INSTALL_PREFIX=C:/source/llvm/llvm-win32 ../llvm-18.1.8.src
 ```
 
 Run `make` (`-j8` is number if building threads, please adjust this value for your CPU):
@@ -199,7 +227,7 @@ For this example, the entry to Mesa9x `config.mk` should like this:
 ```
 MESA_VER = mesa-24.0.x
 LLVM_DIR = C:/source/llvm/llvm-win32
-LLVM_VER = 0x120E
+LLVM_VER = 0x1212
 LLVM_2024 = 1
 ```
 

@@ -15,7 +15,7 @@ MESA_VER = mesa-23.1.x
 # If LLVM enabled, set this path to LLVM instalation dir
 #LLVM_DIR = ../path/to/llvm
 
-# LLVM version in hex internal format (e.g. 6.0.1 => 0x0601, 5.0.2 => 0x0502, 18.1.4 => 0x120E)
+# LLVM version in hex internal format (e.g. 6.0.1 => 0x0601, 5.0.2 => 0x0502, 18.1.4 => 0x120E, 18.1.8 => 0x1212)
 #LLVM_VER = 0x0601
 
 # define when you're using current LLVM (18 for example...)
