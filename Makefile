@@ -20,7 +20,7 @@
 
 include config.mk
 
-MESA_VER ?= mesa-21.3.x
+MESA_VER ?= mesa-24.1.x
 DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-17.3.9)
@@ -34,11 +34,6 @@ endif
 
 ifeq ($(MESA_VER),mesa-23.1.x)
   MESA_MAJOR := 23
-  MESA_GPU10 := 1
-endif
-
-ifeq ($(MESA_VER),mesa-24.0.x)
-  MESA_MAJOR := 24
   MESA_GPU10 := 1
 endif
 
