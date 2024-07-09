@@ -95,6 +95,7 @@ get_convert_format(struct gl_context *ctx,
    struct st_context *st = st_context(ctx);
    GLint bpp = _mesa_bytes_per_pixel(format, type);
    if (_mesa_is_depth_format(format) ||
+       format == GL_STENCIL_INDEX ||
        format == GL_GREEN_INTEGER ||
        format == GL_BLUE_INTEGER) {
       switch (bpp) {
@@ -1261,6 +1262,10 @@ st_GetTexSubImage_shader(struct gl_context * ctx,
    src_format = st_pbo_get_src_format(screen, stObj->surface_based ? stObj->surface_format : src->format, src);
    if (src_format == PIPE_FORMAT_NONE)
       return false;
+
+   /* special case for stencil extraction */
+   if (format == GL_STENCIL_INDEX && util_format_is_depth_and_stencil(src_format))
+      src_format = PIPE_FORMAT_X24S8_UINT;
 
    if (texImage->_BaseFormat != _mesa_get_format_base_format(texImage->TexFormat)) {
       /* special handling for drivers that don't support these formats natively */
