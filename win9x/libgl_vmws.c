@@ -244,12 +244,13 @@ wddm_compose(struct pipe_screen *screen,
     
 }
 
-#if MESA_MAJOR >= 21
+#if MESA_MAJOR >= 21 && MESA_MAJOR < 24
 static unsigned
 wddm_get_pfd_flags(struct pipe_screen *screen)
 {
    return stw_pfd_gdi_support;
 }
+#endif
 
 #if 0
 static struct stw_winsys_framebuffer *
@@ -260,6 +261,7 @@ wddm_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
 }
 #endif
 
+#if MESA_MAJOR >= 21
 static const char *
 wddm_get_name(void)
 {
@@ -283,7 +285,9 @@ struct stw_winsys stw_winsys = {
    NULL,
    NULL,
    NULL,
+#if MESA_MAJOR < 24
    &wddm_get_pfd_flags,
+#endif
    NULL,  //&wddm_create_framebuffer,
    &wddm_get_name,
 };
