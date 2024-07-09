@@ -1,6 +1,6 @@
-# rules for mesa 24.1.2
+# rules for mesa 24.1.3
 
-MESA_DIST_VERSION=24.1.2
+MESA_DIST_VERSION=24.1.3
 
 MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/anon_file.c \
