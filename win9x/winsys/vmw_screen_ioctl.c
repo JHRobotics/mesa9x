@@ -970,7 +970,7 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
          vws->ioctl.max_mob_memory = gp_arg.value;
       }
 #endif
-      vws->ioctl.max_mob_memory = 128*1024*1024;
+      vws->ioctl.max_mob_memory = 256*1024*1024;
 
       memset(&gp_arg, 0, sizeof(gp_arg));
       gp_arg.param = DRM_VMW_PARAM_MAX_MOB_SIZE;
@@ -982,8 +982,11 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
            vws->ioctl.max_texture_size = gp_arg.value;
       }
 
+#if 0
       /* Never early flush surfaces, mobs do accounting. */
       vws->ioctl.max_surface_memory = -1;
+#endif
+      vws->ioctl.max_surface_memory = 256*1024*1024;
 
       if (vws->ioctl.have_drm_2_9) {
          memset(&gp_arg, 0, sizeof(gp_arg));

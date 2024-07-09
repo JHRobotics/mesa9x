@@ -538,7 +538,7 @@ DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,    "SVGA_GMR_CACHE_ENABLED", FALSE);
 #define SVGA_SAFE_RAM_FAIL    32*1024*1024 /* no memory allocation under this value */
 #define SVGA_SAFE_RAM_STOP    64*1024*1024 /* no valid allocation under this value */
 #define SVGA_SAFE_RAM_CACHE  200*1024*1024 /* stop cache under this value */
-#define SVGA_MEM_MAX         400*1024*1024 /* max safe allocation */
+DEBUG_GET_ONCE_NUM_OPTION(mem_max_mb, "SVGA_MEM_MAX", 400); /* max safe allocation (MB) */
 
 #define ALLOC_STATUS_OK    0
 #define ALLOC_STATUS_CACHE 1
@@ -552,9 +552,9 @@ static int SVGA_allocation_status(svga_inst_t *svga)
 	
 	DWORD phys = meminfo.dwTotalPhys;
 	
-	if(phys > SVGA_MEM_MAX)
+	if(phys > debug_get_option_mem_max_mb()*1024*1024)
 	{
-		phys = SVGA_MEM_MAX;
+		phys = debug_get_option_mem_max_mb()*1024*1024;
 	}
 	
 	DWORD phys_free = phys - svga->db->stat_regions_usage;
