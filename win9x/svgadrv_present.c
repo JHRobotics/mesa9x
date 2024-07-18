@@ -121,7 +121,106 @@ static void refresh_fb(svga_inst_t *svga)
 	}
 }
 
-static BOOL SVGAScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, int rx, int ry, int rw, int rh)
+typedef struct _RenderRect
+{
+	int x;
+	int y;
+	int w;
+	int h;
+	int srcx;
+	int srcy;
+	int surf_w;
+	int surf_h;
+	int surf_bpp;
+	int surf_pitch;
+	BOOL need_conv;
+} RenderRect;
+
+static BOOL initRect(RenderRect *rr, POINT *leftTop, POINT *rightBottom)
+{
+  rr->x = leftTop->x;
+  rr->y = leftTop->y;
+	rr->w = rightBottom->x - leftTop->x;
+	rr->h = rightBottom->y - leftTop->y;
+	rr->srcx = 0;
+	rr->srcy = 0;
+	rr->surf_bpp = 0;
+	rr->surf_pitch = 0;
+	rr->need_conv = FALSE;
+}
+
+static BOOL adjustRect(RenderRect *rr, svga_inst_t *svga, SVGA_DB_surface_t *sinfo)
+{
+	if(rr->x < 0)
+	{
+		rr->srcx = -rr->x;
+		rr->x = 0;
+	}
+	else
+	{
+		rr->srcx = 0;
+	}
+	
+	if(rr->y < 0)
+	{
+		rr->srcy = -rr->y;
+		rr->y = 0;
+	}
+	else
+	{
+		rr->srcy = 0;
+	}
+	
+	if(rr->w > (sinfo->width - rr->srcx))
+	{
+		rr->w = sinfo->width - rr->srcx;
+	}
+	
+	if(rr->h > sinfo->height - rr->srcy)
+	{
+		rr->w = sinfo->height - rr->srcy;
+	}
+	
+	if((rr->x + rr->w) > svga->hda->width)
+	{
+		rr->w -= svga->hda->width - (rr->x + rr->w);
+	}
+	
+	if((rr->y + rr->h) > svga->hda->height)
+	{
+		rr->h -= svga->hda->height - (rr->y + rr->h);
+	}
+	
+	rr->surf_bpp   = sinfo->bpp;
+	rr->surf_w     = sinfo->width;
+	rr->surf_h     = sinfo->height;
+	rr->surf_pitch = sinfo->width * vramcpy_pointsize(sinfo->bpp);
+	
+	if(rr->w > 0 && rr->h > 0)
+	{
+		rr->need_conv = TRUE;
+		if(sinfo->bpp == svga->hda->bpp)
+		{
+			switch(sinfo->format)
+			{
+				case SVGA3D_R5G6B5:
+				case SVGA3D_A8R8G8B8:
+				case SVGA3D_X8R8G8B8:
+				case SVGA3D_B5G6R5_UNORM:
+				case SVGA3D_R8G8B8A8_UNORM:
+					rr->need_conv = FALSE;
+					break;
+			}
+		}
+		
+		return TRUE;
+	}
+	
+	return FALSE;
+}
+
+
+static BOOL SVGAPresentScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, RenderRect *rr)
 {
 	if(svga->dx && (svga->hda->flags & FB_ACCEL_VMSVGA10_ST) != 0)
 	{
@@ -155,25 +254,25 @@ static BOOL SVGAScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_si
 		blit_cmd.blit.srcSubResource = 0;
 		blit_cmd.blit.dstSid = 1;
 		blit_cmd.blit.destSubResource = 0;
-		blit_cmd.blit.boxSrc.x = 0;
-		blit_cmd.blit.boxSrc.y = 0;
+		blit_cmd.blit.boxSrc.x = rr->srcx;
+		blit_cmd.blit.boxSrc.y = rr->srcy;
 		blit_cmd.blit.boxSrc.z = 0;
-		blit_cmd.blit.boxSrc.w = rw;
-		blit_cmd.blit.boxSrc.h = rh;
+		blit_cmd.blit.boxSrc.w = rr->w;
+		blit_cmd.blit.boxSrc.h = rr->h;
 		blit_cmd.blit.boxSrc.d = 1;
-		blit_cmd.blit.boxDest.x = rx;
-		blit_cmd.blit.boxDest.y = ry;
+		blit_cmd.blit.boxDest.x = rr->x;
+		blit_cmd.blit.boxDest.y = rr->y;
 		blit_cmd.blit.boxDest.z = 0;
-		blit_cmd.blit.boxDest.w = rw;
-		blit_cmd.blit.boxDest.h = rh;
+		blit_cmd.blit.boxDest.w = rr->w;
+		blit_cmd.blit.boxDest.h = rr->h;
 		blit_cmd.blit.boxDest.d = 1;
 		blit_cmd.blit.mode = 0;
 		
 		stupdate.st.stid = 0;
-   	stupdate.st.rect.x = 0;
-   	stupdate.st.rect.y = 0;
-   	stupdate.st.rect.w = svga->hda->width;
-   	stupdate.st.rect.h = svga->hda->height;
+   	stupdate.st.rect.x = rr->x;
+   	stupdate.st.rect.y = rr->y;
+   	stupdate.st.rect.w = rr->w;
+   	stupdate.st.rect.h = rr->h;
 
 		if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
 		{
@@ -198,6 +297,276 @@ static BOOL SVGAScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t source_si
 	return FALSE;
 }
 
+static BOOL SVGAPresentLegacy(svga_inst_t *svga, uint32_t source_sid, RenderRect *rr)
+{
+	if(!svga->dx)
+	{
+		if(debug_get_option_dma_need_reread() && svga->hda->bpp != 32)
+		{
+			vramcpy_rect_t vrect;
+			#pragma pack(push)
+			#pragma pack(1)
+				struct
+				{
+					SVGA3dCmdHeader           header;
+					SVGA3dCmdSurfaceDMA       dma;
+					SVGA3dCopyBox             box;
+					SVGA3dCmdSurfaceDMASuffix suffix;
+				} command_dma = {{
+					SVGA_3D_CMD_SURFACE_DMA,
+					sizeof(SVGA3dCmdSurfaceDMA) + sizeof(SVGA3dCopyBox) + sizeof(SVGA3dCmdSurfaceDMASuffix)}};
+			#pragma pack(pop)
+			
+			command_dma.dma.guest.ptr.gmrId  = SVGA_GMR_FRAMEBUFFER;
+			command_dma.dma.guest.ptr.offset = svga->hda->stride;
+			command_dma.dma.guest.pitch      = rr->surf_pitch;
+			command_dma.dma.host.sid         = source_sid;
+			command_dma.dma.host.face        = 0;
+			command_dma.dma.host.mipmap      = 0;
+			command_dma.dma.transfer         = SVGA3D_READ_HOST_VRAM;
+	
+			command_dma.box.x = 0;
+			command_dma.box.y = 0;
+			command_dma.box.z = 0;
+			command_dma.box.w = rr->surf_w;
+			command_dma.box.h = rr->surf_h;
+			command_dma.box.d = 1;
+			command_dma.box.srcx = 0;
+			command_dma.box.srcy = 0;
+			command_dma.box.srcz = 0;
+	
+			command_dma.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
+			command_dma.suffix.maximumOffset = rr->surf_pitch * rr->surf_h;
+			command_dma.suffix.flags.discard         = 0;
+			command_dma.suffix.flags.unsynchronized  = 0;
+			command_dma.suffix.flags.reserved        = 0;
+
+			SVGASend(svga, &command_dma, sizeof(command_dma), 0, 0);
+			
+			vrect.dst_pitch   = svga->hda->pitch;
+			vrect.dst_x       = rr->x;
+			vrect.dst_y       = rr->y;
+			vrect.dst_w       = rr->w;
+			vrect.dst_h       = rr->h;
+			vrect.dst_bpp     = svga->hda->bpp;
+			vrect.src_pitch   = rr->surf_pitch;
+			vrect.src_x       = rr->srcx;
+			vrect.src_y       = rr->srcy;
+			vrect.src_bpp     = rr->surf_bpp;
+			
+			FBHDA_access_begin(0);
+			SVGAWaitAll(svga);
+			vramcpy(svga->hda->vram_pm32, ((uint8_t*)svga->hda->vram_pm32) + svga->hda->stride, &vrect);
+			FBHDA_access_end(0);
+		}
+		else
+		{
+			#pragma pack(push)
+			#pragma pack(1)
+				struct
+				{
+					SVGA3dCmdHeader           header;
+					SVGA3dCmdPresent          present;
+					SVGA3dCopyRect            rect;
+				} command_present = {{SVGA_3D_CMD_PRESENT, sizeof(SVGA3dCmdPresent) + sizeof(SVGA3dCopyRect)}};
+				struct
+				{
+					SVGA3dCmdHeader           header;
+					SVGA3dRect                rect;
+				} command_present_readback = {{SVGA_3D_CMD_PRESENT_READBACK, sizeof(SVGA3dRect)}};
+				struct
+				{
+					SVGA3dCmdHeader            header;
+					SVGA3dCmdSurfaceStretchBlt blit;
+				} command_blit = {{
+					SVGA_3D_CMD_SURFACE_STRETCHBLT,
+					sizeof(SVGA3dCmdSurfaceStretchBlt)
+				}};
+			#pragma pack(pop)
+			
+			command_present.rect.x = rr->x;
+			command_present.rect.y = rr->y;
+			command_present.rect.w = rr->w;
+			command_present.rect.h = rr->h;
+			command_present.rect.srcx = rr->srcx;
+			command_present.rect.srcy = rr->srcy;
+			
+			command_present_readback.rect.x = rr->x;
+			command_present_readback.rect.y = rr->y;
+			command_present_readback.rect.w = rr->w;
+			command_present_readback.rect.h = rr->h;
+			
+			if(rr->need_conv)
+			{
+				if(!set_fb_blitsid(svga, rr->surf_w, rr->surf_h, svga->hda->bpp))
+				{
+					return FALSE;
+				}
+				
+		    command_blit.blit.src.sid    = source_sid;
+		    command_blit.blit.src.face   = 0;
+		    command_blit.blit.src.mipmap = 0;
+		
+		    command_blit.blit.dest.sid    = svga->blitsid;
+		    command_blit.blit.dest.face   = 0;
+		    command_blit.blit.dest.mipmap = 0;
+		
+				command_blit.blit.boxSrc.x = 0;
+				command_blit.blit.boxSrc.y = 0;
+				command_blit.blit.boxSrc.z = 0;
+				command_blit.blit.boxSrc.w = rr->surf_w;
+				command_blit.blit.boxSrc.h = rr->surf_h;
+				command_blit.blit.boxSrc.d = 1;
+		
+				command_blit.blit.boxDest.x = 0;
+				command_blit.blit.boxDest.y = 0;
+				command_blit.blit.boxDest.z = 0;
+				command_blit.blit.boxDest.w = rr->surf_w;
+				command_blit.blit.boxDest.h = rr->surf_h;
+				command_blit.blit.boxDest.d = 1;
+		
+				command_blit.blit.mode    = SVGA3D_STRETCH_BLT_LINEAR;
+				
+				command_present.present.sid = svga->blitsid;
+			}
+			else
+			{
+				command_present.present.sid = source_sid;
+			}
+	
+			if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
+			{
+				SVGAStart(svga);
+				if(rr->need_conv)
+					SVGAPush(svga, &command_blit, sizeof(command_blit));
+					
+				SVGAPush(svga, &command_present, sizeof(command_present));
+				SVGAPush(svga, &command_present_readback, sizeof(command_present_readback));
+				SVGAFinish(svga, SVGA_CB_PRESENT_ASYNC, 0);
+			}
+			else
+			{
+				FBHDA_access_begin(0);
+				SVGAStart(svga);
+				if(rr->need_conv)
+					SVGAPush(svga, &command_blit, sizeof(command_blit));
+				
+				SVGAPush(svga, &command_present, sizeof(command_present));
+				SVGAPush(svga, &command_present_readback, sizeof(command_present_readback));
+				SVGAFinish(svga, SVGA_CB_SYNC, 0);
+				FBHDA_access_end(0);
+			}
+		} // !reread
+		
+		return TRUE;
+	}
+	
+	return FALSE;
+}
+
+static BOOL SVGAPresentDX(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, RenderRect *rr, SVGA_DB_surface_t *sinfo)
+{
+	if(svga->dx)
+	{
+		if(svga->hda->bpp == 32)
+		{
+#pragma pack(push)
+#pragma pack(1)
+			struct
+			{
+				SVGA3dCmdHeader header;
+				SVGA3dCmdBlitSurfaceToScreen blit;
+			} command_blit_scr = {{SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN, sizeof(SVGA3dCmdBlitSurfaceToScreen)}};
+#pragma pack(pop)
+
+			command_blit_scr.blit.srcImage.sid    = source_sid;
+			command_blit_scr.blit.srcImage.face   = 0;
+			command_blit_scr.blit.srcImage.mipmap = 0;
+			command_blit_scr.blit.srcRect.left    = rr->srcx;
+			command_blit_scr.blit.srcRect.top     = rr->srcy;
+			command_blit_scr.blit.srcRect.right   = rr->srcx + rr->w;
+			command_blit_scr.blit.srcRect.bottom  = rr->srcy + rr->h;
+			command_blit_scr.blit.destScreenId    = 0; /* primary */
+			command_blit_scr.blit.destRect.left   = rr->x;
+			command_blit_scr.blit.destRect.top    = rr->y;
+			command_blit_scr.blit.destRect.right  = rr->x + rr->w;
+			command_blit_scr.blit.destRect.bottom = rr->y + rr->h;
+	
+			if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
+			{
+			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT_ASYNC, cid);
+			}
+			else
+			{
+				FBHDA_access_begin(0);
+			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+				FBHDA_access_end(0);
+			}
+		}
+		else
+		{
+#pragma pack(push)
+#pragma pack(1)
+		struct
+		{
+			SVGA3dCmdHeader            header;
+			SVGA3dCmdReadbackGBSurface surf;
+		} command_readback = {{
+			SVGA_3D_CMD_READBACK_GB_SURFACE,
+			sizeof(SVGA3dCmdReadbackGBSurface)}};
+		struct
+		{
+			uint32_t          cmd;
+			SVGAFifoCmdUpdate rect;
+		} command_update = {SVGA_CMD_UPDATE};
+#pragma pack(pop)
+			vramcpy_rect_t vrect;
+			void *gmr;
+	
+			command_readback.surf.sid = source_sid;
+			SVGASend(svga, &command_readback, sizeof(command_readback), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+			gmr = SVGARegionGet(svga, sinfo->gmrId)->info.address;
+			
+			assert(gmr);
+			
+			vrect.dst_pitch   = svga->hda->pitch;
+			vrect.dst_x       = rr->x;
+			vrect.dst_y       = rr->y;
+			vrect.dst_w       = rr->w;
+			vrect.dst_h       = rr->h;
+			vrect.dst_bpp     = svga->hda->bpp;
+			vrect.src_pitch   = rr->surf_pitch;
+			vrect.src_x       = rr->srcx;
+			vrect.src_y       = rr->srcy;
+			vrect.src_bpp     = rr->surf_bpp;
+	
+			if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
+			{
+				vramcpy(svga->hda->vram_pm32, gmr, &vrect);
+	
+				if(svga->hda->bpp == 32)
+				{
+					command_update.rect.x      = rr->x;
+					command_update.rect.y      = rr->y;
+					command_update.rect.width  = rr->w;
+					command_update.rect.height = rr->h;
+					SVGASend(svga, &command_update, sizeof(command_update), SVGA_CB_PRESENT_ASYNC, 0);
+				}
+			}
+			else
+			{
+				FBHDA_access_begin(0);
+				vramcpy(svga->hda->vram_pm32, gmr, &vrect);
+				FBHDA_access_end(0);	
+			}			
+		}
+		
+		return TRUE;
+	}
+	
+	return FALSE;
+}
+
 /**
  * Present render to screen/window using direct vram access if its possible.
  * If not calls SVGAPresentWindow.
@@ -207,41 +576,25 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
 	assert(svga);
 
-	uint32_t bpp = svga->hda->bpp;
   SVGA_DB_surface_t *sinfo = SVGASurfaceGet(svga, sid);
-
-  PIXELFORMATDESCRIPTOR pfd;
-
+  
   if(sinfo == NULL)
   {
    	return;
   }
+  
+  const HWND hwnd = WindowFromDC(hDC);
+  
+  if(!hwnd)
+		return;
 
   frame_wait(svga);
 
-  if(sinfo->bpp == 8 || bpp == 8)
+  if(sinfo->bpp <= 8 || svga->hda->bpp <= 8)
   {
 		SVGAPresentWindow(svga, hDC, cid, sid);
 		return;
   }
-
-	RECT wrectc = {0, 0, 0, 0};
-	const HWND hwnd = WindowFromDC(hDC);
-
-	if(!hwnd)
-	{
-		return;
-	}
-
-	if(!GetClientRect(hwnd, &wrectc)) /*  */
-	{
-		return;
-	}
-
-	POINT p1 = {wrectc.left, wrectc.top};
-	POINT p2 = {wrectc.right, wrectc.bottom};
-	ClientToScreen(hwnd, &p1);
-	ClientToScreen(hwnd, &p2);
 
 	if(!vramcpy_direct_rendering(hDC))
 	{
@@ -252,313 +605,43 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		}
 	}
 
-  int render_top  = p1.y;
-  int render_left = p1.x;
-	int render_width  = p2.x - p1.x;
-	int render_height = p2.y - p1.y;
+	/* get wwindows coordinates on screen */
+	RECT wrectc = {0, 0, 0, 0};
 
-	if(render_width * render_height == 0)
+	if(!GetClientRect(hwnd, &wrectc))
+		return;
+
+	POINT p1 = {wrectc.left, wrectc.top};
+	POINT p2 = {wrectc.right, wrectc.bottom};
+	ClientToScreen(hwnd, &p1);
+	ClientToScreen(hwnd, &p2);
+	
+	RenderRect rr;
+	initRect(&rr, &p1, &p2);
+
+	if(!adjustRect(&rr, svga, sinfo))
 	{
 		/* Nothing to see here. Please disperse. */
 		return;
 	}
 	
-	if(SVGAScreenTarget(svga, cid, sid, render_left, render_top, render_width, render_height))
+	if(SVGAPresentScreenTarget(svga, cid, sid, &rr))
 	{
 		return;
 	}
 	
-	/*
-	 * quick way: surface and screen must have same color depth for HW present
-	 */
-	if((debug_get_option_blit_surf_to_screen_enabled() || svga->dx) &&
-		/*(bpp == sinfo->bpp || svga->dx) &&*/
-		bpp == 32) /* JH: it seems to work correctly only in 32 bits! */
+	if(SVGAPresentDX(svga, cid, sid, &rr, sinfo))
 	{
-#pragma pack(push)
-#pragma pack(1)
-		struct
-		{
-			SVGA3dCmdHeader header;
-			SVGA3dCmdBlitSurfaceToScreen blit;
-		} command = {{SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN, sizeof(SVGA3dCmdBlitSurfaceToScreen)}};
-#pragma pack(pop)
-
-		command.blit.srcImage.sid = sid;
-		command.blit.srcImage.face = 0;
-		command.blit.srcImage.mipmap = 0;
-		command.blit.srcRect.left = 0;
-		command.blit.srcRect.top = 0;
-		command.blit.srcRect.right  = render_width;
-		command.blit.srcRect.bottom = render_height;
-		command.blit.destScreenId = 0; /* primary */
-		command.blit.destRect.top    = render_top;
-		command.blit.destRect.left   = render_left;
-		command.blit.destRect.right  = render_left + render_width;
-		command.blit.destRect.bottom = render_top + render_height;
-
-		if(render_left < 0)
-		{
-			command.blit.srcRect.left = -render_left;
-			command.blit.destRect.left = 0;
-		}
-
-		if(render_top < 0)
-		{
-			command.blit.srcRect.top = -render_top;
-			command.blit.destRect.top = 0;
-		}
-
-		if(render_left + render_width > svga->hda->width)
-		{
-			command.blit.destRect.right = svga->hda->width;
-			command.blit.srcRect.right = command.blit.destRect.right - render_left;
-		}
-
-		if(render_top + render_height > svga->hda->height)
-		{
-			command.blit.destRect.bottom = svga->hda->height;
-			command.blit.srcRect.bottom = command.blit.destRect.bottom - render_top;
-		}
-
-		if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
-		{
-		  if(svga->dx)
-		  {
-		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT_ASYNC, cid);
-		  }
-		  else
-		  {
-		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_PRESENT_ASYNC, 0);
-		  }
-		}
-		else
-		{
-			FBHDA_access_begin(0);
-		  if(svga->dx)
-		  {
-		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
-		  }
-		  else
-		  {
-		  	SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
-		  }
-			FBHDA_access_end(0);
-		}
+		return;
 	}
-	/*
-	 * GPU10 way, sync the GMR and use vramcopy to convert and copy to FB
-	 */
-	else if(svga->dx)
+	
+	if(SVGAPresentLegacy(svga, sid, &rr))
 	{
-#pragma pack(push)
-#pragma pack(1)
-		struct
-		{
-			SVGA3dCmdHeader            header;
-			SVGA3dCmdReadbackGBSurface surf;
-		} cmd_readback = {{
-			SVGA_3D_CMD_READBACK_GB_SURFACE,
-			sizeof(SVGA3dCmdReadbackGBSurface)}};
-#pragma pack(pop)
-		vramcpy_rect_t vrect;
-		void *gmr;
-
-		cmd_readback.surf.sid = sid;
-
-		SVGASend(svga, &cmd_readback, sizeof(cmd_readback), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
-
-		gmr = SVGARegionGet(svga, sinfo->gmrId)->info.address;
-		assert(gmr);
-		
-		vrect.dst_pitch   = svga->hda->pitch;
-		vrect.dst_x       = render_left;
-		vrect.dst_y       = render_top;
-		vrect.dst_w       = render_width;
-		vrect.dst_h       = render_height;
-		vrect.dst_bpp     = bpp;
-		vrect.src_pitch   = sinfo->width * vramcpy_pointsize(sinfo->bpp);
-		vrect.src_x       = 0;
-		vrect.src_y       = 0;
-		vrect.src_bpp     = sinfo->bpp;
-		
-		if(sinfo->width < render_width)
-			vrect.dst_w = sinfo->width;
-
-		if(sinfo->height < render_height)
-			vrect.dst_h = sinfo->height;
-
-		if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
-		{
-			vramcpy(svga->hda->vram_pm32, gmr, &vrect);
-
-			if(bpp == 32)
-			{
-				struct
-				{
-					uint32_t          cmd;
-					SVGAFifoCmdUpdate rect;
-				} command_update = {SVGA_CMD_UPDATE};
-				command_update.rect.x      = render_left;
-				command_update.rect.y      = render_top;
-				command_update.rect.width  = render_width;
-				command_update.rect.height = render_height;
-
-				SVGASend(svga, &command_update, sizeof(command_update), SVGA_CB_PRESENT_ASYNC, 0);
-			}
-		}
-		else
-		{
-			FBHDA_access_begin(0);
-			vramcpy(svga->hda->vram_pm32, gmr, &vrect);
-			FBHDA_access_end(0);	
-		}
+		return;
 	}
-	/*
-	 * harder way: we'll need render surface to some GMR region and copy to frame buffer manualy
-	 */
-	else
-	{
-#pragma pack(push)
-#pragma pack(1)
-		struct
-		{
-			SVGA3dCmdHeader           header;
-			SVGA3dCmdSurfaceDMA       dma;
-			SVGA3dCopyBox             box;
-			SVGA3dCmdSurfaceDMASuffix suffix;
-		} command_dma = {{
-			SVGA_3D_CMD_SURFACE_DMA,
-			sizeof(SVGA3dCmdSurfaceDMA) + sizeof(SVGA3dCopyBox) + sizeof(SVGA3dCmdSurfaceDMASuffix)}};
-		struct
-		{
-			SVGA3dCmdHeader            header;
-			SVGA3dCmdSurfaceStretchBlt blit;
-		} command_blit = {{
-			SVGA_3D_CMD_SURFACE_STRETCHBLT,
-			sizeof(SVGA3dCmdSurfaceStretchBlt)
-		}};
-		struct
-		{
-			uint32_t          cmd;
-			SVGAFifoCmdUpdate rect;
-		} command_update = {SVGA_CMD_UPDATE};
-#pragma pack(pop)
 
-    if(!set_fb_blitsid(svga, render_width, render_height, bpp))
-    {
-    	return;
-    }
-
-    command_blit.blit.src.sid    = sid;
-    command_blit.blit.src.face   = 0;
-    command_blit.blit.src.mipmap = 0;
-
-    command_blit.blit.dest.sid    = svga->blitsid;
-    command_blit.blit.dest.face   = 0;
-    command_blit.blit.dest.mipmap = 0;
-
-		command_blit.blit.boxSrc.x = 0;
-		command_blit.blit.boxSrc.y = 0;
-		command_blit.blit.boxSrc.z = 0;
-		command_blit.blit.boxSrc.w = sinfo->width;
-		command_blit.blit.boxSrc.h = sinfo->height;
-		command_blit.blit.boxSrc.d = 1;
-
-		command_blit.blit.boxDest = command_blit.blit.boxSrc;
-		command_blit.blit.mode    = SVGA3D_STRETCH_BLT_LINEAR;
-
-		if(bpp == sinfo->bpp)
-		{
-			command_dma.dma.host.sid        = sid;
-		}
-		else
-		{
-			command_dma.dma.host.sid        = svga->blitsid;
-		}
-
-		command_dma.dma.guest.ptr.gmrId  = SVGA_GMR_FRAMEBUFFER;
-		command_dma.dma.guest.ptr.offset = 0;
-		command_dma.dma.guest.pitch      = svga->hda->pitch;
-		command_dma.dma.host.face        = 0;
-		command_dma.dma.host.mipmap      = 0;
-		command_dma.dma.transfer         = SVGA3D_READ_HOST_VRAM;
-		command_dma.box.x = 0;
-		command_dma.box.y = 0;
-		command_dma.box.z = 0;
-		command_dma.box.w = render_width;
-		command_dma.box.h = render_height;
-		command_dma.box.d = 1;
-		command_dma.box.srcx = render_left;
-		command_dma.box.srcy = render_top;
-		command_dma.box.srcz = 0;
-
-		if(render_left < 0)
-		{
-			command_dma.box.x = -render_left;
-			command_dma.box.srcx = 0;
-		}
-
-		if(render_top < 0)
-		{
-			command_dma.box.y = -render_top;
-			command_dma.box.srcy = 0;
-		}
-
-		if(render_left + render_width > svga->hda->width)
-		{
-			command_dma.box.w = svga->hda->width - render_left;
-		}
-
-		if(render_top + render_height > svga->hda->height)
-		{
-			command_dma.box.h = svga->hda->height - render_top;
-		}
-
-		command_dma.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
-		command_dma.suffix.maximumOffset = svga->hda->stride;
-		command_dma.suffix.flags.discard         = 0;
-		command_dma.suffix.flags.unsynchronized  = 0;
-		command_dma.suffix.flags.reserved        = 0;
-
-		command_update.rect.x      = render_left;
-		command_update.rect.y      = render_top;
-		command_update.rect.width  = render_width;
-		command_update.rect.height = render_height;
-
-		/*
-		uint32_t fence = SVGAFenceInsertCB(svga);
-		uint32_t fence_cmd[2] = {SVGA_CMD_FENCE, fence};
-		*/
-
-		SVGAStart(svga);
-		if(bpp != sinfo->bpp)
-		{
-			SVGAPush(svga, &command_blit, sizeof(command_blit));
-		}
-		SVGAPush(svga, &command_dma, sizeof(command_dma));
-
-		BOOL need_reread = debug_get_option_dma_need_reread() && bpp != 32;
-
-		if((svga->hda->flags & FB_MOUSE_NO_BLIT) && !need_reread)
-		{
-			SVGAPush(svga, &command_update, sizeof(command_update));
-			SVGAFinish(svga, SVGA_CB_PRESENT_ASYNC, 0);
-		}
-		else
-		{
-			FBHDA_access_begin(0);
-			SVGAFinish(svga, SVGA_CB_SYNC, 0);
-
-			if(need_reread)
-			{
-				refresh_fb(svga);
-			}
-
-			/* note: update command is not needed here, FBHDA_access_end do it automaticaly  */
-			FBHDA_access_end(0);
-		}
-	}
+	/* failback */
+	SVGAPresentWindow(svga, hDC, cid, sid);
 }
 
 /**
@@ -586,6 +669,12 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	} command_dx = {{
 		SVGA_3D_CMD_READBACK_GB_SURFACE,
 		sizeof(SVGA3dCmdReadbackGBSurface)}};
+	struct
+	{
+		SVGA3dCmdHeader           header;
+		SVGA3dCmdPresent          present;
+		SVGA3dCopyRect            rect;
+	} command_present = {{SVGA_3D_CMD_PRESENT, sizeof(SVGA3dCmdPresent) + sizeof(SVGA3dCopyRect)}};
 #pragma pack(pop)
 
 	SVGA_DB_surface_t *sinfo = SVGASurfaceGet(svga, sid);
@@ -600,20 +689,12 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 
   const int sbpp = sinfo->bpp;
   const size_t sps = vramcpy_pointsize(sbpp);
-
+  
 	if(sinfo->gmrId == 0) /* old way: copy surface to guest memory and display it */
 	{
-	  if(!set_fb_gmr(svga, sinfo->width, sinfo->height))
-	  {
-	  	debug_printf("SVGAPresentWindow: failed to set GMR!\n");
-	  	FBHDA_access_end(0);
-	  	return;
-	  }
-
-		debug_printf("SVGAPresentWindow: %d %d, format: %d\n", sbpp, sps, sinfo->format);
-
-		command.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
-		command.dma.guest.ptr.offset = 0;
+		/* newer variant using VRAM */
+		command.dma.guest.ptr.gmrId  = SVGA_GMR_FRAMEBUFFER;
+		command.dma.guest.ptr.offset = svga->hda->stride;
 		command.dma.guest.pitch      = sinfo->width * sps;
 		command.dma.host.sid         = sid;
 		command.dma.host.face        = 0;
@@ -631,16 +712,14 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		command.box.srcz = 0;
 
 		command.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
-		command.suffix.maximumOffset = svga->softblit_gmr_size;
+		command.suffix.maximumOffset = sinfo->height * sinfo->width * sps;
 		command.suffix.flags.discard         = 0;
 		command.suffix.flags.unsynchronized  = 0;
 		command.suffix.flags.reserved        = 0;
 
 		SVGASend(svga, &command, sizeof(command), SVGA_CB_SYNC, 0);
 
-		assert(svga->softblit_gmr_ptr);
-
-		gmr = svga->softblit_gmr_ptr;
+		gmr = ((uint8_t*)svga->hda->vram_pm32) + svga->hda->stride;
 	}
 	else /* new way: sync GMR and copy buffer to window */
 	{

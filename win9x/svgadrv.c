@@ -1776,9 +1776,7 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 	  	siz++;
 	  }
 
-	  SVGASend(svga, cmd, cbCmd, /*SVGA_CB_SYNC*/0, 0);
-
-
+	  SVGASend(svga, cmd, cbCmd, 0, 0);
 
 		*outSid = sid;
 		return TRUE;
@@ -1937,6 +1935,7 @@ uint32_t SVGARegionsSize(svga_inst_t *svga)
 	return svga->db->stat_regions_usage - svga->cache.mem_used;
 }
 
+#if 0
 BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render_height)
 {
 	uint32_t softblit_minsize = vramcpy_calc_framebuffer(render_width, render_height, 32);
@@ -1961,6 +1960,7 @@ BOOL set_fb_gmr(svga_inst_t *svga, uint32_t render_width, uint32_t render_height
 
 	return TRUE;
 }
+#endif
 
 /*
  * create or recreate surface with same size as renderer but same format as screen

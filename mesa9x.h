@@ -22,7 +22,7 @@
 #endif
 
 #ifndef MESA9X_BUILD
-#define MESA9X_BUILD 0
+#define MESA9X_BUILD 95
 #endif
 
 #define MESA9X_VERSION_STR_BUILD(_ma, _mi, _pa, _bl) \

@@ -1,4 +1,4 @@
-#f
+#
 # This is GNU make file DON'T use it with nmake/wmake or whatever even if you
 # plan to use MS compiler!
 #
@@ -37,6 +37,11 @@ ifeq ($(MESA_VER),mesa-23.1.x)
   MESA_GPU10 := 1
 endif
 
+ifeq ($(MESA_VER),mesa-24.0.x)
+  MESA_MAJOR := 24
+  MESA_GPU10 := 1
+endif
+
 ifeq ($(MESA_VER),mesa-24.1.x)
   MESA_MAJOR := 24
   MESA_GPU10 := 1
@@ -69,6 +74,7 @@ BASE_mesa3d.w95.dll     := 0x69500000
 BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
+BASE_svgagl32.dll   := 0x69500000
 BASE_mesa99.dll         := 0x03860000
 BASE_mesa89.dll         := 0x00A30000
 BASE_mesad3d10.w95.dll  := 0x10000000
@@ -196,8 +202,8 @@ ifdef MSC
     endif
   endif
 
- OPENGL_LIBS = MesaLib.lib MesaUtilLib.lib MesaGalliumAuxLib.lib
- SVGA_LIBS   = MesaLib.lib MesaUtilLib.lib MesaGalliumAuxLib.lib MesaSVGALib.lib
+  OPENGL_LIBS = MesaLib.lib MesaUtilLib.lib MesaGalliumAuxLib.lib
+  SVGA_LIBS   = MesaLib.lib MesaUtilLib.lib MesaGalliumAuxLib.lib MesaSVGALib.lib
   MESA_LIBS = kernel32.lib user32.lib gdi32.lib
   
   app_LIBS  =  opengl32.lib gdi32.lib user32.lib
@@ -511,6 +517,12 @@ $(LIBPREFIX)MesaSVGALib$(LIBSUFFIX): $(MesaSVGALib_OBJS)
 	-$(RM) $@
 	$(LIBSTATIC) $(MesaSVGALib_OBJS)
 
+MesaSVGALibSimd_OBJS := $(MesaSVGALib_SRC:.c=.c_simd$(OBJ))
+MesaSVGALibSimd_OBJS := $(MesaSVGALibSimd_OBJS:.cpp=.cpp_simd$(OBJ))
+$(LIBPREFIX)MesaSVGALibSimd$(LIBSUFFIX): $(MesaSVGALibSimd_OBJS)
+	-$(RM) $@
+	$(LIBSTATIC) $(MesaSVGALibSimd_OBJS)
+
 MesaGdiLib_OBJS := $(MesaGdiLib_SRC:.c=.c_gen$(OBJ))
 MesaGdiLib_OBJS := $(MesaGdiLib_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaGdiLibSimd_OBJS := $(MesaGdiLib_SRC:.c=.c_simd$(OBJ))
@@ -555,8 +567,14 @@ $(LIBPREFIX)MesaWglLibSimd$(LIBSUFFIX): $(MesaWglLibSimd_OBJS)
 MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_gen$(OBJ))
 MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_OBJS:.cpp=.cpp_gen$(OBJ))
 
+MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_gen$(OBJ))
+MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMWSimd_OBJS:.cpp=.cpp_gen$(OBJ))
+
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_OBJS:.cpp=.cpp_gen$(OBJ))
+
+MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
+MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLibSimd_OBJS:.cpp=.cpp_gen$(OBJ))
 
 MesaNineLib_OBJS := $(MesaNineLib_SRC:.c=.c_gen$(OBJ))
 MesaNineLib_OBJS := $(MesaNineLib_OBJS:.cpp=.cpp_gen$(OBJ))
@@ -585,8 +603,11 @@ mesa3d.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) mesa3d.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
 
 # accelerated ICD driver
-vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWgl_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
+vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+	
+svgagl32.dll: $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
+	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
 mesa99.dll: mesa3d.w95.dll $(MesaNineLib_OBJS) mesa99.res
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA_LIBS) $(DLLFLAGS) $(MESA99_DEF)
@@ -696,6 +717,11 @@ clean:
 	-$(RM) glchecker.exe
 	-$(RM) icdtest.exe
 	-$(RM) wgltest.exe
+	-$(RM) $(LIBPREFIX)MesaSVGALibSimd$(LIBSUFFIX)
+	-$(RM) $(MesaSVGALibSimd_OBJS)
+	-$(RM) $(MesaGdiLibVMWSimd_OBJS)
+	-$(RM) $(MesaSVGAWinsysLibSimd_OBJS)
+	-$(RM) svgagl32.dll
 	-cd winpthreads && $(MAKE) clean
 endif
 
