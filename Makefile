@@ -567,14 +567,14 @@ $(LIBPREFIX)MesaWglLibSimd$(LIBSUFFIX): $(MesaWglLibSimd_OBJS)
 MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_gen$(OBJ))
 MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_OBJS:.cpp=.cpp_gen$(OBJ))
 
-MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_gen$(OBJ))
-MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMWSimd_OBJS:.cpp=.cpp_gen$(OBJ))
+MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_simd$(OBJ))
+MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMWSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_OBJS:.cpp=.cpp_gen$(OBJ))
 
-MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
-MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLibSimd_OBJS:.cpp=.cpp_gen$(OBJ))
+MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_simd$(OBJ))
+MesaSVGAWinsysLibSimd_OBJS := $(MesaSVGAWinsysLibSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
 MesaNineLib_OBJS := $(MesaNineLib_SRC:.c=.c_gen$(OBJ))
 MesaNineLib_OBJS := $(MesaNineLib_OBJS:.cpp=.cpp_gen$(OBJ))
@@ -722,6 +722,7 @@ clean:
 	-$(RM) $(MesaGdiLibVMWSimd_OBJS)
 	-$(RM) $(MesaSVGAWinsysLibSimd_OBJS)
 	-$(RM) svgagl32.dll
+	-$(RM) $(LIBPREFIX)svgagl32$(LIBSUFFIX)
 	-cd winpthreads && $(MAKE) clean
 endif
 

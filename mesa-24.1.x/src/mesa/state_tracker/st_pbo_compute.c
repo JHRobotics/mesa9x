@@ -932,6 +932,7 @@ download_texture_compute(struct st_context *st,
                .ir.nir = spec->nir,
             };
             cs = spec->cs = st_create_nir_shader(st, &state);
+            spec->nir = NULL;
          }
          cb.buffer_size = 2 * sizeof(uint32_t);
       } else if (!st->force_compute_based_texture_transfer && screen->driver_thread_add_job) {
@@ -987,6 +988,7 @@ download_texture_compute(struct st_context *st,
             .ir.nir = spec->nir,
          };
          cs = spec->cs = st_create_nir_shader(st, &state);
+         spec->nir = NULL;
          cb.buffer_size = 2 * sizeof(uint32_t);
       } else {
          nir_shader *nir = create_conversion_shader(st, view_target, num_components);
@@ -1346,6 +1348,7 @@ st_pbo_compute_deinit(struct st_context *st)
          if (async->cs)
             st->pipe->delete_compute_state(st->pipe, async->cs);
          util_queue_fence_destroy(&async->fence);
+         ralloc_free(async->nir);
          ralloc_free(async->copy);
          set_foreach_remove(&async->specialized, se) {
             struct pbo_spec_async_data *spec = (void*)se->key;

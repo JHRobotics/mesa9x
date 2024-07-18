@@ -1068,6 +1068,27 @@ nvk_get_vram_heap_available(struct nvk_physical_device *pdev)
    return pdev->info.vram_size_B - used;
 }
 
+static bool
+drm_device_is_nouveau(const char *path)
+{
+   int fd = open(path, O_RDWR | O_CLOEXEC);
+   if (fd < 0)
+      return false;
+
+   drmVersionPtr ver = drmGetVersion(fd);
+   if (!ver) {
+      close(fd);
+      return false;
+   }
+
+   const bool is_nouveau = !strncmp("nouveau", ver->name, ver->name_len);
+
+   drmFreeVersion(ver);
+   close(fd);
+
+   return is_nouveau;
+}
+
 VkResult
 nvk_create_drm_physical_device(struct vk_instance *_instance,
                                drmDevicePtr drm_device,
@@ -1103,6 +1124,9 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
    default:
       return VK_ERROR_INCOMPATIBLE_DRIVER;
    }
+
+   if (!drm_device_is_nouveau(drm_device->nodes[DRM_NODE_RENDER]))
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
 
    struct nouveau_ws_device *ws_dev = nouveau_ws_device_new(drm_device);
    if (!ws_dev)
