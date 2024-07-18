@@ -1766,7 +1766,7 @@ BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE
 #if 0
 			  {
 			  	FILE *fa = fopen("C:\\surf.log", "ab");
-			  	fprintf(fa, "%s (%d): %d x %d\r\n", get_format_name(sinfo->format), sinfo->format, sinfo->width, sinfo->height);
+			  	fprintf(fa, "%s (%d): %d x %d (flags: %X)\r\n", get_format_name(sinfo->format), sinfo->format, sinfo->width, sinfo->height, pCreateParms->flags);
 			  	fclose(fa);
 			  }
 #endif
