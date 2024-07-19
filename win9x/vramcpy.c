@@ -1,4 +1,5 @@
 #if MESA_MAJOR >= 23
+# include "pipe/p_defines.h"
 # include "state_tracker/st_format.h"
 # include "state_tracker/st_context.h"
 #endif
@@ -139,21 +140,60 @@ void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC 
 			ClientToScreen(hwnd, &p1);
 			ClientToScreen(hwnd, &p2);
 			
+			int view_x = p1.x;
+			int view_y = p1.y;
+			int view_w = p2.x - p1.x;
+			int view_h = p2.y - p1.y;
+			int src_x = 0;
+			int src_y = 0;
 			
-
-			crect.dst_x     = p1.x;
-			crect.dst_y     = p1.y;
-			crect.dst_w     = MIN(gdt->width, p2.x - p1.x);
-			crect.dst_h     = MIN(gdt->height, p2.y - p1.y);
-			crect.dst_bpp   = fbhda->bpp;
-			crect.dst_pitch = fbhda->pitch;
-			crect.src_x     = 0;
-			crect.src_y     = 0;
-			crect.src_bpp   = gdt->bmi.bmiHeader.biBitCount;
-			crect.src_pitch = gdt->stride; // (gdt->width * vramcpy_pointsize_fast(crect.src_bpp)) & 0xFFFFFFFCUL;
-			
-			if(crect.dst_w && crect.dst_h)
+			if(view_x < 0)
 			{
+				src_x  = -view_x;
+				view_x = 0;
+				view_w -= src_x;
+			}
+			
+			if(view_y < 0)
+			{
+				src_y  = -view_y;
+				view_y = 0;
+				view_h -= src_y;
+			}
+			
+			if(view_w+src_x > gdt->width)
+			{
+				view_w = gdt->width - src_x;
+			}
+			
+			if(view_h+src_y > gdt->height)
+			{
+				view_h = gdt->height - src_y;
+			}
+			
+			if(view_x + view_w > fbhda->width)
+			{
+				view_w -= (view_x + view_w) - fbhda->width;
+			}
+			
+			if(view_y + view_h > fbhda->height)
+			{
+				view_h -= (view_y + view_h) - fbhda->height;
+			}
+			
+			if(view_w > 0 && view_h > 0)
+			{
+				crect.dst_x     = view_x;
+				crect.dst_y     = view_y;
+				crect.dst_w     = view_w;
+				crect.dst_h     = view_h;
+				crect.dst_bpp   = fbhda->bpp;
+				crect.dst_pitch = fbhda->pitch;
+				crect.src_x     = src_x;
+				crect.src_y     = src_y;
+				crect.src_bpp   = gdt->bmi.bmiHeader.biBitCount;
+				crect.src_pitch = gdt->stride;
+			
 				FBHDA_access_begin(0);
 				vramcpy(fbhda->vram_pm32, gdt->data, &crect);
 				FBHDA_access_end(0);

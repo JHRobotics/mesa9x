@@ -183,12 +183,12 @@ static BOOL adjustRect(RenderRect *rr, svga_inst_t *svga, SVGA_DB_surface_t *sin
 	
 	if((rr->x + rr->w) > svga->hda->width)
 	{
-		rr->w -= svga->hda->width - (rr->x + rr->w);
+		rr->w -= (rr->x + rr->w) - svga->hda->width;
 	}
 	
 	if((rr->y + rr->h) > svga->hda->height)
 	{
-		rr->h -= svga->hda->height - (rr->y + rr->h);
+		rr->h -= (rr->y + rr->h) - svga->hda->height;
 	}
 	
 	rr->surf_bpp   = sinfo->bpp;
@@ -466,7 +466,7 @@ static BOOL SVGAPresentLegacy(svga_inst_t *svga, uint32_t source_sid, RenderRect
 
 static BOOL SVGAPresentDX(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, RenderRect *rr, SVGA_DB_surface_t *sinfo)
 {
-	if(svga->dx)
+	if(svga->dx || (debug_get_option_blit_surf_to_screen_enabled() && svga->hda->bpp == 32))
 	{
 		if(svga->hda->bpp == 32)
 		{

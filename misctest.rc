@@ -1,0 +1,38 @@
+/* shutdown some MinGW warnings */
+#define _XMMINTRIN_H_INCLUDED 
+
+#ifdef WINDRES
+#undef RC_INVOKED
+#endif
+#ifndef RC_INVOKED
+#include "winuser.h"
+
+#include "mesa9x.h"
+
+101 ICON "misctest.ico"
+
+1 VERSIONINFO
+FILEVERSION MESA9X_VERSION_NUM
+PRODUCTVERSION MESA9X_VERSION_NUM
+FILEOS 0x40004
+FILETYPE 0x2
+{
+BLOCK "StringFileInfo"
+{
+	BLOCK "040904b0"
+	{
+		VALUE "CompanyName", "JHRobotics"
+		VALUE "FileDescription", "Mesa9X test program"
+		VALUE "FileVersion", MESA9X_VERSION_STR
+		VALUE "PrivateBuild", MESA9X_VERSION_STR
+		VALUE "ProductName", "Mesa9X"
+		VALUE "ProductVersion", MESA9X_VERSION_STR
+	}
+}
+
+BLOCK "VarFileInfo"
+{
+	VALUE "Translation", 0x0409, 0x04B0  
+}
+}
+#endif

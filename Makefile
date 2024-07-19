@@ -90,7 +90,7 @@ ifeq ($(GIT_IS),true)
   VERSION_BUILD := $(shell $(GIT) rev-list --count main)
 endif
 
-TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe icdtest.exe wgltest.exe mesa99.dll mesa89.dll
+TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe fbtest.exe icdtest.exe wgltest.exe mesa99.dll mesa89.dll
 ifdef LLVM
   TARGETS += opengl32.w98me.dll mesa3d.w98me.dll
 endif
@@ -635,8 +635,12 @@ glchecker.exe: $(glchecked_OBJS) $(DEPS) $(LD_DEPS)
 endif
 
 # ICD tester
-icdtest.exe: icdtest.c_app$(OBJ) $(DEPS) $(LD_DEPS)
-	$(LD) $(APP_LDFLAGS) icdtest.c_app$(OBJ) $(app_LIBS) $(EXEFLAGS_CMD)
+icdtest.exe: icdtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+	$(LD) $(APP_LDFLAGS) icdtest.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
+
+# FB tester
+fbtest.exe: fbtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+	$(LD) $(APP_LDFLAGS) fbtest.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 # WGL tester
 ifdef DEBUG
@@ -675,6 +679,7 @@ clean:
 	-$(RM) $(MesaD3D10LibSimd_OBJS)
 	-$(RM) $(eight_OBJS)
 	-$(RM) icdtest.c_app$(OBJ)
+	-$(RM) fbtest.c_app$(OBJ)
 	-$(RM) wgltest.c_app$(OBJ)
 	-$(RM) $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX)
 	-$(RM) $(LIBPREFIX)MesaUtilLibSimd$(LIBSUFFIX)
@@ -700,6 +705,7 @@ clean:
 	-$(RM) mesa89.res
 	-$(RM) mesa99.res
 	-$(RM) wgltest.res
+	-$(RM) misctest.res
 	-$(RM) opengl32.w95.dll
 	-$(RM) $(LIBPREFIX)opengl32.w95$(LIBSUFFIX)
 	-$(RM) opengl32.w98me.dll
@@ -716,6 +722,7 @@ clean:
 	-$(RM) mesa89.dll
 	-$(RM) glchecker.exe
 	-$(RM) icdtest.exe
+	-$(RM) fbtest.exe
 	-$(RM) wgltest.exe
 	-$(RM) $(LIBPREFIX)MesaSVGALibSimd$(LIBSUFFIX)
 	-$(RM) $(MesaSVGALibSimd_OBJS)
