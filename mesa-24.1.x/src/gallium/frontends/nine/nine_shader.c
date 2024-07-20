@@ -4001,6 +4001,7 @@ nine_ureg_create_shader(struct ureg_program                  *ureg,
     assert(((struct tgsi_header *) &tgsi_tokens[0])->HeaderSize >= 2);
     enum pipe_shader_type shader_type = ((struct tgsi_processor *) &tgsi_tokens[1])->Processor;
 
+#if 0
     bool use_nir = true;
 
     /* Allow user to override preferred IR, this is very useful for debugging */
@@ -4008,6 +4009,9 @@ nine_ureg_create_shader(struct ureg_program                  *ureg,
         use_nir = false;
     if (unlikely(shader_type == PIPE_SHADER_FRAGMENT && nine_shader_get_debug_flag(NINE_SHADER_DEBUG_OPTION_NO_NIR_PS)))
         use_nir = false;
+#else
+    bool use_nir = false;
+#endif
 
     DUMP("shader type: %s, selected IR: %s\n",
          shader_type == PIPE_SHADER_VERTEX ? "VS" : "PS",

@@ -301,7 +301,8 @@ else
 	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
 	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
   MESA_LIBS  := winpthreads/crtfix.o -static -Lwinpthreads -lpthread -lkernel32 -luser32 -lgdi32
-  MESA89_LIBS := -lgdi32
+  MESA99_LIBS := -lMesaUtilLib $(MESA_LIBS)
+  MESA89_LIBS := $(MESA99_LIBS)
   
   ifdef DEBUG
     DD_DEFS = -DDEBUG -DMESA_DEBUG=1
@@ -609,11 +610,11 @@ vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSV
 svgagl32.dll: $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
-mesa99.dll: mesa3d.w95.dll $(MesaNineLib_OBJS) mesa99.res
-	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA_LIBS) $(DLLFLAGS) $(MESA99_DEF)
+mesa99.dll: mesa3d.w95.dll $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res
+	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA99_LIBS) $(DLLFLAGS) $(MESA99_DEF)
 
 mesa89.dll: mesa99.dll $(eight_OBJS) mesa89.res
-	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(eight_OBJS) mesa89.res $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
+	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(eight_OBJS) mesa89.res $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
 
 mesad3d10.w95.dll: $(LIBS_TO_BUILD) $(DEPS) $(LD_DEPS) $(MesaD3D10Lib_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10Lib_OBJS) $(MesaGdiLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(D3D10_DEF)

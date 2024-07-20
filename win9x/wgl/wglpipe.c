@@ -18,6 +18,8 @@
 #include "softpipe/sp_texture.h"
 #include "softpipe/sp_screen.h"
 #include "softpipe/sp_public.h"
+
+extern int sp_debug;
 #endif
 
 #ifdef GALLIUM_LLVMPIPE
@@ -28,6 +30,8 @@
 
 #include "gdi/gdi_sw_winsys.h"
 
+#include "pipe_access.h"
+
 #ifdef WIN9X
 #include "vramcpy.h"
 #endif
@@ -36,13 +40,35 @@
 
 extern struct stw_winsys stw_winsys;
 
-
-BOOL WINAPI MesaScreenCreate(HDC hdc, struct pipe_screen **pScreen)
+BOOL WINAPI MesaScreenCreate(HDC hdc, struct pipe_screen **pScreen, DWORD flags)
 {
 	struct pipe_screen *screen = stw_winsys.create_screen(hdc);
 	if(screen)
 	{
+		const char *type_name = screen->get_name(screen);
 		*pScreen = screen;
+		
+		switch(flags)
+		{
+			case MESA_SCREEN_USE_TGSI:
+#if MESA_MAJOR < 24
+				#ifdef GALLIUM_LLVMPIPE
+					if(strncmp(type_name, "llvmpipe", 8) == 0)
+					{
+						llvmpipe_screen(screen)->use_tgsi = 1;
+					}
+				#endif
+				
+				#ifdef GALLIUM_SOFTPIPE
+					if(strcmp(type_name, "softpipe") == 0)
+					{
+						sp_debug |= SP_DBG_USE_TGSI;
+					}
+				#endif
+#endif
+				break;
+		}
+		
 		return TRUE;
 	}
 	

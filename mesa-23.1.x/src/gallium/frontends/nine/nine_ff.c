@@ -29,12 +29,6 @@
 #define NINE_FF_NUM_VS_CONST 196
 #define NINE_FF_NUM_PS_CONST 24
 
-/* JHR: I'm afraid that ff program for light is broken and cannot
-   be compiled when some lights are actived.
-   Comment next line, if I'm wrong:
- */
-#define NINE_NO_LIGHTS
-
 struct fvec4
 {
     float x, y, z, w;
@@ -784,6 +778,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      * specular += light.specular * atten * powFact;
      */
     if (key->lighting) {
+      if (PIPE_SHADER_IR_TGSI == device->screen->get_shader_param(device->screen, MESA_SHADER_VERTEX, PIPE_SHADER_CAP_PREFERRED_IR)) {
         struct ureg_dst tmp = ureg_DECL_temporary(ureg);
         struct ureg_dst tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
         struct ureg_dst tmp_y = ureg_writemask(tmp, TGSI_WRITEMASK_Y);
@@ -819,7 +814,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         struct ureg_src cLSDiv = _ZZZZ(LIGHT_CONST(6));
         struct ureg_src cLLast = _WWWW(LIGHT_CONST(7));
 
-#ifndef NINE_NO_LIGHTS
         const unsigned loop_label = l++;
         
         /* Declare all light constants to allow indirect adressing */
@@ -932,8 +926,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
         ureg_ENDLOOP(ureg, &label[loop_label]);
 
-#endif /* no lights */
-
         /* Apply to material:
          *
          * oCol[0] = (material.emissive + material.ambient * rs.ambient) +
@@ -960,6 +952,10 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_release_temporary(ureg, rS);
         ureg_release_temporary(ureg, rAtt);
         ureg_release_temporary(ureg, tmp);
+      } else {
+        ureg_MOV(ureg, oCol[0], vs->aCol[0]);
+        ureg_MOV(ureg, oCol[1], vs->aCol[1]);
+      }
     } else
     /* COLOR */
     if (key->darkness) {

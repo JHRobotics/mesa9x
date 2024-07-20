@@ -38,9 +38,9 @@ typedef struct _opengl_icd_t
 /* globals */
 static HMODULE hMesa = NULL;
 
-MesaScreenCreateH MesaScreenCreate = NULL;
-MesaPresentH MesaPresent = NULL;
-MesaDimensionsH MesaDimensions = NULL;
+MesaScreenCreateH MesaScreenCreateProc = NULL;
+MesaPresentH MesaPresentProc = NULL;
+MesaDimensionsH MesaDimensionsProc = NULL;
 
 INineNine *nineInst = NULL;
 static CRITICAL_SECTION nine_if_cs;
@@ -112,7 +112,7 @@ static BOOL GetGLICD(char *OutDllName, size_t OutDllNameSize)
 #define TRY_LOAD_FUNC(_fname) \
 	proc = GetProcAddress(hMesaTest, #_fname); \
 	if(proc == NULL){FreeLibrary(hMesaTest); mesa99_dbg("not found %s in %s", #_fname, dllname); return FALSE;} \
-	_fname = (_fname ## H)proc;
+	_fname ## Proc = (_fname ## H)proc;
 
 static BOOL LoadWinsysDLL(char *dllname, HMODULE *OutHMesa)
 {
@@ -860,7 +860,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	HDC hdc = GetDC(hDesktop);
 	struct pipe_screen *screen = NULL;
 	
-	if(!MesaScreenCreate)
+	if(!MesaScreenCreateProc)
 	{
 		return D3DERR_INVALIDCALL;
 	}
@@ -873,7 +873,7 @@ HRESULT WINAPI NineNine_new(INineNine **ppOut)
 	}
 	else
 	{
-		if(!MesaScreenCreate(hdc, &screen))
+		if(!MesaScreenCreateProc(hdc, &screen, MESA_SCREEN_USE_TGSI))
 		{
 			mesa99_dbg("MesaScreenCreate failed");
 			return D3DERR_INVALIDCALL;

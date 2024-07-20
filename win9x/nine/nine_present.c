@@ -292,7 +292,7 @@ static HRESULT WINAPI DRIPresent_D3DWindowBufferFromRes(ID3DPresentM99 *This,
 	
 	int w, h, bpp, pitch;
 	
-	if(MesaDimensions(screen, ctx, res, &w, &h, &bpp, &pitch))
+	if(MesaDimensionsProc(screen, ctx, res, &w, &h, &bpp, &pitch))
 	{
 		mesa99_dbg("Screen: %d, %d, %d, %d", w, h, bpp, pitch);
 		D3DWindowBuffer *wb = malloc(sizeof(D3DWindowBuffer));
@@ -439,7 +439,7 @@ static HRESULT WINAPI DRIPresent_PresentBuffer(ID3DPresentM99 *This, struct D3DW
 	HDC dc = GetDC(d3d->wnd);
 	if(dc != NULL)
 	{
-		MesaPresent(buffer->screen, buffer->ctx, buffer->res, dc, pSourceRect, pDestRect);
+		MesaPresentProc(buffer->screen, buffer->ctx, buffer->res, dc, pSourceRect, pDestRect);
 	}
 	
 	//release_d3d_drawable(d3d);

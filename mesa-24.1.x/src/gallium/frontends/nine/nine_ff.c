@@ -32,7 +32,8 @@
    be compiled when some lights are actived.
    Comment next line, if I'm wrong:
  */
-#define NINE_NO_LIGHTS
+//#define NINE_NO_LIGHTS
+/* JHR - update: lights working only with TGSI */
 
 struct fvec4
 {

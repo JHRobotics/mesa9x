@@ -28,6 +28,8 @@
 
 #include "gdi/gdi_sw_winsys.h"
 
+#include "pipe_access.h"
+
 #ifdef WIN9X
 #include "vramcpy.h"
 #endif
