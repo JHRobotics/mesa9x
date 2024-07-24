@@ -716,6 +716,11 @@ uint32_t SVGAContextCreate(svga_inst_t *svga)
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineContext defctx;
 	} ctx_cmd;
+	struct
+	{
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXBindContext bind;
+	} ctx_bind;
 #pragma pack(pop)
 
 	SVGA_ASSERT;
@@ -735,6 +740,23 @@ uint32_t SVGAContextCreate(svga_inst_t *svga)
 	debug_printf("creating context %d\n", svga->ctx_id);
 
 	SVGAContextIDInfo(svga, svga->ctx_id)->cotable = NULL;
+	SVGAContextIDInfo(svga, svga->ctx_id)->gmrId   = SVGA3D_INVALID_ID;
+	
+	if(svga->dx)
+	{
+		uint32_t mob_ptr;
+		uint32 mobid = SVGARegionCreate(svga, sizeof(SVGADXContextMobFormat), &mob_ptr);
+		
+		ctx_bind.header.id   = SVGA_3D_CMD_DX_BIND_CONTEXT;
+		ctx_bind.header.size = sizeof(SVGA3dCmdDXBindContext);
+		ctx_bind.bind.cid    = svga->ctx_id;
+	 	ctx_bind.bind.mobid  = mobid;
+		ctx_bind.bind.validContents = 0;
+		
+		SVGASend(svga, &ctx_bind, sizeof(ctx_bind), SVGA_CB_SYNC, 0);
+		
+		SVGAContextIDInfo(svga, svga->ctx_id)->gmrId = mobid;
+	}
 
 	return ctx_cmd.defctx.cid;
 }
@@ -765,6 +787,15 @@ void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid)
 	ctx_cmd.defctx.cid = cid;
 
 	SVGASend(svga, &ctx_cmd, sizeof(ctx_cmd), SVGA_CB_SYNC, 0);
+	
+	if(svga->dx)
+	{
+		uint32_t mobid = SVGAContextIDInfo(svga, cid)->gmrId;
+		if(mobid != SVGA3D_INVALID_ID)
+		{
+			SVGARegionDestroy(svga, mobid);
+		}
+	}
 
 	SVGAContextIDFree(svga, cid);
 	svga->ctx_id = 0;

@@ -466,8 +466,10 @@ static BOOL SVGAPresentLegacy(svga_inst_t *svga, uint32_t source_sid, RenderRect
 
 static BOOL SVGAPresentDX(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, RenderRect *rr, SVGA_DB_surface_t *sinfo)
 {
-	if(svga->dx || (debug_get_option_blit_surf_to_screen_enabled() && svga->hda->bpp == 32))
+	if((debug_get_option_blit_surf_to_screen_enabled() && svga->hda->bpp == 32))
 	{
+		// VirtualBox only!
+		
 		if(svga->hda->bpp == 32)
 		{
 #pragma pack(push)
