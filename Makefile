@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-24.1.x
-DEPS = config.mk Makefile
+#DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
@@ -90,7 +90,7 @@ ifeq ($(GIT_IS),true)
   VERSION_BUILD := $(shell $(GIT) rev-list --count main)
 endif
 
-TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe fbtest.exe icdtest.exe wgltest.exe mesa99.dll mesa89.dll
+TARGETS = opengl32.w95.dll mesa3d.w95.dll vmwsgl32.dll glchecker.exe fbtest.exe icdtest.exe wgltest.exe svgadump.exe mesa99.dll mesa89.dll
 ifdef LLVM
   TARGETS += opengl32.w98me.dll mesa3d.w98me.dll
 endif
@@ -642,6 +642,11 @@ icdtest.exe: icdtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
 # FB tester
 fbtest.exe: fbtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) fbtest.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
+
+# svgadump
+svgadump.exe: svgadump.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+	$(LD) $(APP_LDFLAGS) svgadump.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
+
 
 # WGL tester
 ifdef DEBUG

@@ -481,6 +481,7 @@ static void cache_flush(svga_inst_t *svga, uint32_t threshold, BOOL keep_small)
  * Inicializators
  */
 
+#if 0 /* not here */
 static BOOL SVGAInitOTables(svga_inst_t *svga)
 {
 	//BOOL createCtx = FALSE;
@@ -527,6 +528,7 @@ static BOOL SVGAInitOTables(svga_inst_t *svga)
 
 	return TRUE;
 }
+#endif
 
 /*
  * Resources
@@ -684,10 +686,10 @@ BOOL SVGACreate(svga_inst_t *svga)
 		svga->softblit_gmr_size = 0;
 
 		/* GEN10 */
-		if(svga->hda->flags & FB_ACCEL_VMSVGA10)
+/*		if(svga->hda->flags & FB_ACCEL_VMSVGA10)
 		{
 			SVGAInitOTables(svga);
-		}
+		}*/
 
 		if(debug_get_option_gmr_cache())
 		{
