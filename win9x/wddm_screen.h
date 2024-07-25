@@ -46,6 +46,7 @@ struct vmw_winsys_screen_wddm
 #pragma pack(1) /* VMSVGA structures are '__packed'. */
 #include <svga3d_caps.h>
 #include <svga3d_reg.h>
+#include <svga3d_cmd.h>
 #pragma pack()
 
 #include "vmw_screen.h"

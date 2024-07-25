@@ -828,7 +828,8 @@ static const svga_cotable_t def_cotable = {{
 	{SVGA_COTABLE_STREAMOUTPUT,    sizeof(SVGACOTableDXStreamOutputEntry),    COTABLE_ENTRIES_BLOCK, 0},
 	{SVGA_COTABLE_DXQUERY,         sizeof(SVGACOTableDXQueryEntry),           4*COTABLE_ENTRIES_BLOCK, 0},
 	{SVGA_COTABLE_DXSHADER,        sizeof(SVGACOTableDXShaderEntry),          COTABLE_ENTRIES_BLOCK, 0},
-	{SVGA_COTABLE_UAVIEW,          sizeof(SVGACOTableDXUAViewEntry),          COTABLE_ENTRIES_BLOCK, 0},
+	//{SVGA_COTABLE_UAVIEW,          sizeof(SVGACOTableDXUAViewEntry),          COTABLE_ENTRIES_BLOCK, 0},
+	{SVGA_COTABLE_UAVIEW,          sizeof(SVGACOTableDXUAViewEntry),          0, 0},
 }};
 
 /* initialize DX cotables for CTX */
@@ -858,7 +859,7 @@ BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 	/* allocate cotable entries */
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
 	{
-		if(cotable->item[i].cbItem > 0)
+		if(cotable->item[i].count > 0)
 	 	{
 	 		cotable->item[i].gmr_id = SVGARegionCreate(svga, cotable->item[i].cbItem * cotable->item[i].count, NULL);
 	 	}
@@ -869,7 +870,7 @@ BOOL SVGAContextCotableCreate(svga_inst_t *svga, uint32_t cid)
 
 	for(int i = 0; i < SVGA_COTABLE_MAX; i++)
 	{
-		if(cotable->item[i].gmr_id != 0 && cotable->item[i].cbItem > 0)
+		if(cotable->item[i].gmr_id != 0 && cotable->item[i].count > 0)
 		{
 			cmd_cotable.cmd = SVGA_3D_CMD_DX_SET_COTABLE;
 			cmd_cotable.size = sizeof(SVGA3dCmdDXSetCOTable);
@@ -935,19 +936,23 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		uint32_t new_count = ((destId + 1 + step) / step) * step;
 		uint32_t new_cb = new_count * cotable->item[type].cbItem;
 
-		/* command for flush table to quest */
-		cmd_read_cotable.entry.cid   = cid;
-		cmd_read_cotable.entry.type  = type;
+		if(old_gmrId)
+		{
+			/* command for flush table to quest */
+			cmd_read_cotable.entry.cid   = cid;
+			cmd_read_cotable.entry.type  = type;
+	
+			/* command to update table in host */
+			cmd_grow_cotable.entry.cid = cid;
+			cmd_grow_cotable.entry.mobid = SVGA3D_INVALID_ID;
+			cmd_grow_cotable.entry.type = type;
+			cmd_grow_cotable.entry.validSizeInBytes = cotable->item[type].cbItem * cotable->item[type].count;
 
-		/* command to update table in host */
-		cmd_grow_cotable.entry.cid = cid;
-		cmd_grow_cotable.entry.mobid = SVGA3D_INVALID_ID;
-		cmd_grow_cotable.entry.type = type;
-		cmd_grow_cotable.entry.validSizeInBytes = cotable->item[type].cbItem * cotable->item[type].count;
-
-		/* process readback */
-		SVGAPush(svga, &cmd_read_cotable, sizeof(cmd_read_cotable));
-		SVGAFinish(svga,  SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+			/* process readback */
+			SVGAPush(svga, &cmd_read_cotable, sizeof(cmd_read_cotable));
+			SVGAFinish(svga,  SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		}
+		
 		//SVGASend(svga, &cmd_read_cotable, sizeof(cmd_read_cotable), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
 
 		SVGAStart(svga);
@@ -961,7 +966,7 @@ BOOL SVGAContextCotableUpdate(svga_inst_t *svga, uint32_t cid, SVGACOTableType t
 		{
 			cmd_grow_cotable.entry.mobid = new_gmrId;
 
-			if(new_mem)
+			if(old_mem)
 			{
 				memcpy(new_mem, old_mem, cmd_grow_cotable.entry.validSizeInBytes);
 			}
@@ -1831,8 +1836,22 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	{
 		uint32_t type;
 		uint32_t size;
-		SVGA3dCmdDefineGBSurface_v4 gbsurf;
+		SVGA3dCmdDefineGBSurface_v2 gbsurf;
 	} cmd;
+	
+	struct
+	{
+		uint32_t type;
+		uint32_t size;
+		SVGA3dCmdDefineGBSurface_v3 gbsurf;
+	} cmd_v3;
+	
+	struct
+	{
+		uint32_t type;
+		uint32_t size;
+		SVGA3dCmdDefineGBSurface_v4 gbsurf;
+	} cmd_v4;
 
 	struct
 	{
@@ -1896,28 +1915,68 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 		userAddress = (DWORD)SVGAGMRIDInfo(svga, pCreateParms->gmrid)->info.address;	
 	}
 
-	cmd.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
-	cmd.size                      = sizeof(SVGA3dCmdDefineGBSurface_v4);
-	cmd.gbsurf.sid                = sid;
-	cmd.gbsurf.surfaceFlags       = pCreateParms->s.flags;
-	cmd.gbsurf.format             = pCreateParms->s.format;
-	cmd.gbsurf.numMipLevels       = pCreateParms->s.numMipLevels;
-	cmd.gbsurf.multisampleCount   = pCreateParms->s.sampleCount;
-	cmd.gbsurf.multisamplePattern = pCreateParms->s.multisamplePattern;
-	cmd.gbsurf.qualityLevel       = pCreateParms->s.qualityLevel;
-	cmd.gbsurf.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
-	cmd.gbsurf.size               = pCreateParms->s.size;
-	cmd.gbsurf.arraySize          = pCreateParms->s.numFaces;
-	cmd.gbsurf.bufferByteStride   = 0;
+	SVGAStart(svga);
+	
+
+	if(pCreateParms->s.qualityLevel)
+	{
+		cmd_v4.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
+		cmd_v4.size                      = sizeof(SVGA3dCmdDefineGBSurface_v4);
+		cmd_v4.gbsurf.sid                = sid;
+		cmd_v4.gbsurf.surfaceFlags       = pCreateParms->s.flags;
+		cmd_v4.gbsurf.format             = pCreateParms->s.format;
+		cmd_v4.gbsurf.numMipLevels       = pCreateParms->s.numMipLevels;
+		cmd_v4.gbsurf.multisampleCount   = pCreateParms->s.sampleCount;
+		cmd_v4.gbsurf.multisamplePattern = pCreateParms->s.multisamplePattern;
+		cmd_v4.gbsurf.qualityLevel       = pCreateParms->s.qualityLevel;
+		cmd_v4.gbsurf.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
+		cmd_v4.gbsurf.size               = pCreateParms->s.size;
+		cmd_v4.gbsurf.arraySize          = pCreateParms->s.numFaces;
+		cmd_v4.gbsurf.bufferByteStride   = 0;
+		SVGAPush(svga, &cmd_v4, sizeof(cmd_v4));
+	}
+	else if(pCreateParms->s.multisamplePattern)
+	{
+		cmd_v3.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
+		cmd_v3.size                      = sizeof(SVGA3dCmdDefineGBSurface_v3);
+		cmd_v3.gbsurf.sid                = sid;
+		cmd_v3.gbsurf.surfaceFlags       = pCreateParms->s.flags;
+		cmd_v3.gbsurf.format             = pCreateParms->s.format;
+		cmd_v3.gbsurf.numMipLevels       = pCreateParms->s.numMipLevels;
+		cmd_v3.gbsurf.multisampleCount   = pCreateParms->s.sampleCount;
+		cmd_v3.gbsurf.multisamplePattern = pCreateParms->s.multisamplePattern;
+		//cmd_v3.gbsurf.qualityLevel       = pCreateParms->s.qualityLevel;
+		cmd_v3.gbsurf.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
+		cmd_v3.gbsurf.size               = pCreateParms->s.size;
+		cmd_v3.gbsurf.arraySize          = pCreateParms->s.numFaces;
+		//cmd_v3.gbsurf.bufferByteStride   = 0;
+		SVGAPush(svga, &cmd_v3, sizeof(cmd_v3));
+	}
+	else
+	{
+		cmd.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V2;
+		cmd.size                      = sizeof(SVGA3dCmdDefineGBSurface_v2);
+		cmd.gbsurf.sid                = sid;
+		cmd.gbsurf.surfaceFlags       = pCreateParms->s.flags;
+		cmd.gbsurf.format             = pCreateParms->s.format;
+		cmd.gbsurf.numMipLevels       = pCreateParms->s.numMipLevels;
+		cmd.gbsurf.multisampleCount   = pCreateParms->s.sampleCount;
+		//cmd.gbsurf.multisamplePattern = pCreateParms->s.multisamplePattern;
+		//cmd.gbsurf.qualityLevel       = pCreateParms->s.qualityLevel;
+		cmd.gbsurf.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
+		cmd.gbsurf.size               = pCreateParms->s.size;
+		cmd.gbsurf.arraySize          = pCreateParms->s.numFaces;
+		//cmd.gbsurf.bufferByteStride   = 0;
+		SVGAPush(svga, &cmd, sizeof(cmd));
+	}
 
 	cmd_bind.type = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd_bind.size = sizeof(SVGA3dCmdBindGBSurface);
 	cmd_bind.bind.sid = sid;
 	cmd_bind.bind.mobid = pCreateParms->gmrid;
 
-	SVGAStart(svga);
-	SVGAPush(svga, &cmd, sizeof(cmd));
 	SVGAPush(svga, &cmd_bind, sizeof(cmd_bind));
+
 	SVGAFinish(svga, /*SVGA_CB_SYNC*/0, 0);
 
   /* pCreateParms->gmrid;  In/Out: Backing GMR. */

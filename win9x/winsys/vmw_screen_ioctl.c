@@ -171,88 +171,6 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
     return u32Sid;
 }
 
-#if MESA_MAJOR < 21
-uint32
-vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
-			    SVGA3dSurfaceFlags flags,
-			    SVGA3dSurfaceFormat format,
-                            unsigned usage,
-			    SVGA3dSize size,
-			    uint32_t numFaces,
-			    uint32_t numMipLevels,
-                            unsigned sampleCount,
-                            uint32_t buffer_handle,
-			    struct vmw_region **p_region)
-#else
-uint32
-vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
-                            SVGA3dSurfaceAllFlags flags,
-                            SVGA3dSurfaceFormat format,
-                            unsigned usage,
-                            SVGA3dSize size,
-                            uint32_t numFaces,
-                            uint32_t numMipLevels,
-                            unsigned sampleCount,
-                            uint32_t buffer_handle,
-                            SVGA3dMSPattern multisamplePattern,
-                            SVGA3dMSQualityLevel qualityLevel,
-                            struct vmw_region **p_region)
-#endif
-{
-    struct vmw_winsys_screen_wddm *vws_wddm = (struct vmw_winsys_screen_wddm *)vws;
-
-    struct vmw_region *region = NULL;
-    if (p_region)
-    {
-       region = calloc(1, sizeof(struct vmw_region));
-       if (!region)
-          return SVGA3D_INVALID_ID;
-    }
-
-    SVGAGBSURFCREATE createParms;
-    createParms.s.flags = flags;
-    createParms.s.format = format;
-    createParms.s.usage = usage;
-    createParms.s.size = size;
-    createParms.s.numFaces = numFaces;
-    createParms.s.numMipLevels = numMipLevels;
-    createParms.s.sampleCount = sampleCount;
-    createParms.s.multisamplePattern = multisamplePattern;
-    createParms.s.qualityLevel = qualityLevel;
-    if (buffer_handle)
-        createParms.gmrid = buffer_handle;
-    else
-        createParms.gmrid = SVGA3D_INVALID_ID;
-    createParms.userAddress = 0; /* out */
-    createParms.u32Sid = 0; /* out */
-    createParms.GMRreturn = FALSE;
-    if(p_region || createParms.gmrid != SVGA3D_INVALID_ID)
-    {
-    	createParms.GMRreturn = TRUE;
-    }
-
-    createParms.cbGB = svga3dsurface_get_serialized_size_extended(format, size, numMipLevels, numFaces, sampleCount);
-
-    int ret = vws_wddm->pEnv->pfnGBSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms);
-    if (ret)
-    {
-        free(region);
-        return SVGA3D_INVALID_ID;
-    }
-
-    if (p_region)
-    {
-        region->handle      = createParms.gmrid;
-        region->map_handle  = 0;
-        region->data        = (void *)createParms.userAddress;
-        region->map_count   = 0;
-        region->size        = createParms.cbGB;
-        region->vws_wddm    = vws_wddm;
-        *p_region = region;
-    }
-    return createParms.u32Sid;
-}
-
 /**
  * vmw_ioctl_surface_req - Fill in a struct surface_req
  *
@@ -1153,4 +1071,103 @@ vmw_ioctl_cleanup(struct vmw_winsys_screen *vws)
    VMW_FUNC;
    
    free(vws->ioctl.cap_3d);
+}
+
+#if MESA_MAJOR < 21
+uint32
+vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
+			    SVGA3dSurfaceFlags flags,
+			    SVGA3dSurfaceFormat format,
+                            unsigned usage,
+			    SVGA3dSize size,
+			    uint32_t numFaces,
+			    uint32_t numMipLevels,
+                            unsigned sampleCount,
+                            uint32_t buffer_handle,
+			    struct vmw_region **p_region)
+#else
+uint32
+vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
+                            SVGA3dSurfaceAllFlags flags,
+                            SVGA3dSurfaceFormat format,
+                            unsigned usage,
+                            SVGA3dSize size,
+                            uint32_t numFaces,
+                            uint32_t numMipLevels,
+                            unsigned sampleCount,
+                            uint32_t buffer_handle,
+                            SVGA3dMSPattern multisamplePattern,
+                            SVGA3dMSQualityLevel qualityLevel,
+                            struct vmw_region **p_region)
+#endif
+{
+    struct vmw_winsys_screen_wddm *vws_wddm = (struct vmw_winsys_screen_wddm *)vws;
+
+    struct vmw_region *region = NULL;
+    if (p_region)
+    {
+       region = calloc(1, sizeof(struct vmw_region));
+       if (!region)
+          return SVGA3D_INVALID_ID;
+    }
+
+    SVGAGBSURFCREATE createParms;
+    createParms.s.flags = flags;
+    createParms.s.format = format;
+    createParms.s.usage = usage;
+    createParms.s.size = size;
+    createParms.s.numFaces = numFaces;
+    createParms.s.numMipLevels = numMipLevels;
+    createParms.s.sampleCount = sampleCount;
+    
+    if(vboxGetShaderModel(vws_wddm) >= SVGA_SM_4_1)
+    {
+    	createParms.s.multisamplePattern = multisamplePattern;
+  	}
+  	else
+  	{
+  		createParms.s.multisamplePattern = 0;
+  	}
+    
+    if(vboxGetShaderModel(vws_wddm) >= SVGA_SM_5)
+    {
+    	createParms.s.qualityLevel = qualityLevel;
+    }
+    else
+    {
+    	createParms.s.qualityLevel = 0;
+    }
+    
+    if (buffer_handle)
+        createParms.gmrid = buffer_handle;
+    else
+        createParms.gmrid = SVGA3D_INVALID_ID;
+    createParms.userAddress = 0; /* out */
+    createParms.u32Sid = 0; /* out */
+    createParms.GMRreturn = FALSE;
+    if(p_region || createParms.gmrid != SVGA3D_INVALID_ID)
+    {
+    	createParms.GMRreturn = TRUE;
+    }
+
+    createParms.cbGB = svga3dsurface_get_serialized_size_extended(format, size, numMipLevels, numFaces, sampleCount);
+
+    int ret = vws_wddm->pEnv->pfnGBSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms);
+    if (ret)
+    {
+        free(region);
+        return SVGA3D_INVALID_ID;
+    }
+
+    if (p_region)
+    {
+        region->handle      = createParms.gmrid;
+        region->map_handle  = 0;
+        region->data        = (void *)createParms.userAddress;
+        region->map_count   = 0;
+        region->size        = createParms.cbGB;
+        region->vws_wddm    = vws_wddm;
+        *p_region = region;
+    }
+    return createParms.u32Sid;
 }

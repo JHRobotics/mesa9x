@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-24.1.x
-#DEPS = config.mk Makefile
+DEPS = config.mk Makefile
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
@@ -687,6 +687,7 @@ clean:
 	-$(RM) icdtest.c_app$(OBJ)
 	-$(RM) fbtest.c_app$(OBJ)
 	-$(RM) wgltest.c_app$(OBJ)
+	-$(RM) svgadump.c_app$(OBJ)
 	-$(RM) $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX)
 	-$(RM) $(LIBPREFIX)MesaUtilLibSimd$(LIBSUFFIX)
 	-$(RM) $(LIBPREFIX)MesaLib$(LIBSUFFIX)
@@ -730,6 +731,7 @@ clean:
 	-$(RM) icdtest.exe
 	-$(RM) fbtest.exe
 	-$(RM) wgltest.exe
+	-$(RM) svgadump.exe
 	-$(RM) $(LIBPREFIX)MesaSVGALibSimd$(LIBSUFFIX)
 	-$(RM) $(MesaSVGALibSimd_OBJS)
 	-$(RM) $(MesaGdiLibVMWSimd_OBJS)
