@@ -34,6 +34,7 @@
  */
 
 #if MESA_MAJOR >= 23
+# include "pipe/p_defines.h"
 # include "state_tracker/st_format.h"
 # include "state_tracker/st_context.h"
 #endif

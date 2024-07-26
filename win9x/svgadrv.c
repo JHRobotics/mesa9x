@@ -1918,7 +1918,7 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 	SVGAStart(svga);
 	
 
-	if(pCreateParms->s.qualityLevel)
+	if(pCreateParms->s.qualityLevel || pCreateParms->s.multisamplePattern)
 	{
 		cmd_v4.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
 		cmd_v4.size                      = sizeof(SVGA3dCmdDefineGBSurface_v4);
@@ -1934,23 +1934,9 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 		cmd_v4.gbsurf.arraySize          = pCreateParms->s.numFaces;
 		cmd_v4.gbsurf.bufferByteStride   = 0;
 		SVGAPush(svga, &cmd_v4, sizeof(cmd_v4));
-	}
-	else if(pCreateParms->s.multisamplePattern)
-	{
-		cmd_v3.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
-		cmd_v3.size                      = sizeof(SVGA3dCmdDefineGBSurface_v3);
-		cmd_v3.gbsurf.sid                = sid;
-		cmd_v3.gbsurf.surfaceFlags       = pCreateParms->s.flags;
-		cmd_v3.gbsurf.format             = pCreateParms->s.format;
-		cmd_v3.gbsurf.numMipLevels       = pCreateParms->s.numMipLevels;
-		cmd_v3.gbsurf.multisampleCount   = pCreateParms->s.sampleCount;
-		cmd_v3.gbsurf.multisamplePattern = pCreateParms->s.multisamplePattern;
-		//cmd_v3.gbsurf.qualityLevel       = pCreateParms->s.qualityLevel;
-		cmd_v3.gbsurf.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
-		cmd_v3.gbsurf.size               = pCreateParms->s.size;
-		cmd_v3.gbsurf.arraySize          = pCreateParms->s.numFaces;
-		//cmd_v3.gbsurf.bufferByteStride   = 0;
-		SVGAPush(svga, &cmd_v3, sizeof(cmd_v3));
+		/* JH: don't use SVGA_3D_CMD_DEFINE_GB_SURFACE_V3 command: structure is different in Mesa (+ VBox)
+			and Linux Kernel (+ VMware)
+		 */
 	}
 	else
 	{
