@@ -108,7 +108,7 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 	const uint8_t *next = (const uint8_t *)pvCommands;
 	const uint8_t *last = next + cbCommands;
   uint32_t cid_dx = 0;
-  DWORD flags = 0;
+  DWORD flags = SVGA_CB_RENDER;
   
   if(cbCommands == 0 && pFenceQuery == NULL)
   	return S_OK;
