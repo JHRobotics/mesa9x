@@ -284,6 +284,7 @@ static BOOL SVGAPresentScreenTarget(svga_inst_t *svga, uint32_t cid, uint32_t so
 		else
 		{
 			FBHDA_access_begin(0);
+			SVGAStart(svga);
 			SVGAPush(svga, &gbupdate, sizeof(gbupdate)); /* copy vram from host to guest */
 			SVGAPush(svga, &blit_cmd, sizeof(blit_cmd)); /* present */
 			SVGAPush(svga, &gbreread, sizeof(gbreread)); /* read result back to framebuffer */
@@ -355,7 +356,7 @@ static BOOL SVGAPresentLegacy(svga_inst_t *svga, uint32_t source_sid, RenderRect
 			vrect.src_bpp     = rr->surf_bpp;
 			
 			FBHDA_access_begin(0);
-			SVGAWaitAll(svga);
+			//SVGAWaitAll(svga);
 			vramcpy(svga->hda->vram_pm32, ((uint8_t*)svga->hda->vram_pm32) + svga->hda->stride, &vrect);
 			FBHDA_access_end(0);
 		}
@@ -490,15 +491,23 @@ static BOOL SVGAPresentDX(svga_inst_t *svga, uint32_t cid, uint32_t source_sid, 
 			command_blit_scr.blit.destRect.top    = rr->y;
 			command_blit_scr.blit.destRect.right  = rr->x + rr->w;
 			command_blit_scr.blit.destRect.bottom = rr->y + rr->h;
+			
+			DWORD cmd_extra_flags = 0;
+			DWORD cmd_cid = 0;
+			if(svga->dx)
+			{
+				cmd_extra_flags = SVGA_CB_FLAG_DX_CONTEXT;
+				cmd_cid = cid;
+			}
 	
 			if(svga->hda->flags & FB_MOUSE_NO_BLIT) /* no mouse, direct render */
 			{
-			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT | SVGA_CB_UPDATE, cid);
+			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), cmd_extra_flags | SVGA_CB_PRESENT | SVGA_CB_UPDATE, cmd_cid);
 			}
 			else
 			{
 				FBHDA_access_begin(0);
-			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT | SVGA_CB_PRESENT, cid);
+			  SVGASend(svga, &command_blit_scr, sizeof(command_blit_scr), cmd_extra_flags | SVGA_CB_SYNC | SVGA_CB_PRESENT, cmd_cid);
 				FBHDA_access_end(0);
 			}
 			
@@ -649,7 +658,7 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
  **/
 void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 {
-	SVGAWaitAll(svga);
+//	SVGAWaitAll(svga);
 #pragma pack(push)
 #pragma pack(1)
 	struct

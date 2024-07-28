@@ -216,14 +216,10 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 		}
 	}
 	
-#if 1	
 	if(pFenceQuery)
 	{
 		flags |= SVGA_CB_FORCE_FENCE;
 	}
-#else
-	flags |= SVGA_CB_FORCE_FENCE;
-#endif
 	
 	SVGAFinish(svga, flags, cid_dx);
 	

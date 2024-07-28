@@ -244,10 +244,6 @@ void SVGA_CMB_submit(DWORD *cmb, DWORD cmb_size, SVGA_CMB_status_t *status, DWOR
 		if(status)
 		{
 			*status = status_io;
-			if(status->qStatus == NULL)
-			{
-				status->qStatus = &(status->sStatus);
-			}
 		}
 	}
 }

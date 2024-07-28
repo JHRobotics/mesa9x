@@ -27,11 +27,14 @@ void SVGAStart(svga_inst_t *svga)
 	{
 		svga->cmd_next = 0;
 	}
-
+		
 	if(svga->cmd_stat[id].qStatus)
 	{
-		while(*(svga->cmd_stat[id].qStatus) == SVGA_PROC_NONE);
+		while(*(svga->cmd_stat[id].qStatus) == SVGA_CB_STATUS_NONE);
 	}
+
+	svga->cmd_stat[id].sStatus = SVGA_PROC_QUEUED;
+	svga->cmd_stat[id].qStatus = NULL;
 
 	svga->cmd_act = id;
 	svga->cmd_pos = 0;
@@ -88,13 +91,22 @@ void SVGAWaitAll(svga_inst_t *svga)
 		to_wait = 0;
 		for(i = 0; i < CMD_BUFFER_COUNT; i++)
 		{
-			switch(*(svga->cmd_stat[i].qStatus))
+			switch(svga->cmd_stat[i].sStatus)
 			{
+				case SVGA_PROC_NONE:
+					if(svga->cmd_stat[i].qStatus)
+					{
+						while(*(svga->cmd_stat[i].qStatus) == SVGA_CB_STATUS_NONE);
+					}
+					break;
 				case SVGA_PROC_COMPLETED:
 				case SVGA_PROC_ERROR:
 					break;
 				case SVGA_PROC_FENCE:
-					SVGA_fence_wait(svga->cmd_stat[i].fifo_fence_used);
+					if(svga->cmd_stat[i].fifo_fence_used)
+					{
+						SVGA_fence_wait(svga->cmd_stat[i].fifo_fence_used);
+					}
 					break;
 				default:
 					to_wait++;

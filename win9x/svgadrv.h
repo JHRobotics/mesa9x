@@ -41,7 +41,7 @@ typedef struct region_cache
 	BOOL enabled;
 } region_cache_t;
 
-#define CMD_BUFFER_COUNT 4
+#define CMD_BUFFER_COUNT 8
 
 typedef struct _svga_inst_t
 {

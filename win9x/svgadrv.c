@@ -671,7 +671,7 @@ BOOL SVGACreate(svga_inst_t *svga)
 			}
 
 			svga->cmd_stat[i].sStatus = SVGA_PROC_COMPLETED;
-			svga->cmd_stat[i].qStatus = &(svga->cmd_stat[i].sStatus);
+			svga->cmd_stat[i].qStatus = NULL;
 		}
 
 		svga->cmd_next = 0;
@@ -1917,7 +1917,6 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 
 	SVGAStart(svga);
 	
-
 	if(pCreateParms->s.qualityLevel || pCreateParms->s.multisamplePattern)
 	{
 		cmd_v4.type                      = SVGA_3D_CMD_DEFINE_GB_SURFACE_V4;
