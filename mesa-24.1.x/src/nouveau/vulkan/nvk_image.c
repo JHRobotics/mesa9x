@@ -348,6 +348,11 @@ nvk_GetPhysicalDeviceImageFormatProperties2(
    if (ycbcr_info && pImageFormatInfo->type != VK_IMAGE_TYPE_2D)
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
+   /* Maxwell B and earlier don't support sparse residency */
+   if ((pImageFormatInfo->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT) &&
+       pdev->info.cls_eng3d < MAXWELL_B)
+      return VK_ERROR_FORMAT_NOT_SUPPORTED;
+
    /* From the Vulkan 1.3.279 spec:
     *
     *    VUID-VkImageCreateInfo-tiling-04121
@@ -360,7 +365,7 @@ nvk_GetPhysicalDeviceImageFormatProperties2(
     *    "If imageType is VK_IMAGE_TYPE_1D, flags must not contain
     *    VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT"
     */
-   if (pImageFormatInfo->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT &&
+   if ((pImageFormatInfo->flags & VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT) &&
        (pImageFormatInfo->type == VK_IMAGE_TYPE_1D ||
         pImageFormatInfo->tiling == VK_IMAGE_TILING_LINEAR))
       return VK_ERROR_FORMAT_NOT_SUPPORTED;

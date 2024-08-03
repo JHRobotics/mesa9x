@@ -183,13 +183,15 @@ fn create_program_with_binary(
 ) -> CLResult<cl_program> {
     let c = Context::arc_from_raw(context)?;
     let devs = Device::refs_from_arr(device_list, num_devices)?;
-    let mut binary_status =
-        unsafe { cl_slice::from_raw_parts_mut(binary_status, num_devices as usize) }.ok();
 
     // CL_INVALID_VALUE if device_list is NULL or num_devices is zero.
     if devs.is_empty() {
         return Err(CL_INVALID_VALUE);
     }
+
+    // needs to happen after `devs.is_empty` check to protect against num_devices being 0
+    let mut binary_status =
+        unsafe { cl_slice::from_raw_parts_mut(binary_status, num_devices as usize) }.ok();
 
     // CL_INVALID_VALUE if lengths or binaries is NULL
     if lengths.is_null() || binaries.is_null() {

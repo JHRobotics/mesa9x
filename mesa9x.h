@@ -6,7 +6,7 @@
 #if MESA_MAJOR == 24
 # define MESA9X_MAJOR 24
 # define MESA9X_MINOR 1
-# define MESA9X_PATCH 4
+# define MESA9X_PATCH 5
 #elif MESA_MAJOR == 23
 # define MESA9X_MAJOR 23
 # define MESA9X_MINOR 1
@@ -22,7 +22,7 @@
 #endif
 
 #ifndef MESA9X_BUILD
-#define MESA9X_BUILD 103
+#define MESA9X_BUILD 108
 #endif
 
 #define MESA9X_VERSION_STR_BUILD(_ma, _mi, _pa, _bl) \

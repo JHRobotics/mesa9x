@@ -1065,12 +1065,6 @@ fn enqueue_read_buffer(
         return Err(CL_INVALID_CONTEXT);
     }
 
-    // CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking
-    // and the execution status of any of the events in event_wait_list is a negative integer value.
-    if block && evs.iter().any(|e| e.is_error()) {
-        return Err(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
-    }
-
     // CL_INVALID_OPERATION if clEnqueueReadBuffer is called on buffer which has been created with
     // CL_MEM_HOST_WRITE_ONLY or CL_MEM_HOST_NO_ACCESS.
     if bit_check(b.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) {
@@ -1118,12 +1112,6 @@ fn enqueue_write_buffer(
     // CL_INVALID_CONTEXT if the context associated with command_queue and buffer are not the same
     if b.context != q.context {
         return Err(CL_INVALID_CONTEXT);
-    }
-
-    // CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking
-    // and the execution status of any of the events in event_wait_list is a negative integer value.
-    if block && evs.iter().any(|e| e.is_error()) {
-        return Err(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
     }
 
     // CL_INVALID_OPERATION if clEnqueueWriteBuffer is called on buffer which has been created with
@@ -1232,12 +1220,6 @@ fn enqueue_read_buffer_rect(
     // with CL_MEM_HOST_WRITE_ONLY or CL_MEM_HOST_NO_ACCESS.
     if bit_check(buf.flags, CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS) {
         return Err(CL_INVALID_OPERATION);
-    }
-
-    // CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking
-    // and the execution status of any of the events in event_wait_list is a negative integer value.
-    if block && evs.iter().any(|e| e.is_error()) {
-        return Err(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
     }
 
     // CL_INVALID_VALUE if buffer_origin, host_origin, or region is NULL.
@@ -1357,12 +1339,6 @@ fn enqueue_write_buffer_rect(
     // with CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_NO_ACCESS.
     if bit_check(buf.flags, CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS) {
         return Err(CL_INVALID_OPERATION);
-    }
-
-    // CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking
-    // and the execution status of any of the events in event_wait_list is a negative integer value.
-    if block && evs.iter().any(|e| e.is_error()) {
-        return Err(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
     }
 
     // CL_INVALID_VALUE if buffer_origin, host_origin, or region is NULL.
@@ -1674,12 +1650,6 @@ fn enqueue_map_buffer(
         return Err(CL_INVALID_VALUE);
     }
 
-    // CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the map operation is blocking and the
-    // execution status of any of the events in event_wait_list is a negative integer value.
-    if block && evs.iter().any(|e| e.is_error()) {
-        return Err(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
-    }
-
     // CL_INVALID_CONTEXT if context associated with command_queue and buffer are not the same
     if b.context != q.context {
         return Err(CL_INVALID_CONTEXT);
@@ -1786,7 +1756,6 @@ fn enqueue_read_image(
     //• CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
     //• CL_IMAGE_FORMAT_NOT_SUPPORTED if image format (image channel order and data type) for image are not supported by device associated with queue.
     //• CL_INVALID_OPERATION if the device associated with command_queue does not support images (i.e. CL_DEVICE_IMAGE_SUPPORT specified in the Device Queries table is CL_FALSE).
-    //• CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking and the execution status of any of the events in event_wait_list is a negative integer value.
 }
 
 #[cl_entrypoint]
@@ -1866,7 +1835,6 @@ fn enqueue_write_image(
     //• CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
     //• CL_IMAGE_FORMAT_NOT_SUPPORTED if image format (image channel order and data type) for image are not supported by device associated with queue.
     //• CL_INVALID_OPERATION if the device associated with command_queue does not support images (i.e. CL_DEVICE_IMAGE_SUPPORT specified in the Device Queries table is CL_FALSE).
-    //• CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the read and write operations are blocking and the execution status of any of the events in event_wait_list is a negative integer value.
 }
 
 #[cl_entrypoint]
@@ -2174,7 +2142,6 @@ fn enqueue_map_image(
     //• CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
     //• CL_IMAGE_FORMAT_NOT_SUPPORTED if image format (image channel order and data type) for image are not supported by device associated with queue.
     //• CL_MAP_FAILURE if there is a failure to map the requested region into the host address space. This error cannot occur for image objects created with CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
-    //• CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST if the map operation is blocking and the execution status of any of the events in event_wait_list is a negative integer value.
     //• CL_INVALID_OPERATION if the device associated with command_queue does not support images (i.e. CL_DEVICE_IMAGE_SUPPORT specified in the Device Queries table is CL_FALSE).
     //• CL_INVALID_OPERATION if mapping would lead to overlapping regions being mapped for writing.
 }

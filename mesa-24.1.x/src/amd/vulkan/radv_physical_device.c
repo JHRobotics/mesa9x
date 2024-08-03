@@ -728,8 +728,8 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    bool taskmesh_en = radv_taskmesh_enabled(pdev);
    bool has_perf_query = radv_perf_query_supported(pdev);
-   bool has_shader_image_float_minmax =
-      pdev->info.gfx_level != GFX8 && pdev->info.gfx_level != GFX9 && pdev->info.gfx_level != GFX11;
+   bool has_shader_image_float_minmax = pdev->info.gfx_level != GFX8 && pdev->info.gfx_level != GFX9 &&
+                                        pdev->info.gfx_level != GFX11 && pdev->info.gfx_level != GFX11_5;
    bool has_fragment_shader_interlock = radv_has_pops(pdev);
 
    *features = (struct vk_features){
