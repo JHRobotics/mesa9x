@@ -33,12 +33,12 @@ THE SOFTWARE.
 #endif
 #endif
 
-#define API_3DACCEL_VER 20240724
+#define API_3DACCEL_VER 20240808
 
 #define ESCAPE_DRV_NT         0x1103 /* (4355) */
 
 /* function codes */
-#define OP_FBHDA_SETUP        0x110B /* VXD, DRV, ExtEscape */
+#define OP_FBHDA_SETUP        0x110B /* VXD, DRV, ExtEscape, VxDCall */
 #define OP_FBHDA_ACCESS_BEGIN 0x110C /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_FBHDA_ACCESS_END   0x110D /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_FBHDA_SWAP         0x110E /* VXD, DRV, ESCAPE_DRV_NT */
@@ -46,6 +46,12 @@ THE SOFTWARE.
 #define OP_FBHDA_PALETTE_SET  0x1110 /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_FBHDA_PALETTE_GET  0x1111 /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_FBHDA_ACCESS_RECT  0x1112 /* VXD, DRV, ESCAPE_DRV_NT */
+#define OP_FBHDA_OVERLAY_SETUP  0x1113 /* VXD, VxDCall, ESCAPE_DRV_NT */
+#define OP_FBHDA_OVERLAY_LOCK   0x1114 /* VXD, VxDCall, ESCAPE_DRV_NT */
+#define OP_FBHDA_OVERLAY_UNLOCK 0x1115 /* VXD, VxDCall, ESCAPE_DRV_NT */
+
+#define OP_FBHDA_GAMMA_SET    0x1116 /* VXD, DRV, ESCAPE_DRV_NT */
+#define OP_FBHDA_GAMMA_GET    0x1117 /* VXD, DRV, ESCAPE_DRV_NT */
 
 #define OP_SVGA_VALID         0x2000  /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_SVGA_SETMODE       0x2001  /* DRV */
@@ -81,6 +87,14 @@ THE SOFTWARE.
 #define OP_MOUSE_SHOW         0x1F03 /* DRV */
 #define OP_MOUSE_HIDE         0x1F04 /* DRV */
 
+/* VXDCall */
+#define FBHDA_DEVICE_ID       0x4333
+#define FBHDA_SERVICE_TABLE_OFFSET 0x110A
+#define FBHDA__GET_VERSION 0
+#define FBHDA__SETUP (OP_FBHDA_SETUP-FBHDA_SERVICE_TABLE_OFFSET)
+#define FBHDA__OVERLAY_SETUP (OP_FBHDA_OVERLAY_SETUP-FBHDA_SERVICE_TABLE_OFFSET)
+#define FBHDA__OVERLAY_LOCK (OP_FBHDA_OVERLAY_LOCK-FBHDA_SERVICE_TABLE_OFFSET)
+#define FBHDA__OVERLAY_UNLOCK (OP_FBHDA_OVERLAY_UNLOCK-FBHDA_SERVICE_TABLE_OFFSET)
 
 #pragma pack(push)
 #pragma pack(1)
@@ -90,6 +104,18 @@ THE SOFTWARE.
 #else
 # define FBPTR *
 #endif
+
+#define FBHA_OVERLAYS_MAX 16
+
+typedef struct FBHDA_overlay
+{
+#ifndef FBHDA_SIXTEEN
+	void *ptr;
+#else
+	DWORD ptr32;
+#endif
+	DWORD size;
+} FBHDA_overlay_t;
 
 typedef struct FBHDA
 {
@@ -111,6 +137,15 @@ typedef struct FBHDA
 #endif
 	         DWORD vram_size;
 	         char vxdname[16]; /* file name or "NT" */
+	         DWORD overlay;
+	         FBHDA_overlay_t overlays[FBHA_OVERLAYS_MAX];
+	         DWORD overlays_size;
+	         DWORD gamma; /* fixed decimal point, 65536 = 1.0 */
+	         DWORD system_surface;
+	         DWORD palette_update; /* INC by one everytime when the palette is updated */
+	         DWORD gamma_update; /* INC by one everytime when the pallete is updated */
+	         DWORD res4;
+	         DWORD res5;
 } FBHDA_t;
 
 #define FB_SUPPORT_FLIPING     1
@@ -122,7 +157,8 @@ typedef struct FBHDA
 #define FB_ACCEL_VMSVGA10      64
 #define FB_MOUSE_NO_BLIT      128
 #define FB_FORCE_SOFTWARE     256
-#define FB_ACCEL_VMSVGA10_ST  512
+#define FB_ACCEL_VMSVGA10_ST  512 /* not used */
+#define FB_BUG_VMWARE_UPDATE 1024
 
 /* for internal use in RING-0 by VXD only */
 BOOL FBHDA_init_hw(); 
@@ -138,16 +174,25 @@ void FBHDA_free();
 	FBHDA_t *FBHDA_setup();
 #endif
 
-#define FBHDA_IGNORE_CURSOR 1
+#define FBHDA_ACCESS_RAW_BUFFERING 1
+#define FBHDA_ACCESS_MOUSE_MOVE 2
 
 void FBHDA_access_begin(DWORD flags);
 void FBHDA_access_end(DWORD flags);
 void FBHDA_access_rect(DWORD left, DWORD top, DWORD right, DWORD bottom);
 BOOL FBHDA_swap(DWORD offset);
 void FBHDA_clean();
-
 void  FBHDA_palette_set(unsigned char index, DWORD rgb);
 DWORD FBHDA_palette_get(unsigned char index);
+
+/* return pitch or 0 when failed */
+DWORD FBHDA_overlay_setup(DWORD overlay, DWORD width, DWORD height, DWORD bpp);
+void  FBHDA_overlay_lock(DWORD left, DWORD top, DWORD right, DWORD bottom);
+void  FBHDA_overlay_unlock(DWORD flags);
+
+/* format simitar to WINAPI Set/GetDeviceGammaRamp */
+BOOL FBHDA_gamma_get(VOID FBPTR ramp, DWORD buffer_size);
+BOOL FBHDA_gamma_set(VOID FBPTR ramp, DWORD buffer_size);
 
 /* mouse */
 #ifdef FBHDA_SIXTEEN
@@ -260,7 +305,7 @@ BOOL SVGA_valid();
 #define SVGA_CB_RENDER             0x02000000UL /* this is 'render' cmd, WAIT for 'present', 'update' */
 #define SVGA_CB_UPDATE             0x01000000UL /* this is 'update' cmd, updates screen on HOST, WAIT for 'update', 'present' */
 
-// SVGA_CB_FLAG_DX_CONTEXT
+/* SVGA_CB_FLAG_DX_CONTEXT */
 
 BOOL SVGA_setmode(DWORD w, DWORD h, DWORD bpp);
 BOOL SVGA_validmode(DWORD w, DWORD h, DWORD bpp);

@@ -252,10 +252,8 @@ static void FBHDA_draw_fill(FBHDA_t *info, DWORD color32, DWORD surface)
 	}
 }
 
-BOOL FBHDA_flip(FBHDA_t *info, DWORD surface)
+BOOL FBHDA_flip(FBHDA_t *info, DWORD offset)
 {
-	DWORD offset = info->stride*surface;
-	
 	if(info->flags & FB_SUPPORT_FLIPING)
 	{
 		return FBHDA_swap(offset);
@@ -311,13 +309,17 @@ int main(int argc, char **argv)
 {
 	int c;
 	char inbuf[inbuf_size];
+	DWORD first_surface = 0;
 	
 	FBHDA_load();
 	
 	FBHDA_t *ptr = FBHDA_setup();
 	
 	if(validate(ptr))
+	{
 		FBHDA_dump(ptr);
+		first_surface = ptr->surface;
+	}
 
 	printf("Enter command: (m for menu)\n");	
 
@@ -362,7 +364,7 @@ int main(int argc, char **argv)
 		else if(menu(inbuf, 's'))
 		{
 			if(validate(ptr))
-				if(!FBHDA_flip(ptr, 1))
+				if(!FBHDA_flip(ptr, first_surface + ptr->stride))
 				{
 					printf("fliping is not supported!\n");
 				}
@@ -370,7 +372,7 @@ int main(int argc, char **argv)
 		else if(menu(inbuf, 'r'))
 		{
 			if(validate(ptr))
-				if(!FBHDA_flip(ptr, 0))
+				if(!FBHDA_flip(ptr, first_surface))
 				{
 					printf("fliping is not supported!\n");
 				}
