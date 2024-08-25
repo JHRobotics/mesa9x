@@ -105,6 +105,38 @@ BOOL FBHDA_swap(DWORD offset)
 	return FALSE;
 }
 
+DWORD FBHDA_overlay_setup(DWORD overlay, DWORD width, DWORD height, DWORD bpp)
+{
+	DWORD pitch = 0;
+	DWORD setup[4] = {overlay, width, height, bpp};
+
+	
+	if(hda_vxd != INVALID_HANDLE_VALUE)
+	{
+		DeviceIoControl(hda_vxd, OP_FBHDA_OVERLAY_SETUP, &setup, sizeof(setup), &pitch, sizeof(DWORD), NULL, NULL);
+	}
+	
+	return pitch;
+}
+
+void FBHDA_overlay_lock(DWORD left, DWORD top, DWORD right, DWORD bottom)
+{
+	DWORD rect[4] = {left, top, right, bottom};
+	
+	if(hda_vxd != INVALID_HANDLE_VALUE)
+	{
+		DeviceIoControl(hda_vxd, OP_FBHDA_OVERLAY_LOCK, &rect, sizeof(rect), NULL, 0, NULL, NULL);
+	}
+}
+
+void FBHDA_overlay_unlock(DWORD flags)
+{
+	if(hda_vxd != INVALID_HANDLE_VALUE)
+	{
+		DeviceIoControl(hda_vxd, OP_FBHDA_OVERLAY_UNLOCK, &flags, sizeof(DWORD), NULL, 0, NULL, NULL);
+	}
+}
+
 /*** dump ***/
 typedef struct _flags_set_dump_t
 {
@@ -300,6 +332,8 @@ void print_menu()
 	printf("\ts: switch to surface 1\n");
 	printf("\tw: fill surface 1\n");
 	printf("\tq: draw border surface 1\n");
+	printf("\to: set to overlay 1, 640x480\n");
+	printf("\tv: back to system (overlay 0)\n");
 	printf("\tx: exit\n");
 }
 
@@ -395,6 +429,47 @@ int main(int argc, char **argv)
 		else if(menu(inbuf, 'm') || menu(inbuf, 'h'))
 		{
 			print_menu();
+		}
+		else if(menu(inbuf, 'o'))
+		{
+			if(validate(ptr))
+			{
+				DWORD pitch = FBHDA_overlay_setup(1, 640, 480, 32);
+				if(pitch)
+				{
+					int i, x, y;
+					int stride = pitch * 480;
+					DWORD *scr = ptr->overlays[1].ptr;
+					
+					DWORD line_dw = pitch/4;
+					
+					FBHDA_overlay_lock(0, 0, 640, 480);
+					for(i = 0; i < stride; i++)
+					{
+						scr[i] = 0x0000FF00;
+					}
+					
+					for(y = 200; y < 300; y++)
+					{
+						for(x = 100; x < 540; x++)
+						{
+							scr[y * line_dw + x] = 0x00FF0000;
+						}
+					}
+					FBHDA_overlay_unlock(0);
+				}
+				else
+				{
+					printf("overlay 1 failed!\n");
+				}
+			}
+		}
+		else if(menu(inbuf, 'v'))
+		{
+			if(validate(ptr))
+				FBHDA_overlay_setup(0, 0, 0, 0);
+
+			printf("system!\n");
 		}
 		else
 		{

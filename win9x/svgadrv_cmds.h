@@ -59,6 +59,12 @@ typedef struct _cmd_blit_surface_screen_t
 } cmd_blit_surface_screen_t;
 #define CMD_BLIT_SURFACE_SCREEN {{SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN, sizeof(SVGA3dCmdBlitSurfaceToScreen) + sizeof(SVGASignedRect)}};
 
+typedef struct _cmd_readback_gb_surface_t
+{
+	SVGA3dCmdHeader            header;
+	SVGA3dCmdReadbackGBSurface surf;
+} cmd_readback_gb_surface_t;
+#define CMD_READBACK_GB_SURFACE_INIT {{SVGA_3D_CMD_READBACK_GB_SURFACE,	sizeof(SVGA3dCmdReadbackGBSurface)}}
 
 #pragma pack(pop)
 

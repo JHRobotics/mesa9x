@@ -87,8 +87,8 @@ typedef unsigned short v4us __attribute__ ((vector_size(8)));
 #define WRITE_32(_ptr, _px) *((uint32_t*)_ptr) = _px
 #define WRITE_15 WRITE_16
 
-#define CONV_FUNC(_src, _dst, _colors) \
-static void vramcpy_ ## _src ## _ ## _dst ## _ ## _colors (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
+#define CONV_FUNC(_src, _dst, _colors, _postfix) \
+static void vramcpy_ ## _src ## _ ## _dst ## _ ## _colors ## _ ## _postfix (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
 	uint32_t y, x; \
 	psrc += rect->src_pitch * rect->src_y; \
 	pdst += rect->dst_pitch * rect->dst_y; \
@@ -98,9 +98,9 @@ static void vramcpy_ ## _src ## _ ## _dst ## _ ## _colors (uint8_t *psrc, uint8_
 		for(x = 0; x < rect->dst_w; x++) { \
 			const PT_ ## _src px = READ_ ## _src (ppsrc); \
 			WRITE_ ## _dst (ppdst, RGB_ ## _dst (\
-				R_ ## _colors ## _src (px), \
-				G_ ## _colors ## _src (px), \
-				B_ ## _colors ## _src (px) \
+				GAMMA_R(R_ ## _colors ## _src (px)), \
+				GAMMA_G(G_ ## _colors ## _src (px)), \
+				GAMMA_B(B_ ## _colors ## _src (px)) \
 			)); \
 			ppsrc += PS_ ## _src; \
 			ppdst += PS_ ## _dst; \
@@ -109,8 +109,8 @@ static void vramcpy_ ## _src ## _ ## _dst ## _ ## _colors (uint8_t *psrc, uint8_
 		pdst += rect->dst_pitch; \
 	} }
 
-#define CONV_FUNC24(_src, _colors) \
-static void vramcpy_ ## _src ## _24 ## _ ## _colors (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
+#define CONV_FUNC24(_src, _colors, _postfix) \
+static void vramcpy_ ## _src ## _24 ## _ ## _colors ## _ ## _postfix (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
 	uint32_t y, x; \
 	psrc += rect->src_pitch * rect->src_y; \
 	pdst += rect->dst_pitch * rect->dst_y; \
@@ -119,9 +119,9 @@ static void vramcpy_ ## _src ## _24 ## _ ## _colors (uint8_t *psrc, uint8_t *pds
 		uint8_t *ppdst = pdst + (rect->dst_x * 3); \
 		for(x = 0; x < rect->dst_w; x++) { \
 			const PT_ ## _src px = READ_ ## _src (ppsrc); \
-			*ppdst = B_ ## _colors ## _src (px); ppdst++; \
-			*ppdst = G_ ## _colors ## _src (px); ppdst++; \
-			*ppdst = R_ ## _colors ## _src (px); ppdst++; \
+			*ppdst = GAMMA_R(B_ ## _colors ## _src (px)); ppdst++; \
+			*ppdst = GAMMA_G(G_ ## _colors ## _src (px)); ppdst++; \
+			*ppdst = GAMMA_B(R_ ## _colors ## _src (px)); ppdst++; \
 			ppsrc += PS_ ## _src; \
 		}  \
 		psrc += rect->src_pitch; \
@@ -129,7 +129,7 @@ static void vramcpy_ ## _src ## _24 ## _ ## _colors (uint8_t *psrc, uint8_t *pds
 	} }
 
 #define CONV_FUNC_COPY_RGB(_src) \
-static void vramcpy_ ## _src ## _ ## _src ## _RGB (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
+static void vramcpy_ ## _src ## _ ## _src ## _RGB_copy (uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect) { \
 	uint32_t y; \
 	psrc += rect->src_pitch * rect->src_y; \
 	pdst += rect->dst_pitch * rect->dst_y; \
@@ -162,20 +162,24 @@ static inline void memcpy_inline(void *dst, void *src, size_t count)
 	}
 }
 
+#define GAMMA_R(_r) _r
+#define GAMMA_G(_g) _g
+#define GAMMA_B(_b) _b
+
 CONV_FUNC_COPY_RGB(15);
-CONV_FUNC(16, 15, RGB);
-CONV_FUNC(24, 15, RGB);
-CONV_FUNC(32, 15, RGB);
+CONV_FUNC(16, 15, RGB, fast);
+CONV_FUNC(24, 15, RGB, fast);
+CONV_FUNC(32, 15, RGB, fast);
 
-CONV_FUNC(15, 16, RGB);
+CONV_FUNC(15, 16, RGB, fast);
 CONV_FUNC_COPY_RGB(16);
-CONV_FUNC(24, 16, RGB);
-CONV_FUNC(32, 16, RGB);
+CONV_FUNC(24, 16, RGB, fast);
+CONV_FUNC(32, 16, RGB, fast);
 
-CONV_FUNC24(15, RGB);
-CONV_FUNC24(16, RGB);
+CONV_FUNC24(15, RGB, fast);
+CONV_FUNC24(16, RGB, fast);
 CONV_FUNC_COPY_RGB(24);
-CONV_FUNC24(32, RGB);
+CONV_FUNC24(32, RGB, fast);
 
 //CONV_FUNC(15, 32, RGB);
 //CONV_FUNC(16, 32, RGB);
@@ -183,7 +187,7 @@ CONV_FUNC24(32, RGB);
 CONV_FUNC_COPY_RGB(32);
 
 /* accelerated 32b rendering to 16b screen */
-static void vramcpy_16_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+static void vramcpy_16_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
@@ -232,7 +236,7 @@ static void vramcpy_16_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect
 }
 
 /* accelerated 32b rendering to 15b screen (S3) */
-static void vramcpy_15_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+static void vramcpy_15_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
@@ -281,7 +285,7 @@ static void vramcpy_15_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect
 }
 
 /* accelerated 32b rendering to 24b */
-static void vramcpy_24_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+static void vramcpy_24_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
@@ -324,6 +328,10 @@ static void vramcpy_24_32_RGB(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect
 	}
 }
 
+#undef GAMMA_R
+#undef GAMMA_G
+#undef GAMMA_B
+
 static void vramcpy_invalid(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 #ifdef DEBUG
@@ -333,12 +341,15 @@ static void vramcpy_invalid(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 
 #define CONV_TABLE_HASH(_src, _dst) ((((_src) & 0x78) << 1) | (((_dst) & 0x78) >> 3))
 
-#define VRAMCPY_ENTRY(_src, _dst, _colors) vram_tbl[CONV_TABLE_HASH(_src, _dst)] = vramcpy_ ## _src ## _ ## _dst ## _ ## _colors
+#define VRAMCPY_ENTRY(_tlb, _src, _dst, _colors, _postfix) _tlb[CONV_TABLE_HASH(_src, _dst)] = vramcpy_ ## _src ## _ ## _dst ## _ ## _colors ## _ ## _postfix
 
 
 #define VRAM_TLB_SIZE 256
 
 static vramcpy_f vram_tbl[VRAM_TLB_SIZE] = { NULL };
+static vramcpy_f vram_tbl_gamma[VRAM_TLB_SIZE] = { NULL };
+
+#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
 
 static void vramcpy_init()
 {
@@ -349,28 +360,26 @@ static void vramcpy_init()
 	}
 	
 	/* RGB -> RGB */
-	VRAMCPY_ENTRY(15,15,RGB);
-	VRAMCPY_ENTRY(16,15,RGB);
-	VRAMCPY_ENTRY(24,15,RGB);
-	VRAMCPY_ENTRY(32,15,RGB);
+	VRAMCPY_ENTRY(vram_tbl, 15,15,RGB, copy);
+	VRAMCPY_ENTRY(vram_tbl, 16,15,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 24,15,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 32,15,RGB, fast);
 
-	VRAMCPY_ENTRY(15,16,RGB);
-	VRAMCPY_ENTRY(16,16,RGB);
-	VRAMCPY_ENTRY(24,16,RGB);
-	VRAMCPY_ENTRY(32,16,RGB);
+	VRAMCPY_ENTRY(vram_tbl, 15,16,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 16,16,RGB, copy);
+	VRAMCPY_ENTRY(vram_tbl, 24,16,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 32,16,RGB, fast);
 
-	VRAMCPY_ENTRY(15,24,RGB);
-	VRAMCPY_ENTRY(16,24,RGB);
-	VRAMCPY_ENTRY(24,24,RGB);
-	VRAMCPY_ENTRY(32,24,RGB);
+	VRAMCPY_ENTRY(vram_tbl, 15,24,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 16,24,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 24,24,RGB, copy);
+	VRAMCPY_ENTRY(vram_tbl, 32,24,RGB, fast);
 
-	VRAMCPY_ENTRY(15,32,RGB);
-	VRAMCPY_ENTRY(16,32,RGB);
-	VRAMCPY_ENTRY(24,32,RGB);
-	VRAMCPY_ENTRY(32,32,RGB);
+	VRAMCPY_ENTRY(vram_tbl, 15,32,RGB, faster);
+	VRAMCPY_ENTRY(vram_tbl, 16,32,RGB, faster);
+	VRAMCPY_ENTRY(vram_tbl, 24,32,RGB, faster);
+	VRAMCPY_ENTRY(vram_tbl, 32,32,RGB, copy);
 }
-
-#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
 
 /* rectagle src to dst */
 void vramcpy(void *dst, void *src, vramcpy_rect_t *rect)
@@ -394,4 +403,114 @@ void vramcpy(void *dst, void *src, vramcpy_rect_t *rect)
 	}
 		
 	vram_tbl[CONV_TABLE_HASH(rect->src_bpp, rect->dst_bpp)](psrc, pdst, rect);
+}
+
+typedef struct _vram_gamma_table_t
+{
+	uint32_t r[256];
+	uint32_t g[256];
+	uint32_t b[256];
+} vram_gamma_table_t;
+
+static vram_gamma_table_t gamma_table;
+
+#define GAMMA_R(_r) gamma_table.r[_r]
+#define GAMMA_G(_r) gamma_table.g[_r]
+#define GAMMA_B(_r) gamma_table.b[_r]
+
+CONV_FUNC(15, 15, RGB, gamma);
+CONV_FUNC(16, 15, RGB, gamma);
+CONV_FUNC(24, 15, RGB, gamma);
+CONV_FUNC(32, 15, RGB, gamma);
+
+CONV_FUNC(15, 16, RGB, gamma);
+CONV_FUNC(16, 16, RGB, gamma);
+CONV_FUNC(24, 16, RGB, gamma);
+CONV_FUNC(32, 16, RGB, gamma);
+
+CONV_FUNC24(15, RGB, gamma);
+CONV_FUNC24(16, RGB, gamma);
+CONV_FUNC24(24, RGB, gamma);
+CONV_FUNC24(32, RGB, gamma);
+
+CONV_FUNC(15, 32, RGB, gamma);
+CONV_FUNC(16, 32, RGB, gamma);
+CONV_FUNC(24, 32, RGB, gamma);
+CONV_FUNC(32, 32, RGB, gamma);
+
+#undef GAMMA_R
+#undef GAMMA_G
+#undef GAMMA_B
+
+static void vramcpy_gamma_init()
+{
+	uint32_t i;
+	for(i = 0; i < VRAM_TLB_SIZE; i++)
+	{
+		vram_tbl_gamma[i] = vramcpy_invalid;
+	}
+	
+	/* init gamma table too */
+	for(i = 0; i < 256; i++)
+	{
+		gamma_table.r[i] = i;
+		gamma_table.g[i] = i;
+		gamma_table.b[i] = i;
+	}
+	
+	/* RGB -> RGB */
+	VRAMCPY_ENTRY(vram_tbl_gamma, 15,15,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 16,15,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 24,15,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 32,15,RGB, gamma);
+
+	VRAMCPY_ENTRY(vram_tbl_gamma, 15,16,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 16,16,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 24,16,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 32,16,RGB, gamma);
+
+	VRAMCPY_ENTRY(vram_tbl_gamma, 15,24,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 16,24,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 24,24,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 32,24,RGB, gamma);
+
+	VRAMCPY_ENTRY(vram_tbl_gamma, 15,32,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 16,32,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 24,32,RGB, gamma);
+	VRAMCPY_ENTRY(vram_tbl_gamma, 32,32,RGB, gamma);
+}
+
+/* rectagle src to dst */
+void vramcpy_gamma(void *dst, void *src, vramcpy_rect_t *rect)
+{
+	uint8_t *psrc = src;
+	uint8_t *pdst = dst;
+	uint32_t y, x;
+
+	if(vram_tbl_gamma[0] == NULL)
+	{
+		vramcpy_gamma_init();
+	}
+		
+	vram_tbl_gamma[CONV_TABLE_HASH(rect->src_bpp, rect->dst_bpp)](psrc, pdst, rect);
+}
+
+void vramcpy_gamma_load(HDC hDC)
+{
+	if(vram_tbl_gamma[0] == NULL)
+	{
+		vramcpy_gamma_init();
+	}
+	
+	int i;
+	WORD gArray[3][256];
+	if(GetDeviceGammaRamp(hDC, gArray))
+	{
+		for(i = 0; i < 256; i++)
+		{
+			gamma_table.r[i] = gArray[0][i] >> 8;
+			gamma_table.g[i] = gArray[1][i] >> 8;
+			gamma_table.b[i] = gArray[2][i] >> 8;
+		}
+	}
 }

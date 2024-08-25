@@ -29,4 +29,9 @@ uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp);
 
 void vramcpy_display(struct sw_winsys *winsys, struct sw_displaytarget *dt, HDC hDC);
 
+void vramcpy_gamma(void *dst, void *src, vramcpy_rect_t *rect);
+void vramcpy_gamma_load(HDC hDC);
+
+void vramcpy_blit(HDC hDC, BITMAPINFO *bmi, void *data, uint32_t w, uint32_t h);
+
 #endif

@@ -101,6 +101,8 @@ typedef struct _cmd_define_item_id
 	uint32_t itemId;
 } cmd_define_item_id_t;
 
+DEBUG_GET_ONCE_BOOL_OPTION(mesa_hw_gamma, "MESA_HW_GAMMA_ENABLED", FALSE);
+
 static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_t cbCommands, GAFENCEQUERY *pFenceQuery)
 {
 	SVGA_ENV;
@@ -125,7 +127,7 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
   //SVGAWaitAll(svga);
   
   SVGAStart(svga);
-  
+
   while(next < last)
  	{
 		const uint32_t cmd_id = *(const uint32_t *)next;
@@ -176,6 +178,25 @@ static int vboxVxdRender(void *pvEnv, uint32_t u32Cid, void *pvCommands, uint32_
 					break;
 				case SVGA_3D_CMD_DX_DEFINE_UA_VIEW:
 					SVGAContextCotableUpdate(svga, cid_dx, SVGA_COTABLE_UAVIEW, id_test->itemId);
+					break;
+				case SVGA_3D_CMD_DRAW_PRIMITIVES:
+					if(debug_get_option_mesa_hw_gamma())
+					{
+					  struct
+					  {
+					  	SVGA3dCmdHeader header;
+					  	SVGA3dCmdSetRenderState set;
+					  	SVGA3dRenderState state;
+					  } svga_gamma = {SVGA_3D_CMD_SETRENDERSTATE, sizeof(SVGA3dCmdSetRenderState)+sizeof(SVGA3dRenderState)};
+
+					  svga_gamma.set.cid = u32Cid;
+					  svga_gamma.state.state = SVGA3D_RS_OUTPUTGAMMA;
+					  svga_gamma.state.floatValue = svga->hda->gamma / 65536.0f;
+						
+						SVGAPush(svga, &svga_gamma, sizeof(svga_gamma));
+						cnt_cmds++;
+						cnt_cb += sizeof(svga_gamma);
+					}
 					break;
 			}
 			
@@ -324,7 +345,7 @@ static WDDMGalliumDriverEnv mEnv = {};
 
 const WDDMGalliumDriverEnv * WINAPI GaDrvCreateEnv(svga_inst_t *svga)
 {
-  if (mEnv.cb == 0)
+  if(mEnv.cb == 0)
   {
       mEnv.cb                = sizeof(WDDMGalliumDriverEnv);
       mEnv.pvEnv             = svga;
@@ -348,8 +369,7 @@ const WDDMGalliumDriverEnv * WINAPI GaDrvCreateEnv(svga_inst_t *svga)
       
       SVGAReadHwInfo(svga, mEnv.pHWInfo);
       mEnv.pHWInfo->u.svga.svga = svga;
-      
-    }
+	}
 
-    return &mEnv;
+	return &mEnv;
 }

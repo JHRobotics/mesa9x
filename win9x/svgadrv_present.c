@@ -22,6 +22,7 @@
 
 /* FRAMERATE_LIMIT - limits number of frames per second */
 DEBUG_GET_ONCE_NUM_OPTION(framerate_limit, "FRAMERATE_LIMIT", 0)
+DEBUG_GET_ONCE_BOOL_OPTION(mesa_sw_gamma, "MESA_SW_GAMMA_ENABLED", FALSE);
 
 //DEBUG_GET_ONCE_BOOL_OPTION(blit_surf_to_screen_enabled, "SVGA_BLIT_SURF_TO_SCREEN", FALSE);
 //DEBUG_GET_ONCE_BOOL_OPTION(dma_need_reread, "SVGA_DMA_NEED_REREAD", TRUE);
@@ -224,7 +225,7 @@ static BOOL adjustRect(RenderRect *rr, svga_inst_t *svga, SVGA_DB_surface_t *sin
 DWORD SVGA_pitch(DWORD width, DWORD bpp)
 {
 	DWORD bp = (bpp + 7) / 8;
-	return (bp * width + 3) & 0xFFFFFFFCUL;
+	return (bp * width + 15) & 0xFFFFFFF0UL;
 }
 
 #if 0
@@ -562,6 +563,94 @@ static BOOL SVGAPresentDirect(svga_inst_t *svga, uint32_t source_sid, RenderRect
 }
 #endif
 
+static DWORD present_last_gamma = -1;
+
+static void SVGAPresentGamma(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid, RenderRect *rr)
+{
+	cmd_surfacedma_t command_dma = CMD_SURFACEDMA_INIT;
+	cmd_readback_gb_surface_t command_dx = CMD_READBACK_GB_SURFACE_INIT;
+	vramcpy_rect_t vrect;
+	
+	SVGA_DB_surface_t *sinfo = SVGASurfaceGet(svga, sid);
+	void *gmr = NULL;
+
+	if(sinfo == NULL || (sinfo->width * sinfo->height) == 0)
+	{
+		debug_printf("SVGAPresentWindow: null surface info!\n");
+		/* Nothing to see here. Please disperse. */
+		return;
+	}
+
+	const int sbpp = sinfo->bpp;
+	const size_t sps = vramcpy_pointsize(sbpp);
+
+	if(sinfo->gmrId == 0) /* old way: copy surface to guest memory and display it */
+	{
+		if(set_fb_gmr(svga, sinfo->width, sinfo->height))
+		{
+			command_dma.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
+			command_dma.dma.guest.ptr.offset = 0;
+			command_dma.dma.guest.pitch      = sinfo->width * sps;
+			command_dma.dma.host.sid         = sid;
+			command_dma.dma.host.face        = 0;
+			command_dma.dma.host.mipmap      = 0;
+			command_dma.dma.transfer         = SVGA3D_READ_HOST_VRAM;
+
+			command_dma.box.x = 0;
+			command_dma.box.y = 0;
+			command_dma.box.z = 0;
+			command_dma.box.w = sinfo->width;
+			command_dma.box.h = sinfo->height;
+			command_dma.box.d = 1;
+			command_dma.box.srcx = 0;
+			command_dma.box.srcy = 0;
+			command_dma.box.srcz = 0;
+
+			command_dma.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
+			command_dma.suffix.maximumOffset = sinfo->height * sinfo->width * sps;
+			command_dma.suffix.flags.discard         = 1;
+			command_dma.suffix.flags.unsynchronized  = 0;
+			command_dma.suffix.flags.reserved        = 0;
+
+			SVGASend(svga, &command_dma, sizeof(command_dma), SVGA_CB_SYNC, 0);
+
+			gmr = (void*)SVGARegionGet(svga, svga->softblit_gmr_id)->info.address;
+		}
+	}
+	else /* new way: sync GMR and copy buffer to window */
+	{
+		command_dx.surf.sid = sid;
+		SVGASend(svga, &command_dx, sizeof(command_dx), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
+		gmr = (void*)SVGARegionGet(svga, sinfo->gmrId)->info.address;
+	}
+	
+	if(gmr == NULL) return;
+
+	if(svga->hda->gamma_update != present_last_gamma)
+	{
+		vramcpy_gamma_load(hDC);
+		present_last_gamma = svga->hda->gamma_update;
+	}
+
+	vrect.dst_pitch   = svga->hda->pitch;
+	vrect.dst_x       = rr->x;
+	vrect.dst_y       = rr->y;
+	vrect.dst_w       = rr->w;
+	vrect.dst_h       = rr->h;
+	vrect.dst_bpp     = svga->hda->bpp;
+	vrect.src_pitch   = sinfo->width * sps;
+	vrect.src_x       = rr->srcx;
+	vrect.src_y       = rr->srcy;
+	vrect.src_bpp     = sinfo->bpp;
+
+	FBHDA_access_rect(rr->x, rr->y, rr->x+rr->w, rr->y+rr->h);
+	vramcpy_gamma(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
+	FBHDA_access_end(0);
+	
+//	FBHDA_access_begin(FBHDA_ACCESS_RAW_BUFFERING);
+	
+}
+
 /**
  * Present render to screen/window using direct vram access if its possible.
  * If not calls SVGAPresentWindow.
@@ -620,9 +709,20 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		return;
 	}
 	
-	if(SVGAPresentDirect(svga, sid, &rr))
+	if(svga->hda->overlay == 0)
 	{
-		return;
+		if(!debug_get_option_mesa_sw_gamma())
+		{
+			if(SVGAPresentDirect(svga, sid, &rr))
+			{
+				return;
+			}
+		}
+		else
+		{
+			SVGAPresentGamma(svga, hDC, cid, sid, &rr);
+			return;
+		}
 	}
 
 	/* failback */
@@ -752,9 +852,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		bmi.bmask = 0x000000FF;
 	}
 	
-	StretchDIBits(hDC, 0, 0, sinfo->width, sinfo->height,
-	                   0, 0, sinfo->width, sinfo->height,
-		                 gmr, (BITMAPINFO *)&bmi, 0, SRCCOPY);
+	vramcpy_blit(hDC, (BITMAPINFO *)&bmi, gmr, sinfo->width, sinfo->height);
 }
 
 void SVGAPresentWinBlt(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
