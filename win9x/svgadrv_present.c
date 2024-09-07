@@ -565,7 +565,7 @@ static BOOL SVGAPresentDirect(svga_inst_t *svga, uint32_t source_sid, RenderRect
 
 static DWORD present_last_gamma = -1;
 
-static void SVGAPresentGamma(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid, RenderRect *rr)
+static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid, RenderRect *rr, BOOL gamma)
 {
 	cmd_surfacedma_t command_dma = CMD_SURFACEDMA_INIT;
 	cmd_readback_gb_surface_t command_dx = CMD_READBACK_GB_SURFACE_INIT;
@@ -584,7 +584,7 @@ static void SVGAPresentGamma(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t 
 	const int sbpp = sinfo->bpp;
 	const size_t sps = vramcpy_pointsize(sbpp);
 
-	if(sinfo->gmrId == 0) /* old way: copy surface to guest memory and display it */
+	if(sinfo->gmrId == 0) /* vGPU9 */
 	{
 		if(set_fb_gmr(svga, sinfo->width, sinfo->height))
 		{
@@ -617,7 +617,7 @@ static void SVGAPresentGamma(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t 
 			gmr = (void*)SVGARegionGet(svga, svga->softblit_gmr_id)->info.address;
 		}
 	}
-	else /* new way: sync GMR and copy buffer to window */
+	else /* vGPU10 */
 	{
 		command_dx.surf.sid = sid;
 		SVGASend(svga, &command_dx, sizeof(command_dx), SVGA_CB_SYNC | SVGA_CB_FLAG_DX_CONTEXT, cid);
@@ -626,29 +626,47 @@ static void SVGAPresentGamma(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t 
 	
 	if(gmr == NULL) return;
 
-	if(svga->hda->gamma_update != present_last_gamma)
+	if(gamma)
 	{
-		vramcpy_gamma_load(hDC);
-		present_last_gamma = svga->hda->gamma_update;
+		if(svga->hda->gamma_update != present_last_gamma)
+		{
+			vramcpy_gamma_load(hDC);
+			present_last_gamma = svga->hda->gamma_update;
+		}
 	}
 
+#if 1
 	vrect.dst_pitch   = svga->hda->pitch;
+	vrect.dst_bpp     = svga->hda->bpp;
+#else
+	vrect.dst_pitch   = SVGA_pitch(svga->hda->width, 32);
+	vrect.dst_bpp     = 32;
+#endif
 	vrect.dst_x       = rr->x;
 	vrect.dst_y       = rr->y;
 	vrect.dst_w       = rr->w;
 	vrect.dst_h       = rr->h;
-	vrect.dst_bpp     = svga->hda->bpp;
 	vrect.src_pitch   = sinfo->width * sps;
 	vrect.src_x       = rr->srcx;
 	vrect.src_y       = rr->srcy;
 	vrect.src_bpp     = sinfo->bpp;
 
+#if 1
 	FBHDA_access_rect(rr->x, rr->y, rr->x+rr->w, rr->y+rr->h);
-	vramcpy_gamma(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
+	if(gamma)
+	{
+		vramcpy_gamma(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
+	}
+	else
+	{
+		vramcpy(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
+	}
 	FBHDA_access_end(0);
-	
-//	FBHDA_access_begin(FBHDA_ACCESS_RAW_BUFFERING);
-	
+#else
+	FBHDA_access_begin(FBHDA_ACCESS_RAW_BUFFERING);
+	vramcpy_gamma(svga->hda->vram_pm32, gmr, &vrect);
+	FBHDA_access_end(FBHDA_ACCESS_SURFACE_DIRTY);
+#endif
 }
 
 /**
@@ -713,16 +731,16 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	{
 		if(!debug_get_option_mesa_sw_gamma())
 		{
-			if(SVGAPresentDirect(svga, sid, &rr))
+			if(!SVGAPresentDirect(svga, sid, &rr))
 			{
-				return;
+				SVGAPresentCopy(svga, hDC, cid, sid, &rr, FALSE);
 			}
 		}
 		else
 		{
-			SVGAPresentGamma(svga, hDC, cid, sid, &rr);
-			return;
+			SVGAPresentCopy(svga, hDC, cid, sid, &rr, TRUE);
 		}
+		return;
 	}
 
 	/* failback */

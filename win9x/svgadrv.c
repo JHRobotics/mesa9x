@@ -108,7 +108,7 @@ static inline DWORD map_lookup_and_set(DWORD *bitmap, DWORD start, DWORD max)
 	return max;
 }
 
-static inline DWORD map_reset(DWORD *bitmap, DWORD id)
+static inline void map_reset(DWORD *bitmap, DWORD id)
 {
 	DWORD i = id / BSTEP;
 	DWORD ii = id % BSTEP;
@@ -1276,6 +1276,7 @@ BOOL SVGAReadHwInfo(svga_inst_t *svga, VBOXGAHWINFO *pHwInfo)
 	return TRUE;
 }
 
+#if 0
 /* clear all allocated resource identified by PID (or current process id, if pid is 0) */
 void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 {
@@ -1325,6 +1326,7 @@ void SVGACleanup(svga_inst_t *svga, uint32_t pid)
 		SVGADestroy(svga);
 	}
 }
+#endif
 
 static int format_to_bpp(SVGA3dSurfaceFormat type)
 {
@@ -1698,6 +1700,7 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 	}
 }
 
+#if 0
 /* Queue all allocated resource and free them if procces which allocate them
  * is dead. Useful if application ends with crash and this to cleanup
  * on new begining
@@ -1748,6 +1751,7 @@ void SVGAZombieKiller()
 		SVGADestroy(&lSvga);
 	}
 }
+#endif
 
 BOOL SVGASurfaceCreate(svga_inst_t *svga, GASURFCREATE *pCreateParms, GASURFSIZE *paSizes, uint32_t cSizes, uint32_t *outSid)
 {

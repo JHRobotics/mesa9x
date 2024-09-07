@@ -335,7 +335,8 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	   * on next run, or another proceess run, we'll need to clean all
    	   * the remain mess
    	   */
-   	  SVGAZombieKiller();
+   	  //SVGAZombieKiller();
+   	  // ^ solved in VXD driver now
    	  
    	  /* DIRECT_VRAM ... enabled now */
    	  if(!debug_get_bool_option("DIRECT_VRAM", TRUE))
@@ -381,7 +382,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          #endif
       }
       // JH: clear the garbage
-      SVGACleanup(NULL, 0);
+      //SVGACleanup(NULL, 0);
       FBHDA_free();
       
       break;

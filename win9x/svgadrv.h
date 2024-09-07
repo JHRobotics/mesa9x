@@ -96,7 +96,7 @@ void SVGAFullSync(svga_inst_t *svga);
 
 BOOL SVGACreate(svga_inst_t *svga);
 void SVGADestroy(svga_inst_t *svga);
-void SVGACleanup(svga_inst_t *svga, uint32_t pid);
+//void SVGACleanup(svga_inst_t *svga, uint32_t pid);
 
 void SVGAStart(svga_inst_t *svga);
 void SVGAPush(svga_inst_t *svga, const void *cmd, const size_t size);
@@ -145,7 +145,7 @@ void svga_printf(svga_inst_t *svga, const char *fmt, ...);
 #define svga_printf(...)
 #endif
 
-void SVGAZombieKiller();
+//void SVGAZombieKiller();
 
 #define GMR_LIMIT_DEFAULT_MB 192
 // ^ max recomended value for 512 MB RAM
