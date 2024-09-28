@@ -1123,3 +1123,8 @@ MesaGalliumLLVMPipe_SRC += \
 	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_test_printf.c \
 	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_texture.c \
 	$(MESA_VER)/src/gallium/drivers/llvmpipe/lp_tex_sample.c
+
+MesaOS_SRC = \
+  $(MESA_VER)/src/gallium/targets/osmesa/target.c \
+  $(MESA_VER)/src/gallium/frontends/osmesa/osmesa.c \
+  $(MESA_VER)/src/gallium/winsys/sw/null/null_sw_winsys.c

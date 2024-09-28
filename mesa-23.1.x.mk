@@ -1108,3 +1108,8 @@ MesaD3D10Lib_SRC = \
   $(MESA_VER)/src/gallium/frontends/d3d10umd/ShaderTGSI.c \
   $(MESA_VER)/src/gallium/frontends/d3d10umd/D3DKMT.cpp \
   $(MESA_VER)/src/gallium/targets/d3d10sw/d3d10_gdi.c
+
+MesaOS_SRC = \
+  $(MESA_VER)/src/gallium/targets/osmesa/target.c \
+  $(MESA_VER)/src/gallium/frontends/osmesa/osmesa.c \
+  $(MESA_VER)/src/gallium/winsys/sw/null/null_sw_winsys.c

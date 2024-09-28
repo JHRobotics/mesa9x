@@ -23,6 +23,7 @@
 /* FRAMERATE_LIMIT - limits number of frames per second */
 DEBUG_GET_ONCE_NUM_OPTION(framerate_limit, "FRAMERATE_LIMIT", 0)
 DEBUG_GET_ONCE_BOOL_OPTION(mesa_sw_gamma, "MESA_SW_GAMMA_ENABLED", FALSE);
+DEBUG_GET_ONCE_BOOL_OPTION(svga_dma_fb, "SVGA_DMA_TO_FB", FALSE);
 
 //DEBUG_GET_ONCE_BOOL_OPTION(blit_surf_to_screen_enabled, "SVGA_BLIT_SURF_TO_SCREEN", FALSE);
 //DEBUG_GET_ONCE_BOOL_OPTION(dma_need_reread, "SVGA_DMA_NEED_REREAD", TRUE);
@@ -541,6 +542,10 @@ static BOOL SVGAPresentDirect(svga_inst_t *svga, uint32_t source_sid, RenderRect
 	if(svga->dx)
 	{
 		vmware_update_bug = svga->hda->flags & FB_BUG_VMWARE_UPDATE;
+	}
+	else if(debug_get_option_svga_dma_fb())
+	{
+		vmware_update_bug = FALSE;
 	}
 	
 	if(!rr->need_conv || (rr->surf_bpp == 32 && !vmware_update_bug))

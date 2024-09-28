@@ -19,6 +19,21 @@ EXPORTS
 	DrvSwapLayerBuffers = DrvSwapLayerBuffers@8
 	DrvValidateVersion = DrvValidateVersion@4
 	DllCanUnloadNow = DllCanUnloadNow@0
+
 	MesaScreenCreate = MesaScreenCreate@12
 	MesaPresent = MesaPresent@24
 	MesaDimensions = MesaDimensions@28
+
+	OSMesaCreateContext = OSMesaCreateContext@8
+	OSMesaCreateContextAttribs = OSMesaCreateContextAttribs@8
+	OSMesaCreateContextExt = OSMesaCreateContextExt@20
+	OSMesaDestroyContext = OSMesaDestroyContext@4
+	OSMesaMakeCurrent = OSMesaMakeCurrent@20
+	OSMesaGetCurrentContext = OSMesaGetCurrentContext@0
+	OSMesaPixelStore = OSMesaPixelStore@8
+	OSMesaGetIntegerv = OSMesaGetIntegerv@8
+	OSMesaGetDepthBuffer = OSMesaGetDepthBuffer@20
+	OSMesaGetColorBuffer = OSMesaGetColorBuffer@20
+	OSMesaGetProcAddress = OSMesaGetProcAddress@4
+	OSMesaColorClamp = OSMesaColorClamp@4
+	OSMesaPostprocess = OSMesaPostprocess@12
