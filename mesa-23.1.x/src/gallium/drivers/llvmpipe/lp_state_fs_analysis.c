@@ -345,7 +345,7 @@ check_load_const_in_zero_one(const nir_load_const_instr *load)
       return false;
    for (unsigned c = 0; c < load->def.num_components; c++) {
       float val = load->value[c].f32;
-      if (val < 0.0 || val > 1.0 || isnan(val)) {
+      if (isnan(val) || val < 0.0 || val > 1.0) {
          return false;
       }
    }

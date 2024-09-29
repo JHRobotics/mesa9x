@@ -157,6 +157,9 @@ blob_overwrite_bytes(struct blob *blob,
 bool
 blob_write_bytes(struct blob *blob, const void *bytes, size_t to_write)
 {
+   if (bytes == NULL)
+      return false;
+
    if (! grow_to_fit(blob, to_write))
        return false;
 
