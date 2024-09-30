@@ -383,6 +383,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
       }
       // JH: clear the garbage
       //SVGACleanup(NULL, 0);
+      SVGA_vxdcmd(SVGA_CMD_CLEANUP, GetCurrentProcessId());
       FBHDA_free();
       
       break;

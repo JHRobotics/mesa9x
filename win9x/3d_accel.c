@@ -400,14 +400,18 @@ void SVGA_flushcache()
 		NULL, NULL);
 }
 
-BOOL SVGA_vxdcmd(DWORD cmd)
+BOOL SVGA_vxdcmd(DWORD cmd, DWORD arg)
 {
 	DWORD result = 0;
+	DWORD buffer[2] = {
+		cmd,
+		arg
+	};
 	
 	if(!FBHDA_valid()) return FALSE;
 	
 	if(DeviceIoControl(hda_vxd, OP_SVGA_VXDCMD,
-		(LPVOID)cmd, sizeof(DWORD), (LPVOID)result, sizeof(DWORD),
+		(LPVOID)&buffer[0], sizeof(buffer), (LPVOID)result, sizeof(DWORD),
 		NULL, NULL))
 	{
 		return result == 0 ? FALSE : TRUE;

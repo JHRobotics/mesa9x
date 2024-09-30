@@ -628,8 +628,11 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mapi/glapi/glapi_entrypoint.c \
 	$(MESA_VER)/src/mapi/glapi/glapi_getproc.c \
 	$(MESA_VER)/src/mapi/glapi/glapi_nop.c \
-	$(MESA_VER)/src/mapi/u_current.c \
-	$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S
+	$(MESA_VER)/src/mapi/u_current.c
+	
+ifdef USE_ASM
+  MesaLib_SRC += $(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S
+endif
 
 MesaWglLib_SRC = \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_context.c \

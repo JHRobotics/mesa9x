@@ -31,6 +31,9 @@ MESA_VER = mesa-23.1.x
 # compiler name prefix (useful on cross-compilation)
 #PREFIX=
 
+# Allow faster call using assembler, faster (a bit) but more harder to debug
+#USE_ASM := 1
+
 # compiler names
 CXX = $(PREFIX)g++
 CC  = $(PREFIX)gcc
