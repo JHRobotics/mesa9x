@@ -386,6 +386,7 @@ EXPORTS
 	DrvSwapBuffers = DrvSwapBuffers@4
 	DrvSwapLayerBuffers = DrvSwapLayerBuffers@8
 	DrvValidateVersion = DrvValidateVersion@4
+	DrvGetCurrentContext = wglGetCurrentContext@0
 ;	wglSwapIntervalEXT = wglSwapIntervalEXT@4
 	MesaScreenCreate = MesaScreenCreate@12
 	MesaPresent = MesaPresent@24
