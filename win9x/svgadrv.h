@@ -207,6 +207,7 @@ typedef struct _SVGACBHeaderDX {
 	uint32 mustBeZero[6];
 } SVGACBHeaderDX;
 
+#if MESA_MAJOR < 25
 #define SVGA_3D_CMD_DEFINE_GB_SURFACE_V4		1267
 /*
  * Defines a guest-backed surface, adding buffer byte stride.
@@ -226,6 +227,7 @@ struct SVGA3dCmdDefineGBSurface_v4 {
    uint32 bufferByteStride;
 }
 SVGA3dCmdDefineGBSurface_v4;   /* SVGA_3D_CMD_DEFINE_GB_SURFACE_V4 */
+#endif /* MESA_MAJOR < 25 */
 
 #if MESA_MAJOR < 23
 

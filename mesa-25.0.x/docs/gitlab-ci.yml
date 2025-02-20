@@ -1,0 +1,62 @@
+.docs-base:
+  extends:
+    - .build-linux
+    - .use-alpine/x86_64_build
+  artifacts:
+    expose_as: 'Documentation preview'
+    paths:
+      - public/
+  script:
+    - meson setup _build -D prefix=$(pwd) --auto-features=disabled
+      -D vulkan-drivers="" -D gallium-drivers="" -D platforms=[] -D glx=disabled
+      -D video-codecs="" -D html-docs=enabled -D html-docs-path=public
+      -D werror=true
+    - meson compile -C _build
+    - meson install -C _build
+
+pages:
+  extends: .docs-base
+  stage: deploy
+  rules:
+    - !reference [.common-rules, rules]
+    - !reference [.no_scheduled_pipelines-rules, rules]
+    - if: '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH'
+      changes: &docs-or-ci
+        - docs/**/*
+        - .gitlab-ci.yml
+        # All the source files documentation is extracted from
+        # git grep -h ":file: src/" -- docs | sort | uniq
+        - src/compiler/nir/nir.h
+        - src/intel/isl/**/*
+        - src/vulkan/runtime/**/*
+      when: always
+    # Other cases default to never
+
+test-docs:
+  extends: .docs-base
+  # Cancel job if a newer commit is pushed to the same branch
+  interruptible: true
+  stage: deploy
+  rules:
+    - !reference [.common-rules, rules]
+    # pre-merge or merge pipeline
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: *docs-or-ci
+      when: on_success
+    # fork pipeline
+    - if: '$CI_COMMIT_BRANCH && $CI_PROJECT_NAMESPACE != "mesa"'
+      changes: *docs-or-ci
+      when: on_success
+    # Other cases default to never
+
+linkcheck-docs:
+  extends: .docs-base
+  # Cancel job if a newer commit is pushed to the same branch
+  interruptible: true
+  stage: deploy
+  rules:
+    - !reference [.common-rules, rules]
+    - !reference [.scheduled_pipeline-rules, rules]
+  allow_failure: true
+  script:
+    - sphinx-build -W -b linkcheck docs public

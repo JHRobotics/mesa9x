@@ -44,7 +44,9 @@ struct vmw_winsys_screen_wddm
 #include <svga3d_types.h>
 
 #pragma pack(1) /* VMSVGA structures are '__packed'. */
+#if MESA_MAJOR < 25
 #include <svga3d_caps.h>
+#endif
 #include <svga3d_reg.h>
 #include <svga3d_cmd.h>
 #pragma pack()

@@ -48,7 +48,12 @@
 #include "vmw_context.h"
 #include "vmw_fence.h"
 #include "vmwgfx_drm.h"
-#include "svga3d_caps.h"
+#if MESA_MAJOR < 25
+# include "svga3d_caps.h"
+#else
+# include "svga3d_devcaps.h"
+# include "vmw_surf_defs.h"
+#endif
 #include "svga3d_reg.h"
 #include "svga3d_surfacedefs.h"
 
@@ -59,6 +64,12 @@
 
 #if MESA_MAJOR >= 24
 #define boolean bool
+# ifdef FALSE
+# undef FALSE
+# endif
+# ifdef TRUE
+# undef TRUE
+# endif
 #define FALSE false
 #define TRUE true
 #endif
@@ -160,8 +171,11 @@ vmw_ioctl_surface_create(struct vmw_winsys_screen *vws,
     for (iFace = numFaces; iFace < SVGA3D_MAX_SURFACE_FACES; ++iFace) {
        createParms.mip_levels[iFace] = 0;
     }
-    
+#if MESA_MAJOR < 25
     createParms.size = svga3dsurface_get_serialized_size(format, size, numMipLevels, numFaces);
+#else
+		createParms.size = vmw_surf_get_serialized_size(format, size, numMipLevels, numFaces);
+#endif
     
     ret = vws_wddm->pEnv->pfnSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms, &sizes[0], numFaces * numMipLevels, &u32Sid);
     if (ret) {
@@ -538,6 +552,14 @@ enum SVGASHADERMODEL
    SVGA_SM_MAX
 };
 
+#ifndef SVGA_CAP_CMD_BUFFERS_3
+#define SVGA_CAP_CMD_BUFFERS_3 SVGA_CAP_DX
+#endif
+
+#ifndef SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM
+#define SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM SVGA_REG_MAX_PRIMARY_MEM
+#endif
+
 static enum SVGASHADERMODEL vboxGetShaderModel(struct vmw_winsys_screen_wddm *vws_wddm)
 {
    enum SVGASHADERMODEL enmResult = SVGA_SM_LEGACY;
@@ -826,6 +848,24 @@ vmw_ioctl_init(struct vmw_winsys_screen *vws)
       //size = SVGA_FIFO_3D_CAPS_SIZE * sizeof(uint32_t);
       size = GA_HWINFO_CAPS * sizeof(uint32_t);
    }
+
+#if MESA_MAJOR >= 25
+   /* Userspace surfaces are only supported on guest-backed hardware */
+   vws->userspace_surface = false;
+   getenv_val = getenv("VMW_SVGA_USERSPACE_SURFACE");
+   if (getenv_val && atoi(getenv_val)) {
+      assert(vws->base.have_gb_objects);
+      assert(vws->base.have_vgpu10);
+      memset(&gp_arg, 0, sizeof(gp_arg));
+      gp_arg.param = DRM_VMW_PARAM_USER_SRF;
+      ret = drmCommandWriteRead(vws->ioctl.drm_fd, DRM_VMW_GET_PARAM, &gp_arg,
+                                sizeof(gp_arg));
+      if (!ret && gp_arg.value == true) {
+         vws->userspace_surface = true;
+         debug_printf("Using userspace managed surfaces\n");
+      }
+   }
+#endif
 
    debug_printf("VGPU10 interface is %s.\n",
                 vws->base.have_vgpu10 ? "on" : "off");
@@ -1150,7 +1190,11 @@ vmw_ioctl_gb_surface_create(struct vmw_winsys_screen *vws,
     	createParms.GMRreturn = TRUE;
     }
 
+#if MESA_MAJOR < 25
     createParms.cbGB = svga3dsurface_get_serialized_size_extended(format, size, numMipLevels, numFaces, sampleCount);
+#else
+    createParms.cbGB = vmw_surf_get_serialized_size_extended(format, size, numMipLevels, numFaces, sampleCount);
+#endif
 
     int ret = vws_wddm->pEnv->pfnGBSurfaceDefine(vws_wddm->pEnv->pvEnv, &createParms);
     if (ret)

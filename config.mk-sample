@@ -7,7 +7,7 @@
 #
 
 # selected Mesa version
-MESA_VER = mesa-23.1.x
+MESA_VER = mesa-25.0.x
 
 # Enable llvmpipe, require LLVM
 #LLVM := 1

@@ -136,11 +136,12 @@ You need:
 - MinGW that can produce working binary for Windows 9x
 - LLVM source (3.x to 6.x, 6.0.1 recommended)
 - python 2.7 (or newer, for LLVM, python 3.6+ for generating Mesa sources)
+	- module yaml (`pip install pyyaml`)
+	- module mako (`pip install mako`)
 - cmake (for LLVM)
 - zlib (for LLVM)
 - flex (generating Mesa sources, recommend using msys version)
 - bison (generating Mesa sources, recommend using msys version)
-- mako (generating Mesa sources, install from python or msys)
 - GNU patch
 - GNU make (usually packed with MinGW)
 
@@ -233,7 +234,7 @@ LLVM_2024 = 1
 
 
 ### Mesa3D
-I omitted classic configure file and create only GNU Make file - target is only one and this is more portable.
+I omitted classic configure file and create only GNU Makefile - target is only one and this is more portable.
 
 Copy `config.mk.sample` to `config.mk` as open in in text editor and follow instructions, if you don't some special options (debug, targeting specific CPU) you just set `LLVM_DIR` to LLVM installation (same directory as you set in CMAKE_INSTALL_PREFIX).
 

@@ -1,0 +1,5 @@
+dEQP-VK.pipeline.monolithic.timestamp.calibrated.calibration_test
+
+dEQP-VK.robustness.buffer_access.through_pointers.graphics.writes.fragment.32B_in_memory_with_vec4_s32
+
+dEQP-VK.transform_feedback.primitives_generated_query.get.*reset.*

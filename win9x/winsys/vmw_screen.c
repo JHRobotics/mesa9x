@@ -135,6 +135,10 @@ void
 vmw_winsys_destroy(struct vmw_winsys_screen *vws)
 {
 	if (--vws->open_count == 0) {
+#if MESA_MAJOR >= 25
+      if (vws->swc)
+         vmw_swc_unref(vws->swc);
+#endif
 		vmw_pools_cleanup(vws);
 		vws->fence_ops->destroy(vws->fence_ops);
 		vmw_ioctl_cleanup(vws);
