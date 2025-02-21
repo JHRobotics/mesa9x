@@ -1,8 +1,7 @@
 #
-# generate Mesa file
+# generate some Mesa sources
 #
-include config.mk
-MESA_VER = mesa-25.0.x
+MESA_VER ?= mesa-25.0.x
 
 MESA_SIZEOF_PTR = 4
 
@@ -78,12 +77,12 @@ GENERATE_FILES = \
 	$(MESA_VER)/src/util/format_srgb.c \
 	$(MESA_VER)/src/util/driconf_static.h
 
-all: $(GENERATE_FILES)
-.PHONY: all clean distclean
+generator: $(GENERATE_FILES)
 
-clean:
+$(MESA_VER).deps: $(GENERATE_FILES)
+	@echo $(MESA_VER) > $@
 
-distclean:
+distclean: clean
 	-$(RM) $(GENERATE_FILES)
 
 $(MESA_VER)/src/compiler/nir/nir_builder_opcodes.h:

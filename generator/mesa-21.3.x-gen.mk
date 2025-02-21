@@ -1,8 +1,7 @@
 #
 # generate some Mesa sources
 #
-include config.mk
-MESA_VER = mesa-21.3.x
+MESA_VER ?= mesa-21.3.x
 
 GENERATE_FILES = \
 	$(MESA_VER)/src/compiler/glsl/float64_glsl.h \
@@ -56,13 +55,12 @@ GENERATE_FILES = \
 	$(MESA_VER)/src/util/format_srgb.c \
 	$(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S \
 
-all: $(GENERATE_FILES)
+generator: $(GENERATE_FILES)
 
-.PHONY: all clean distclean
+$(MESA_VER).deps: $(GENERATE_FILES)
+	@echo $(MESA_VER) > $@
 
-clean:
-
-distclean:
+distclean: clean
 	-$(RM) $(GENERATE_FILES)
 
 $(MESA_VER)/src/compiler/glsl/float64_glsl.h:

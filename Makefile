@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-25.0.x
-DEPS = config.mk Makefile
+DEPS = config.mk Makefile $(MESA_VER).deps
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
@@ -106,10 +106,15 @@ ifdef LLVM
   endif
 endif
 
-all: generator $(TARGETS)
+$(MESA_VER).target: $(DEPS) $(TARGETS)
+	echo $(MESA_VER) > $@
+
 .PHONY: generator all clean distclean
 
+all: $(MESA_VER).target
+
 include $(MESA_VER).mk
+include generator/$(MESA_VER)-gen.mk
 
 PACKAGE_VERSION := 9x $(MESA_DIST_VERSION).$(VERSION_BUILD)
 
@@ -404,33 +409,73 @@ else
     CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects -pipe
     LDFLAGS_APP  += -flto=auto -fno-fat-lto-objects -pipe
   endif
-	
+
+  ifdef VERBOSE
   %.c_gen.o: %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
-		
+
   %.cpp_gen.o: %.cpp $(DEPS)
 		$(CXX) $(CXXFLAGS) -c -o $@ $<
-	
+
   %.c_simd.o: %.c $(DEPS)
 		$(CC) $(SIMD_CFLAGS) -c -o $@ $<
-		
+
   %.cpp_simd.o: %.cpp $(DEPS)
 		$(CXX) $(SIMD_CXXFLAGS) -c -o $@ $<
-	
+
   %.c_app.o: %.c $(DEPS)
 		$(CC) $(APP_CFLAGS) -c -o $@ $<
-		
+
   %.cpp_app.o: %.cpp $(DEPS)
 		$(CXX) $(APP_CXXFLAGS) -c -o $@ $<
-		
+
   %.res: %.rc $(DEPS)
 		$(WINDRES) -DWINDRES $(DEFS) --input $< --output $@ --output-format=coff
-		
+
   %.S_gen.o: %.S $(DEPS)
 		$(CC) $(CFLAGS) $(DEFS_AS) -c -o $@ $<
 
   %.S_simd.o: %.S $(DEPS)
 		$(CC) $(SIMD_CFLAGS) $(DEFS_AS) -c -o $@ $<
+
+  else
+  %.c_gen.o: %.c $(DEPS)
+		$(info CC (x87) $@)
+		@$(CC) $(CFLAGS) -c -o $@ $<
+
+  %.cpp_gen.o: %.cpp $(DEPS)
+		$(info CXX (x87) $@)
+		@$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+  %.c_simd.o: %.c $(DEPS)
+		$(info CC (SIMD) $@)
+		@$(CC) $(SIMD_CFLAGS) -c -o $@ $<
+
+  %.cpp_simd.o: %.cpp $(DEPS)
+		$(info CXX (SIMD) $@)
+		@$(CXX) $(SIMD_CXXFLAGS) -c -o $@ $<
+
+  %.c_app.o: %.c $(DEPS)
+		$(info CC $@)
+		@$(CC) $(APP_CFLAGS) -c -o $@ $<
+
+  %.cpp_app.o: %.cpp $(DEPS)
+		$(info CXX $@)
+		@$(CXX) $(APP_CXXFLAGS) -c -o $@ $<
+
+  %.res: %.rc $(DEPS)
+		$(info RC $@)
+		@$(WINDRES) -DWINDRES $(DEFS) --input $< --output $@ --output-format=coff
+
+  %.S_gen.o: %.S $(DEPS)
+		$(info AS (x87) $@)
+		@$(CC) $(CFLAGS) $(DEFS_AS) -c -o $@ $<
+
+  %.S_simd.o: %.S $(DEPS)
+		$(info AS (SIMD) $@)
+		@$(CC) $(SIMD_CFLAGS) $(DEFS_AS) -c -o $@ $<
+
+  endif
 
   LIBSTATIC = ar rcs -o $@ 
 
@@ -440,12 +485,14 @@ endif
 
 %.asm$(OBJ): %.asm $(DEPS)
 	nasm $< -f win32 -o $@
-	
-winpthreads/crtfix$(OBJ): $(DEPS) winpthreads/Makefile pthread.mk
-	cd winpthreads && $(MAKE)
 
-winpthreads/$(LIBPREFIX)pthread$(LIBSUFFIX): $(DEPS) winpthreads/Makefile pthread.mk
+winpthreads.target: $(DEPS)
 	cd winpthreads && $(MAKE)
+	echo OK > $@
+
+winpthreads/crtfix$(OBJ): winpthreads.target
+	
+winpthreads/$(LIBPREFIX)pthread$(LIBSUFFIX): winpthreads.target
 
 LIBS_TO_BUILD += $(LIBPREFIX)MesaUtilLib$(LIBSUFFIX)
 LIBS_TO_BUILD += $(LIBPREFIX)MesaLib$(LIBSUFFIX)
@@ -607,80 +654,82 @@ MesaOSSimd_OBJS := $(MesaOS_SRC:.c=.c_simd$(OBJ))
 MesaOSSimd_OBJS := $(MesaOSSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
 # software opengl32 replacement
-opengl32.w95.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
+opengl32.w95.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
-opengl32.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) opengl32.res $(LD_DEPS)
+opengl32.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibGLSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
 # software ICD driver
-mesa3d.w95.dll: $(LIBS_TO_BUILD) $(MesaOS_OBJS) $(DEPS) mesa3d.res $(LD_DEPS)
+mesa3d.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOS_OBJS) mesa3d.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibICD_OBJS) $(MesaOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF)
 
-mesa3d.w98me.dll: $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) $(DEPS) mesa3d.res $(LD_DEPS)
+mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(MesaOSSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
 
 # accelerated ICD driver
-vmwsgl32.dll: $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
+vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 	
-svgagl32.dll: $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(DEPS) vmwsgl32.res $(LD_DEPS)
+svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
-mesa99.dll: mesa3d.w95.dll $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res
+mesa99.dll: mesa3d.w95.dll $(DEPS) $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA99_LIBS) $(DLLFLAGS) $(MESA99_DEF)
 
-mesa89.dll: mesa99.dll $(eight_OBJS) mesa89.res
+mesa89.dll: $(DEPS) mesa99.dll $(eight_OBJS) mesa89.res
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(eight_OBJS) mesa89.res $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
 
-mesad3d10.w95.dll: $(LIBS_TO_BUILD) $(DEPS) $(LD_DEPS) $(MesaD3D10Lib_OBJS)
+mesad3d10.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10Lib_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10Lib_OBJS) $(MesaGdiLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(D3D10_DEF)
 	
-mesad3d10.w98me.dll: $(LIBS_TO_BUILD) $(DEPS) $(LD_DEPS) $(MesaD3D10LibSimd_OBJS)
+mesad3d10.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10LibSimd_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10LibSimd_OBJS) $(MesaGdiLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) $(DLLFLAGS) $(D3D10_DEF)
 
 # benchmark
 glchecked_OBJS := $(glchecked_SRC:.cpp=.cpp_app$(OBJ))
 
 ifdef DEBUG
-glchecker.exe: $(glchecked_OBJS) $(DEPS) $(LD_DEPS)
+glchecker.exe: $(DEPS) $(glchecked_OBJS) $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) $(glchecked_OBJS) $(app_LIBS) $(EXEFLAGS_CMD)
 
 else
-glchecker.exe: $(glchecked_OBJS) $(DEPS) $(LD_DEPS)
+glchecker.exe: $(DEPS) $(glchecked_OBJS) $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) $(glchecked_OBJS) $(app_LIBS) $(EXEFLAGS_WIN)
 
 endif
 
 # ICD tester
-icdtest.exe: icdtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+icdtest.exe: $(DEPS) icdtest.c_app$(OBJ) misctest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) icdtest.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 # FB tester
-fbtest.exe: fbtest.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+fbtest.exe: $(DEPS) fbtest.c_app$(OBJ) misctest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) fbtest.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 # gamma tester
-gammaset.exe: gammaset.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+gammaset.exe: $(DEPS) gammaset.c_app$(OBJ) misctest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) gammaset.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 # svgadump
-svgadump.exe: svgadump.c_app$(OBJ) misctest.res $(DEPS) $(LD_DEPS)
+svgadump.exe: $(DEPS) svgadump.c_app$(OBJ) misctest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) svgadump.c_app$(OBJ) misctest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 # WGL tester
 ifdef DEBUG
-wgltest.exe: wgltest.c_app$(OBJ) wgltest.res $(DEPS) $(LD_DEPS)
+wgltest.exe: $(DEPS) wgltest.c_app$(OBJ) wgltest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) wgltest.c_app$(OBJ) wgltest.res $(app_LIBS) $(EXEFLAGS_CMD)
 
 else
-wgltest.exe: wgltest.c_app$(OBJ) wgltest.res $(DEPS) $(LD_DEPS)
+wgltest.exe: $(DEPS) wgltest.c_app$(OBJ) wgltest.res $(LD_DEPS)
 	$(LD) $(APP_LDFLAGS) wgltest.c_app$(OBJ) wgltest.res $(app_LIBS) $(EXEFLAGS_WIN)
 
 endif
 
 ifdef OBJ
 clean:
+	-$(RM) $(MESA_VER).target
+	-$(RM) winpthreads.target
 	-$(RM) $(MesaUtilLib_OBJS)
 	-$(RM) $(MesaUtilLibSimd_OBJS)
 	-$(RM) $(MesaLib_OBJS)
@@ -761,10 +810,6 @@ clean:
 	-$(RM) svgagl32.dll
 	-$(RM) $(LIBPREFIX)svgagl32$(LIBSUFFIX)
 	-cd winpthreads && $(MAKE) clean
+	-$(RM) $(MESA_VER).deps
 endif
 
-generator:
-	$(MAKE) -f generator/$(MESA_VER)-gen.mk
-
-distclean:
-	$(MAKE) -f generator/$(MESA_VER)-gen.mk distclean

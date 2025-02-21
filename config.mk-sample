@@ -91,6 +91,9 @@ SPEED := 1
 # Show fatal error in GUI message box - nice to users, annoying for developers
 GUI_ERRORS = 1
 
+# Uncomment this if you want to see full commands on Make output
+#VERBOSE = 1
+
 # allow extra tune for specific CPU, allow instrument C code by MMX, SSE or AVX instruction, but be
 # careful - in mingw 4.8.x is SSE instrumentation broken, so use this only with newer GCC!
 # Don't use -march=native here because it means usage of AVX instruction everyvere so thats could be problem

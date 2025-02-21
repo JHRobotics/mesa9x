@@ -1,8 +1,7 @@
 #
-# generate Mesa file
+# generate some Mesa sources
 #
-include config.mk
-MESA_VER = mesa-23.1.x
+MESA_VER ?= mesa-23.1.x
 
 GENERATE_FILES = \
 	$(MESA_VER)/src/compiler/nir/nir_builder_opcodes.h \
@@ -73,12 +72,12 @@ GENERATE_FILES = \
 	$(MESA_VER)/src/util/format/u_format_table.c \
 	$(MESA_VER)/src/util/format_srgb.c
 
-all: $(GENERATE_FILES)
-.PHONY: all clean distclean
+generator: $(GENERATE_FILES)
 
-clean:
+$(MESA_VER).deps: $(GENERATE_FILES)
+	@echo $(MESA_VER) > $@
 
-distclean:
+distclean: clean
 	-$(RM) $(GENERATE_FILES)
 
 $(MESA_VER)/src/compiler/nir/nir_builder_opcodes.h:

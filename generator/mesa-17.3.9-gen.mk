@@ -1,9 +1,8 @@
 # placeholder
 
-all:
+generator:
 
-.PHONY: all clean distclean
+$(MESA_VER).deps:
+	@echo $(MESA_VER) > $@
 
-clean:
-
-distclean:
+distclean: clean

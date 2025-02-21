@@ -24,6 +24,10 @@ config.mk-msc
 # non-working tests
 test99.c
 
+# Makefile helpers
+*.deps
+*.target
+
 # generated files
 mesa-21.3.x/src/compiler/glsl/float64_glsl.h
 mesa-21.3.x/src/compiler/glsl/glcpp/glcpp-lex.c
