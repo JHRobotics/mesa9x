@@ -1,1 +1,0 @@
-../../.marge/hooks/pipeline_message.py
