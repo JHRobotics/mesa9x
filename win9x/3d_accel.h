@@ -33,7 +33,7 @@ THE SOFTWARE.
 #endif
 #endif
 
-#define API_3DACCEL_VER 20240808
+#define API_3DACCEL_VER 20250316
 
 #define ESCAPE_DRV_NT         0x1103 /* (4355) */
 
@@ -52,6 +52,8 @@ THE SOFTWARE.
 
 #define OP_FBHDA_GAMMA_SET    0x1116 /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_FBHDA_GAMMA_GET    0x1117 /* VXD, DRV, ESCAPE_DRV_NT */
+
+#define OP_FBHDA_PAGE_MOD     0x1118 /* VXD */
 
 #define OP_SVGA_VALID         0x2000  /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_SVGA_SETMODE       0x2001  /* DRV */
@@ -105,7 +107,8 @@ THE SOFTWARE.
 # define FBPTR *
 #endif
 
-#define FBHA_OVERLAYS_MAX 16
+#define FBHDA_OVERLAYS_MAX 16
+#define FBHDA_ROW_ALIGN 8
 
 typedef struct FBHDA_overlay
 {
@@ -138,7 +141,7 @@ typedef struct FBHDA
 	         DWORD vram_size;
 	         char vxdname[16]; /* file name or "NT" */
 	         DWORD overlay;
-	         FBHDA_overlay_t overlays[FBHA_OVERLAYS_MAX];
+	         FBHDA_overlay_t overlays[FBHDA_OVERLAYS_MAX];
 	         DWORD overlays_size;
 	         DWORD gamma; /* fixed decimal point, 65536 = 1.0 */
 	         DWORD system_surface;
@@ -212,6 +215,9 @@ BOOL mouse_blit();
 void mouse_erase();
 
 #define MOUSE_BUFFER_SIZE 65535
+
+/* helper for some hacks */
+BOOL FBHDA_page_modify(DWORD flat_address, DWORD size, BYTE *new_data);
 
 /*
  * VMWare SVGA-II API
