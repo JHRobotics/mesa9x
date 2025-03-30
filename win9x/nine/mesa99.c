@@ -261,12 +261,44 @@ HRESULT WINAPI NineNine_GetAdapterIdentifier(INineNine *This, UINT Adapter, DWOR
 	memset(&pIdentifier->DeviceName[0], 0, sizeof(pIdentifier->DeviceName));
 	
 	strcpy(pIdentifier->Driver, "mesa99.dll");
-	strcpy(pIdentifier->Description, "Mesa Nine Adapter");
+	strcpy(pIdentifier->Description, "Mesa Nine");
 	
 	if(This->screen)
 	{
+		/* it's good idea to add mesa driver name to adapter name, but it need to be shorter */
+		const char *driver_name = This->screen->get_name(This->screen);
+		char *sep = NULL;
+		char *sep_1 = strchr(driver_name, ';'); /* SVGA;... */
+		char *sep_2 = strstr(driver_name, " ("); /* llvmpipe (... */
+		if(sep_1 == NULL)
+		{
+			sep = sep_2;
+		}
+		else if(sep_2 == NULL)
+		{
+			sep = sep_1;
+		}
+		else
+		{
+			if(sep_2 > sep_1)
+				sep = sep_1;
+			else
+				sep = sep_2;
+		}
+
 		strcat(pIdentifier->Description, " (");
-		strcat(pIdentifier->Description, This->screen->get_name(This->screen));
+		if(sep == NULL)
+		{
+			strcat(pIdentifier->Description, driver_name);
+		}
+		else
+		{
+			int l = sep-driver_name;
+			int s = strlen(pIdentifier->Description);
+			memcpy(pIdentifier->Description+s, driver_name, l);
+			pIdentifier->Description[s+l] = '\0';
+		}
+		
 		strcat(pIdentifier->Description, ")");
 	}
 	

@@ -62,6 +62,7 @@ translate_vs_ps_semantic(struct svga_shader_emitter *emit,
       *idx = 0;
       return true;
    default:
+   		printf("Wrong name: %d\n", semantic.Name);
       assert(0);
       *usage = SVGA3D_DECLUSAGE_TEXCOORD;
       *idx = 0;

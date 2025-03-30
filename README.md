@@ -9,15 +9,9 @@ This is only OpenGL driver, if you need ready-to-use package for running DirectX
 ## Requirements
 Windows 98/Me with MSVC runtime (installed with Internet Explorer 4.0 and newer). Windows 95 doesn't support SSE, so rendering is slow (can be hacked, see: [#Optimalizations](#optimalizations)). Binaries also working on all newer Windows (from NT 3.51 to 11).
 
-~Mesa 17.x build for Windows 95 require at last Pentium II CPU (this is theoretical and emulator value, I don't expect anyone to run it on a *real* Pentium II)~
+Current Mesa 25.0.x is supported on Windows 95/98/Me. **Build for Windows 95** is without SSE instrumentation, so you can use Windows 95 binaries if you want run this on virtual machine/emulator without SSE support.
 
-~Mesa 17.x build for Windows 98 require at last Intel Core2 CPU (SSE3 required).~
-
-~Mesa 21.x build for Windows 98 require at last Intel Core-i CPU (SSE4.2 required).~
-
-Current Mesa 23.1.6 is supported on Windows 95/98/Me. **Build for Windows 95** is without SSE instrumentation, so you can use Windows 95 binaries if you want run this on virtual machine/emulator without SSE support.
-
-If you decide to use **98/Me build**, your (virtual) CPU needs support these instructions MMX, SSE, SSE2, SSE3, SSSE3, CX16, SAHF and FXSR (Intel Core2).
+If you decide to use **98/Me build**, your (virtual) CPU needs support these instructions MMX, SSE, SSE2, SSE3, SSSE3, CX16, SAHF and FXSR (Intel Core2 is oldest supported platform).
 
 
 ## Usage
@@ -29,7 +23,7 @@ This way is preferred if you want "accelerate" one application - download `mesa3
 You can theoretically copy `opengl32.dll` to `WINDOWS\SYSTEM` directory (and replace system one), but some applications using some sort of Microsoft specific software rendering and if you replace original DLL, this application stops working. These are for example 3D screensavers and life without 3D Maze is... umm... as life without 3D Maze! :-) But despite these minor problems, it has no effect on the stability of the system. OR you can use OpenGL ICD!
 
 ### OpenGL ICD
-In Microsoft Windows OS is OpenGL driver implement different way than DirectX API which is part of video driver: in OpenGL case the video driver reports only name of OpenGL driver system and `opengl32.dll` only forward OpenGL calls to library associated with this driver (name of `DLL` is in registry). On Windows 7 and newer you need only entry in registry but for Windows 9X I created slightly modified version of [Michal Necasek's VirtualBox driver](http://www.os2museum.com/wp/windows-9x-video-minidriver-hd/), driver is here https://github.com/JHRobotics/vmdisp9x
+In Microsoft Windows OS is OpenGL driver implement different way than DirectX API which is part of video driver: in OpenGL case the video driver reports only name of OpenGL driver system and `opengl32.dll` only forward OpenGL calls to library associated with this driver (name of `DLL` is in registry). On Windows 7 and newer you need only entry in registry but for Windows 9x I created slightly modified version of [Michal Necasek's VirtualBox driver](http://www.os2museum.com/wp/windows-9x-video-minidriver-hd/), driver is here https://github.com/JHRobotics/vmdisp9x
 
 ## Configuration
 
@@ -90,7 +84,7 @@ VirtualBox is now happy with you virtual GPU choose.
 
 VirtualBox 7.0.x can use 2 variant of virtual GPU (vGPU):
 
-#### vGPU9
+#### VMware vGPU9
 
 Allow OpenGL 2.1, combination width [Wine](https://github.com/JHRobotics/wine9x/) allows using using DirectX up to 9, but without shaders. 
 
@@ -102,7 +96,7 @@ VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVG
 
 When using vGPU9, please set system RAM to at last 256 MB.
 
-#### vGPU10
+#### VMware vGPU10
 
 This is default option in VirtualBox 7 and currently allow OpenGL 4.1. Is more flexible and have more features compared to vGPU9, but needs more RAM and in some case (for example Quake 2 based games) is slower than vGPU10. You can force using vGPU10 by this command:
 
@@ -118,6 +112,29 @@ VirtualBox can choose between vGPU9 and vGPU10 and turn off GPU10 for example wh
 VBoxManage setextradata "My Windows 98" "VBoxInternal/Devices/vga/0/Config/VMSVGA10" ""
 ```
 
+#### Compatibility matrix
+
+Currently not all Mesa is stable with all Hypervisor/vGPU combinations. There is my testing (Windows host, real GPU is unimportant).
+
+|Mesa version| Hypervisor | vGPU | Triangle test | GLchecker | Wine | NINE |
+|------------|------------|------|---------------|-----------|------|------|
+|   21.3.9   | VirtualBox |   9  |      ✔        |      ✔    |  ✔   |  ❌  |
+|   21.3.9   | VirtualBox |  10  |      ✔        |      ✔    |  ✔   | n/a  |
+|   21.3.9   |   VMware   |   9  |      ✔        |      ✔    |  ✔   |  ❌  |
+|   21.3.9   |   VMware   |  10  |      ✔        |      ✔    |  ✔   | n/a  |
+| **23.1.9** | VirtualBox |   9  |      ✔        |      ✔    |  ✔   |  ❌  |
+| **23.1.9** | VirtualBox |  10  |      ✔        |      ✔    |  ✔   |  ✔   |
+| **23.1.9** |   VMware   |   9  |      ✔        |      ✔    |  ✔   |  ❌  |
+| **23.1.9** |   VMware   |  10  |      ✔        |      ✔    |  ✔   |  ✔   |
+|   24.1.5   | VirtualBox |   9  |      ✔        |      ✔    |  ✔   |  ❌  |
+|   24.1.5   | VirtualBox |  10  |      ✔        |      ✔    |  ✔   |  ✔   |
+|   24.1.5   |   VMware   |   9  |      ✔        |      ✔    |  ❌  |  ❌  |
+|   24.1.5   |   VMware   |  10  |      ✔        |      ✔    |  ✔   |  ✔   |
+|   25.0.1   | VirtualBox |   9  |      ✔        |     ❌    |  ❌  |  ❌  |
+|   25.0.1   | VirtualBox |  10  |      ✔        |      ✔    |  ✔   |  ❌  |
+|   25.0.1   |   VMware   |   9  |      ✔        |     ❌    |  ❌  |  ❌  |
+|   25.0.1   |   VMware   |  10  |      ✔        |      ✔    |  ✔   |  ❌  |
+
 
 ## Source code
 This repository contains more projects modified for Win9x:
@@ -128,7 +145,7 @@ This repository contains more projects modified for Win9x:
 - ~~VBox video minidriver, my very light modification adds OpenGL ICD support. (by Michal Necasek, http://www.os2museum.com/wp/windows-9x-video-minidriver-hd/)~~ (Driver moved here https://github.com/JHRobotics/vmdisp9x, the modifications were somewhat more extensive)
 - OpenGLChecker, simple program to benchmark OpenGL (by David Liu, https://sourceforge.net/projects/openglchecker/)
 - some extra utilities ~~and SIMD enable hack~~ (SIMD95 moved here: https://github.com/JHRobotics/simd95)
-- 9x patches for LLVM 5.0.2 and 6.0.1
+- 9x patches for LLVM 5.0.2, 6.0.1 and 18.18
 
 ## Compilation from source
 
@@ -148,7 +165,7 @@ You need:
 ### MINGW
 If targeting Windows 98/Me you can use actual MinGW from [MSYS2 project](https://www.msys2.org/), since I replacing *winpthreads* and reimplementing *strtoll* and *strtoull* from CRT.
 
-For targeting WIN95/NT, you need MinGW build without SSE instructions in runtime. Current releases are compiled by [this MinGW build](https://github.com/niXman/mingw-builds-binaries/releases/download/13.1.0-rt_v11-rev1/i686-13.1.0-release-posix-dwarf-msvcrt-rt_v11-rev1.7z) from [this project](https://github.com/niXman/mingw-builds-binaries/).
+For targeting WIN95/NT, you need MinGW build without SSE instructions in runtime. For this you can use [this MinGW build](https://github.com/niXman/mingw-builds-binaries/releases/download/13.1.0-rt_v11-rev1/i686-13.1.0-release-posix-dwarf-msvcrt-rt_v11-rev1.7z) from [this project](https://github.com/niXman/mingw-builds-binaries/).
 
 ### LLVM (6.0.1)
 Mesa3D require LLVM 3.9 and later, and 6.0.1 was last one before Mesa version 17.3.9 was released, so newer version may works but additional modification may be required. Usually newer LLVM is faster. 
@@ -179,8 +196,10 @@ After complete (take some time), install to prefix directory
 mingw32-make install
 ```
 
+**With LLVM 6 is OpenGL version with LLVMpipe driver limited to 3.3.** When you need higher OpenGL version you have to use LLVM 18.x.x. SoftPipe driver is limited to OpenGL 3.3 anyway and isn't depended on LLVM.
+
 ### LLVM (18.x.x)
-Experimentally it is possible usage of current LLVM version.
+This is currently recommended way for compilation and it's also used for binary builds, but there is two drawbacks - library is larger (about 100 MB) and have dependency on Winsock (Windows 95 usually haven't it installed).
 
 You need LLVM self (for example: `llvm-18.1.8.src.tar.xz`) + extra cmake files (for example: `cmake-18.1.8.src.tar.xz`). Extract archives to somewhere (in examples it is `C:\source\llvm`) and rename `cmake-x.y.z.src` to just `cmake`. Also create `llvm-build` directory for build files and `llvm-win32` for installation. Copy also `llvm-9x-18.1.8.patch` from Mesa9x repository here.  Directory tree should like:
 

@@ -411,7 +411,8 @@ vmw_ioctl_syncforcpu(struct vmw_region *region,
 {
     //RT_NOREF4(region, dont_block, readonly, allow_cs);
     // ???
-    return -1;
+    //return -1;
+    0;
 }
 
 /**
@@ -530,7 +531,8 @@ vmw_ioctl_parse_caps(struct vmw_winsys_screen *vws,
 	   }
 	   
 	   for (i = 0; i < caps_max; ++i) {
-	   	   if(cap_buffer[i])
+	   	   //if(cap_buffer[i])
+	   	   if(i < vws->ioctl.num_cap_3d)
 	   	   {
 	           vws->ioctl.cap_3d[i].has_cap = TRUE;
 	           vws->ioctl.cap_3d[i].result.u = cap_buffer[i];
@@ -556,7 +558,7 @@ enum SVGASHADERMODEL
 #define SVGA_CAP_CMD_BUFFERS_3 SVGA_CAP_DX
 #endif
 
-#ifndef SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM
+#if MESA_MAJOR >= 25
 #define SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM SVGA_REG_MAX_PRIMARY_MEM
 #endif
 
