@@ -253,6 +253,12 @@ struct DefInfo {
 
          if (imageGather4D16Bug)
             bounds.size -= MAX2(rc.bytes() / 4 - ctx.num_linear_vgprs, 0);
+      } else if (instr_info.classes[(int)instr->opcode] == instr_class::valu_pseudo_scalar_trans) {
+         /* RDNA4 ISA doc, 7.10. Pseudo-scalar Transcendental ALU ops:
+          * - VCC may not be used as a destination
+          */
+         if (bounds.contains(vcc))
+            bounds.size = vcc - bounds.lo();
       }
 
       if (!data_stride)
@@ -1274,7 +1280,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file,
    RegClass rc = info.rc;
 
    /* check how many free regs we have */
-   unsigned regs_free = reg_file.count_zero(bounds);
+   unsigned regs_free = reg_file.count_zero(get_reg_bounds(ctx, rc));
 
    /* mark and count killed operands */
    unsigned killed_ops = 0;
@@ -1426,6 +1432,14 @@ get_reg_specified(ra_ctx& ctx, const RegisterFile& reg_file, RegClass rc,
    bool is_m0 = info.rc == s1 && reg == m0 && can_write_m0(instr);
    if (!info.bounds.contains(reg_win) && !is_vcc && !is_m0)
       return false;
+
+   if (instr_info.classes[(int)instr->opcode] == instr_class::valu_pseudo_scalar_trans) {
+      /* RDNA4 ISA doc, 7.10. Pseudo-scalar Transcendental ALU ops:
+       * - VCC may not be used as a destination
+       */
+      if (vcc_win.contains(reg_win))
+         return false;
+   }
 
    if (reg_file.test(reg, info.rc.bytes()))
       return false;
@@ -1835,7 +1849,7 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
 
    /* We should only fail here because keeping under the limit would require
     * too many moves. */
-   assert(reg_file.count_zero(info.bounds) >= info.size);
+   assert(reg_file.count_zero(get_reg_bounds(ctx, info.rc)) >= info.size);
 
    /* try using more registers */
    if (!increase_register_file(ctx, info.rc)) {

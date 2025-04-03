@@ -472,6 +472,8 @@ init_subqueue(struct panvk_queue *queue, enum panvk_subqueue_id subqueue)
       return panvk_errorf(dev->vk.physical, VK_ERROR_INITIALIZATION_FAILED,
                           "SyncobjWait failed: %m");
 
+   drmSyncobjReset(dev->vk.drm_fd, &queue->syncobj_handle, 1);
+
    if (debug & PANVK_DEBUG_TRACE) {
       pandecode_user_msg(dev->debug.decode_ctx, "Init subqueue %d binary\n\n",
                          subqueue);
@@ -935,7 +937,7 @@ panvk_queue_submit_init_cmdbufs(struct panvk_queue_submit *submit,
                .queue_index = j,
                .stream_size = cs_root_chunk_size(b),
                .stream_addr = cs_root_chunk_gpu_addr(b),
-               .latest_flush = cmdbuf->flush_id,
+               .latest_flush = panthor_kmod_get_flush_id(dev->kmod.dev),
             };
       }
 

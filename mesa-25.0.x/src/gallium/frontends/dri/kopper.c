@@ -73,7 +73,7 @@ kopper_init_screen(struct dri_screen *screen, bool driver_name_is_inferred)
    bool success;
 #ifdef HAVE_LIBDRM
    if (screen->fd != -1)
-      success = pipe_loader_drm_probe_fd(&screen->dev, screen->fd, false);
+      success = pipe_loader_drm_probe_fd(&screen->dev, screen->fd, true);
    else
       success = pipe_loader_vk_probe_dri(&screen->dev);
 #else
@@ -639,5 +639,11 @@ kopperQueryBufferAge(struct dri_drawable *drawable)
    return zink_kopper_query_buffer_age(ctx->st->pipe, ptex);
 }
 
+void
+kopperQuerySurfaceSize(struct dri_drawable *drawable, int *width, int *height)
+{
+   *width = drawable->w;
+   *height = drawable->h;
+}
 
 /* vim: set sw=3 ts=8 sts=3 expandtab: */
