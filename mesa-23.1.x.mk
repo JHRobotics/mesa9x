@@ -1006,26 +1006,32 @@ MesaGdiLib_SRC = \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_sample.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_tex_tile_cache.c \
   $(MESA_VER)/src/gallium/drivers/softpipe/sp_texture.c \
-  $(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c \
-  win9x/3d_accel.c \
-  win9x/vramconv.c \
-  win9x/vramcpy.c
+  $(MESA_VER)/src/gallium/drivers/softpipe/sp_tile_cache.c
 
 MesaGdiLibGL_SRC = \
   $(MesaGdiLib_SRC) \
   $(MESA_VER)/src/gallium/targets/wgl/wgl.c \
   win9x/wgl/wglpipe.c \
-  win9x/wgl/wglpipe_splp.c
-  
+  win9x/wgl/wglpipe_splp.c \
+  win9x/3d_accel.c \
+  win9x/vramconv.c \
+  win9x/vramcpy.c
+
 MesaGdiLibICD_SRC = \
   $(MesaGdiLib_SRC) \
   $(MESA_VER)/src/gallium/targets/wgl/wgl_icd.c \
   win9x/wgl/wglpipe.c \
-  win9x/wgl/wglpipe_splp.c
-  
+  win9x/wgl/wglpipe_splp.c \
+  win9x/3d_accel.c \
+  win9x/vramconv.c \
+  win9x/vramcpy.c \
+
 MesaGdiLibVMW_SRC = \
   $(MesaGdiLib_SRC) \
   win9x/libgl_vmws.c \
+  win9x/3d_svga.c \
+  win9x/vramconv.c \
+  win9x/vramcpy.c \
   win9x/wgl/wglpipe.c
 
 MesaGalliumLLVMPipe_SRC += \

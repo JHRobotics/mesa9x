@@ -13,7 +13,6 @@ Current Mesa 25.0.x is supported on Windows 95/98/Me. **Build for Windows 95** i
 
 If you decide to use **98/Me build**, your (virtual) CPU needs support these instructions MMX, SSE, SSE2, SSE3, SSSE3, CX16, SAHF and FXSR (Intel Core2 is oldest supported platform).
 
-
 ## Usage
 There is 2 ways to use this library/driver: first is traditional `opengl32.dll` which you can copy to directory with your application which you would like to run and second one OpenGL ICD (Installable Client Driver).
 

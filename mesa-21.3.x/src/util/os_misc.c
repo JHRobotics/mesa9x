@@ -51,6 +51,9 @@
 
 #endif
 
+#ifdef WIN9X
+#include "vmsetup.h"
+#endif
 
 #if DETECT_OS_ANDROID
 #  define LOG_TAG "MESA"
@@ -224,88 +227,21 @@ os_get_option(const char *name)
 }
 
 # else
-#define OS_GET_BUFFER_SIZE 128
-static char os_get_buffer[OS_GET_BUFFER_SIZE];
 
 int crt_sse2_is_safe();
 
 const char *
 os_get_option(const char *name)
 {
-	char tmppath[MAX_PATH];
-	char regpath[MAX_PATH];
-  const char *dirs[2] = {
-  	"global",
-  	NULL
-  };
-  int dirs_cnt = 1;
-  
   const char *env = getenv(name);
   
   /* 
-   * try read option from registry, checked 2 locations:
-   *   HKLM\Software\Mesa3D\<application.exe>\<name>
-   *   HKLM\Software\Mesa3D\global\<name>
-   *
-   * So user can set option globaly or for selected application
+   * Read application specific configuration by vmdisp9x API
    */
   if(env == NULL)
   {
-	  if(GetModuleFileNameA(NULL, tmppath, MAX_PATH) > 0)
-	  {
-	    char *ptr = strrchr(tmppath, '\\');
-	    if(ptr != NULL && strlen(ptr) > 1)
-	    {
-	    	dirs[1] = ptr+1;
-	    	dirs_cnt++;
-	    }
-	  }
-   
-	  while(dirs_cnt > 0 && env == NULL)
-	  {
-	    HKEY  hKey;
-	    LSTATUS lResult;
-	    
-	    dirs_cnt--;
-	    
-	    if(sizeof("Software\\Mesa3D\\") + strlen(dirs[dirs_cnt]) >= MAX_PATH)
-	    {
-	    	continue;
-	    }
-	    
-	    strcpy(regpath, "Software\\Mesa3D\\");
-	    strcat(regpath, dirs[dirs_cnt]);
-	    
-	    lResult = RegOpenKeyEx (HKEY_LOCAL_MACHINE, regpath, 0, KEY_READ, &hKey);
-	
-	    if(lResult == ERROR_SUCCESS)
-	    {
-	    	DWORD size = OS_GET_BUFFER_SIZE;
-	    	DWORD type = 0;
-	    	DWORD temp_dw = 0;
-	    	
-	      lResult = RegQueryValueExA(hKey, name, NULL, &type, os_get_buffer, &size);
-	      
-	      if(lResult == ERROR_SUCCESS)
-	      {
-	        switch(type)
-	        {
-	          case REG_SZ:
-	          case REG_MULTI_SZ:
-	          case REG_EXPAND_SZ:
-	          	env = os_get_buffer;
-	            break;
-	          case REG_DWORD:
-	          	temp_dw = *((LPDWORD)os_get_buffer);
-	          	sprintf(os_get_buffer, "%u", temp_dw);
-	          	env = os_get_buffer;
-	          	break;
-	        }
-	      }
-	      RegCloseKey(hKey);
-	    }
-	  } // while
-  } // if env == NULL
+  	env = vmhal_setup_str("mesa", name, FALSE);
+	}
   
   if(env == NULL)
   {
@@ -319,8 +255,7 @@ os_get_option(const char *name)
       }
     #endif
   }
-  
-  
+
   return env;
 }
 # endif
