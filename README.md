@@ -261,6 +261,19 @@ Now you can build project
 mingw32-make -j8
 ```
 
+### Optimize for size
+
+Binaries are optimized for maximum speed (`-O3` gcc switch) by default. But faster code is larger code (loops are expanded and small functions inlined). This can be counterproductive because this code  can easily exceed CPU cache and lead to speed degradation (note also CPU cache utilization is on VM much worse than on native system). You can build size optimized binaries this way:
+
+1) for LLVM also apply this patch: `llvm-9x-18-optsize.patch`
+
+2) add this line to your `config.mk` file:
+
+```
+RELEASE_BASE_OPT = -Os
+```
+
+
 ### Visual studio (outdated and not much tested)
 Microsoft Visual Studio 2005 (at last Professional, not free Express Edition) is last official with Windows 9x target support. And we need at last version 2015 to build this project (required is C++11 or C++14 support) - Visual Studio IS NOT WAY to produce Windows 95/98/Me binary. But it can be useful at debug. So short description how to build:
 

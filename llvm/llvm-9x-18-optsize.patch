@@ -1,0 +1,11 @@
+--- CMakeLists.txt.bak	2025-05-11 19:16:26.209607100 +0200
++++ CMakeLists.txt	2025-05-11 19:17:17.408487300 +0200
+@@ -1173,6 +1173,8 @@
+   # build also uses -O2 for that reason:
+   # llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-O2")
+   # JH: ^ many mingw versions are broken, but my not! :-)
++  llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O3" "-Os")
++  llvm_replace_compiler_option(CMAKE_CXX_FLAGS_RELEASE "-O2" "-Os")
+   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.0)
+     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=pentium2 -mtune=core2")
+     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=pentium2 -mtune=core2")

@@ -126,6 +126,8 @@ ifdef LLVM_2024
   endif
 endif
 
+RELEASE_BASE_OPT ?= -O3
+
 ifdef MSC
 #
 # MSC configuration
@@ -361,8 +363,8 @@ else
     
     ifdef LLVM_2024
       ifndef LP_DEBUG
-        SIMD_CFLAGS += -O3 -fomit-frame-pointer -fno-exceptions -DNDEBUG
-        SIMD_CXXFLAGS += -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti -DNDEBUG
+        SIMD_CFLAGS += $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions -DNDEBUG
+        SIMD_CXXFLAGS += $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions -fno-rtti -DNDEBUG
       else
         SIMD_CFLAGS += -DDEBUG
         SIMD_CXXFLAGS += -DDEBUG
@@ -373,9 +375,9 @@ else
   endif
   
   ifdef SPEED
-    CFLAGS = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
-    CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
-    LDFLAGS = -std=$(CXXSTD) -O3 -fno-exceptions
+    CFLAGS = -std=$(CSTD) $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
+    CXXFLAGS = -std=$(CXXSTD) $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions -fno-rtti $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
+    LDFLAGS = -std=$(CXXSTD) $(RELEASE_BASE_OPT) -fno-exceptions
   else
     CFLAGS = -std=$(CSTD) -O0 -g $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
     CXXFLAGS = -std=$(CXXSTD) -O0 -g  $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
@@ -383,9 +385,9 @@ else
   endif
 
   ifdef SPEED
-    APP_CFLAGS   = -std=$(CSTD) -O3 -fomit-frame-pointer -fno-exceptions -I. -Iglchecker $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
-    APP_CXXFLAGS = -std=$(CXXSTD) -O3 -fomit-frame-pointer -fno-exceptions -fno-rtti $(INCLUDE) $(DD_DEFS) $(DEFS)
-    APP_LDFLAGS  = -std=$(CXXSTD) -O3 -fno-exceptions 
+    APP_CFLAGS   = -std=$(CSTD) $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions -I. -Iglchecker $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
+    APP_CXXFLAGS = -std=$(CXXSTD) $(RELEASE_BASE_OPT) -fomit-frame-pointer -fno-exceptions -fno-rtti $(INCLUDE) $(DD_DEFS) $(DEFS)
+    APP_LDFLAGS  = -std=$(CXXSTD) $(RELEASE_BASE_OPT) -fno-exceptions 
   else
     APP_CFLAGS   = -std=$(CSTD) -O0 -g -I. -Iglchecker $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
     APP_CXXFLAGS = -std=$(CXXSTD) -O0 -g $(TUNE) $(INCLUDE) $(DD_DEFS) $(DEFS)
