@@ -21,7 +21,7 @@ struct sw_displaytarget;
 struct sw_winsys;
 
 void vramcpy(void *dst, void *src, vramcpy_rect_t *rect);
-size_t vramcpy_pointsize(uint32_t bpp);
+//size_t vramcpy_pointsize(uint32_t bpp);
 BOOL vramcpy_direct_rendering(HDC hDC);
 BOOL vramcpy_top_window(HWND win);
 

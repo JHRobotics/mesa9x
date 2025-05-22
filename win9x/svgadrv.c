@@ -1997,7 +1997,7 @@ BOOL SVGASurfaceInfo(svga_inst_t *svga, uint32_t sid, uint32_t *pWidth, uint32_t
 	*pWidth  = sinfo->width;
 	*pHeight = sinfo->height;
 	*pBpp    = sinfo->bpp;
-	*pPitch  = sinfo->width * vramcpy_pointsize(sinfo->bpp);
+	*pPitch  = SVGA_pitch(sinfo->width, sinfo->bpp);//sinfo->width * vramcpy_pointsize(sinfo->bpp);
 
 	return TRUE;
 }

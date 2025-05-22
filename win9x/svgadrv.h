@@ -139,6 +139,8 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 
 BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src);
 
+DWORD SVGA_pitch(DWORD width, DWORD bpp);
+
 #ifdef DEBUG
 void svga_printf(svga_inst_t *svga, const char *fmt, ...);
 #else

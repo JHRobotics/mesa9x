@@ -197,7 +197,7 @@ static BOOL adjustRect(RenderRect *rr, svga_inst_t *svga, SVGA_DB_surface_t *sin
 	rr->surf_bpp   = sinfo->bpp;
 	rr->surf_w     = sinfo->width;
 	rr->surf_h     = sinfo->height;
-	rr->surf_pitch = sinfo->width * vramcpy_pointsize(sinfo->bpp);
+	rr->surf_pitch = SVGA_pitch(sinfo->width, sinfo->bpp);//sinfo->width * vramcpy_pointsize(sinfo->bpp);
 	
 	if(rr->w > 0 && rr->h > 0)
 	{
@@ -225,8 +225,10 @@ static BOOL adjustRect(RenderRect *rr, svga_inst_t *svga, SVGA_DB_surface_t *sin
 
 DWORD SVGA_pitch(DWORD width, DWORD bpp)
 {
+//	DWORD bp = (bpp + 7) / 8;
+//	return (bp * width + 15) & 0xFFFFFFF0UL;
 	DWORD bp = (bpp + 7) / 8;
-	return (bp * width + 15) & 0xFFFFFFF0UL;
+	return (bp * width + (FBHDA_ROW_ALIGN-1)) & (~((DWORD)FBHDA_ROW_ALIGN-1));
 }
 
 #if 0
@@ -587,7 +589,6 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 	}
 
 	const int sbpp = sinfo->bpp;
-	const size_t sps = vramcpy_pointsize(sbpp);
 
 	if(sinfo->gmrId == 0) /* vGPU9 */
 	{
@@ -595,7 +596,7 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 		{
 			command_dma.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
 			command_dma.dma.guest.ptr.offset = 0;
-			command_dma.dma.guest.pitch      = sinfo->width * sps;
+			command_dma.dma.guest.pitch      = SVGA_pitch(sinfo->width, sbpp);
 			command_dma.dma.host.sid         = sid;
 			command_dma.dma.host.face        = 0;
 			command_dma.dma.host.mipmap      = 0;
@@ -612,7 +613,7 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 			command_dma.box.srcz = 0;
 
 			command_dma.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
-			command_dma.suffix.maximumOffset = sinfo->height * sinfo->width * sps;
+			command_dma.suffix.maximumOffset = sinfo->height * SVGA_pitch(sinfo->width, sbpp);
 			command_dma.suffix.flags.discard         = 1;
 			command_dma.suffix.flags.unsynchronized  = 0;
 			command_dma.suffix.flags.reserved        = 0;
@@ -651,7 +652,7 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 	vrect.dst_y       = rr->y;
 	vrect.dst_w       = rr->w;
 	vrect.dst_h       = rr->h;
-	vrect.src_pitch   = sinfo->width * sps;
+	vrect.src_pitch   = SVGA_pitch(sinfo->width, sbpp);
 	vrect.src_x       = rr->srcx;
 	vrect.src_y       = rr->srcy;
 	vrect.src_bpp     = sinfo->bpp;
@@ -790,7 +791,6 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	}
 
   const int sbpp = sinfo->bpp;
-  const size_t sps = vramcpy_pointsize(sbpp);
   
 	if(sinfo->gmrId == 0) /* old way: copy surface to guest memory and display it */
 	{
@@ -798,7 +798,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		{
 			command.dma.guest.ptr.gmrId  = svga->softblit_gmr_id;
 			command.dma.guest.ptr.offset = 0;
-			command.dma.guest.pitch      = sinfo->width * sps;
+			command.dma.guest.pitch      = SVGA_pitch(sinfo->width, sbpp);
 			command.dma.host.sid         = sid;
 			command.dma.host.face        = 0;
 			command.dma.host.mipmap      = 0;
@@ -815,7 +815,7 @@ void SVGAPresentWindow(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 			command.box.srcz = 0;
 
 			command.suffix.suffixSize    = sizeof(SVGA3dCmdSurfaceDMASuffix);
-			command.suffix.maximumOffset = sinfo->height * sinfo->width * sps;
+			command.suffix.maximumOffset = sinfo->height * SVGA_pitch(sinfo->width, sbpp);
 			command.suffix.flags.discard         = 1;
 			command.suffix.flags.unsynchronized  = 0;
 			command.suffix.flags.reserved        = 0;

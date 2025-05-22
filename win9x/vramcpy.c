@@ -39,20 +39,16 @@
 
 DEBUG_GET_ONCE_BOOL_OPTION(mesa_sw_gamma, "MESA_SW_GAMMA_ENABLED", FALSE);
 
-/* convert bits per pixel to bytes per pixel */
-#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
-
-size_t vramcpy_pointsize(uint32_t bpp)
+DWORD HDA_pitch(DWORD width, DWORD bpp)
 {
-	return vramcpy_pointsize_fast(bpp);
+	DWORD bp = (bpp + 7) / 8;
+	return (bp * width + (FBHDA_ROW_ALIGN-1)) & (~((DWORD)FBHDA_ROW_ALIGN-1));
 }
 
 /* calculate framebuffer size and round up it to MB */
 uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp)
 {
-	size_t pb = vramcpy_pointsize_fast(bpp);
-	
-	uint32_t mbs = ((w*h*pb) + 0xFFFFF) / 0x100000; // size in MB
+	uint32_t mbs = ((h*HDA_pitch(w, bpp)) + 0xFFFFF) / 0x100000; // size in MB
 	
 	return mbs * 0x100000;
 }
@@ -60,7 +56,7 @@ uint32_t vramcpy_calc_framebuffer(uint32_t w, uint32_t h, uint32_t bpp)
 /* same as in gdi_sw_winsys.c */
 static inline struct gdi_sw_displaytarget *gdi_sw_displaytarget(struct sw_displaytarget *buf)
 {
-   return (struct gdi_sw_displaytarget *)buf;
+	return (struct gdi_sw_displaytarget *)buf;
 }
 
 #define FP2_30(_f) (DWORD)((_f)*1073741824)

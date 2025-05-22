@@ -349,7 +349,7 @@ static void vramcpy_invalid(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 static vramcpy_f vram_tbl[VRAM_TLB_SIZE] = { NULL };
 static vramcpy_f vram_tbl_gamma[VRAM_TLB_SIZE] = { NULL };
 
-#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
+//#define vramcpy_pointsize_fast(bpp) (((uint32_t)(bpp)+7) >> 3)
 
 static void vramcpy_init()
 {
