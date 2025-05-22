@@ -1,0 +1,595 @@
+.test:
+  # Cancel job if a newer commit is pushed to the same branch
+  interruptible: true
+  variables:
+    GIT_STRATEGY: none # testing doesn't build anything from source
+  before_script:
+    - !reference [default, before_script]
+    # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
+    - rm -rf install
+    - tar -xf artifacts/install.tar
+    - section_start ldd_section "Checking ldd on driver build"
+    - LD_LIBRARY_PATH=install/lib find install/lib -name "*.so" -print -exec ldd {} \;
+    - section_end ldd_section
+  artifacts:
+    when: always
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
+    paths:
+      - results/
+  rules:
+    - !reference [.common-rules, rules]
+    - !reference [.never-post-merge-rules, rules]
+
+.formatting-check:
+  # Cancel job if a newer commit is pushed to the same branch
+  interruptible: true
+  stage: code-validation
+  extends:
+    - .use-debian/x86_64_build
+  variables:
+    GIT_STRATEGY: fetch
+  timeout: 10m
+  script:
+    - git diff --color=always --exit-code  # Fails if there are diffs
+
+rustfmt:
+  extends:
+    - .formatting-check
+    - .lint-rustfmt-rules
+  before_script:
+    - shopt -s globstar
+    - source "$HOME/.cargo/env"
+    - rustfmt --version
+    - rustfmt --verbose src/**/lib.rs
+
+shader-db:
+  stage: code-validation
+  extends:
+    - .use-debian/x86_64_build
+  rules:
+    - !reference [.never-post-merge-rules, rules]
+    - !reference [.core-rules, rules]
+    # Keep this list in sync with the drivers tested in run-shader-db.sh
+    - !reference [.freedreno-common-rules, rules]
+    - !reference [.intel-common-rules, rules]
+    - !reference [.lima-rules, rules]
+    - !reference [.v3d-rules, rules]
+    - !reference [.vc4-rules, rules]
+    - !reference [.nouveau-rules, rules]
+    - !reference [.r300-rules, rules]
+    # Also run if this job's own config or script changes
+    - changes:
+        - .gitlab-ci/build/gitlab-ci.yml
+        - .gitlab-ci/run-shader-db.sh
+  needs:
+    - debian-build-testing
+  variables:
+    S3_ARTIFACT_NAME: debian-build-testing
+  before_script:
+    - !reference [.download_s3, before_script]
+  script: |
+    .gitlab-ci/run-shader-db.sh
+  artifacts:
+    paths:
+      - shader-db
+  timeout: 15m
+  tags:
+    # FIXME: kvm is a hack, should not be needed
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_X86_64_KVM
+
+yaml-toml-shell-py-test:
+  extends:
+    - .use-debian/x86_64_pyutils
+    - .no-auto-retry  # this job can't be flaky
+  stage: code-validation
+  script:
+    - uncollapsed_section_start tomllint "tomllint"
+    - echo "If your change looks right but this script rejects it, contact @eric (GitLab) / eric_engestrom (IRC)."
+    - python3 bin/toml_lint.py
+    - section_end tomllint
+    - section_start yamllint "yamllint"
+    - .gitlab-ci/run-yamllint.sh
+    - section_end yamllint
+    - section_start shellcheck "shellcheck"
+    - .gitlab-ci/run-shellcheck.sh
+    - section_end shellcheck
+    - .gitlab-ci/run-pytest.sh
+  rules:
+    - !reference [.disable-farm-mr-rules, rules]
+    - !reference [.never-post-merge-rules, rules]
+    - !reference [.no_scheduled_pipelines-rules, rules]
+    # merge pipeline
+    - if: $GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: &lint_files
+        - .gitlab-ci/test/gitlab-ci.yml
+        - .gitlab-ci/**/*.sh
+        - .shellcheckrc
+        - bin/toml_lint.py
+        - src/**/ci/*.toml
+        - .gitlab-ci/tests/**/*
+        - bin/ci/**/*
+      when: on_success
+    # direct pushes that bypassed the CI
+    - if: $CI_PROJECT_NAMESPACE == "mesa" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+      changes: *lint_files
+      when: on_success
+    # direct pushes from release manager
+    - if: $CI_PROJECT_NAMESPACE == "mesa" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME =~ /^staging\//
+      changes: *lint_files
+      when: on_success
+    - changes: *lint_files
+      when: manual
+
+.test-gl:
+  extends:
+    - .test
+    - .use-debian/x86_64_test-gl
+  needs:
+    - debian/x86_64_test-gl
+    - debian-testing
+    - !reference [.required-for-hardware-jobs, needs]
+  variables:
+    DEBIAN_ARCH: amd64
+
+.test-vk:
+  extends:
+    - .test
+    - .use-debian/x86_64_test-vk
+  needs:
+    - debian-testing
+    - debian/x86_64_test-vk
+    - !reference [.required-for-hardware-jobs, needs]
+  variables:
+    DEBIAN_ARCH: amd64
+
+.test-cl:
+  extends:
+    - .test
+    - .use-debian/x86_64_test-gl
+  needs:
+    - debian/x86_64_test-gl
+    - !reference [.required-for-hardware-jobs, needs]
+
+.test-android:
+  extends:
+    - .test
+    - .use-debian/x86_64_test-android
+  variables:
+    # This is for the guest artifacts from debian-android which will be
+    # downloaded explicitly by cuttlefish-runner.sh
+    S3_ANDROID_ARTIFACT_NAME: mesa-x86_64-android-debug
+    # Set the default Vulkan driver to lavapipe for some preliminary checks
+    # that Cuttlefish always performs before starting the VM. This can be
+    # overwritten depending on the physical machine running the job.
+    VK_DRIVER: "lvp"
+  needs:
+    - job: debian-testing
+      artifacts: true  # On the host we want the Linux build
+    - job: debian-android
+      artifacts: false  # The Android build will be downloaded later
+    - job: debian/x86_64_test-android
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+  timeout: 20m
+  script:
+    - ./install/cuttlefish-runner.sh
+  artifacts:
+    paths:
+      - results/
+
+.test-angle:
+  variables:
+    ANGLE_TAG: ${CONDITIONAL_BUILD_ANGLE_TAG}
+
+.b2c-vkd3d-proton-test:
+  variables:
+    HWCI_TEST_SCRIPT: install/vkd3d-runner.sh
+
+.piglit-traces-test:
+  artifacts:
+    when: on_failure
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
+    reports:
+      junit: results/junit.xml
+    paths:
+      - results/
+    exclude:
+      - results/*.shader_cache
+  variables:
+    # until we overcome Infrastructure issues, give traces extra 5 min before timeout
+    DEVICE_HANGING_TIMEOUT_SEC: 600
+    PIGLIT_REPLAY_EXTRA_ARGS: --db-path ${CI_PROJECT_DIR}/replayer-db/ --minio_bucket=${S3_TRACIE_PUBLIC_BUCKET} --jwt-file=${S3_JWT_FILE}
+    PIGLIT_NO_WINDOW: 1
+    HWCI_TEST_SCRIPT: "/install/piglit/piglit-traces.sh"
+  script:
+    - section_start variables "Variables passed through:"
+    - install/common/export-gitlab-job-env-for-dut.sh
+    - section_end variables
+    - install/piglit/piglit-traces.sh
+
+.deqp-test:
+  script:
+    - rm -rf results # Clear out old results if the docker container was cached
+    - ./install/deqp-runner.sh
+  artifacts:
+    exclude:
+      - results/*.shader_cache
+    reports:
+      junit: results/junit.xml
+
+.fossilize-test:
+  script:
+    - ./install/fossilize-runner.sh
+  artifacts:
+    when: on_failure
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
+    paths:
+      - results/
+
+.download_s3:
+  before_script:
+    - !reference [default, before_script]
+    # Use this instead of gitlab's artifacts download because it hits packet.net
+    # instead of fd.o.  Set FDO_HTTP_CACHE_URI to an http cache for your test lab to
+    # improve it even more (see https://docs.mesa3d.org/ci/bare-metal.html for
+    # setup).
+    - section_start artifacts_download "Downloading artifacts from s3"
+    # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
+    - rm -rf install
+    - (set -x; curl -L --retry 4 -f --retry-all-errors --retry-delay 60 ${FDO_HTTP_CACHE_URI:-}https://${PIPELINE_ARTIFACTS_BASE}/${S3_ARTIFACT_NAME}.tar.zst | tar --zstd -x)
+    - section_end artifacts_download
+
+.baremetal-test:
+  extends:
+    - .test
+  # Cancel job if a newer commit is pushed to the same branch
+  interruptible: true
+  before_script:
+    - !reference [.download_s3, before_script]
+  variables:
+    BM_ROOTFS: /rootfs-${DEBIAN_ARCH}
+  artifacts:
+    when: always
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
+    paths:
+      - results/
+      - serial*.txt
+    exclude:
+      - results/*.shader_cache
+    reports:
+      junit: results/junit.xml
+
+# ARM testing of bare-metal boards attached to an x86 gitlab-runner system
+.baremetal-test-arm32:
+  extends:
+    - .baremetal-test
+    - .use-debian/baremetal_arm32_test
+  variables:
+    DEBIAN_ARCH: armhf
+    S3_ARTIFACT_NAME: mesa-arm32-default-debugoptimized
+  needs:
+    - debian/baremetal_arm32_test
+    - job: debian-arm32
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+
+# ARM64 testing of bare-metal boards attached to an x86 gitlab-runner system
+.baremetal-test-arm64:
+  extends:
+    - .baremetal-test
+    - .use-debian/baremetal_arm64_test
+  variables:
+    DEBIAN_ARCH: arm64
+    S3_ARTIFACT_NAME: mesa-arm64-default-debugoptimized
+  needs:
+    - debian/baremetal_arm64_test
+    - job: debian-arm64
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+
+# ARM32/64 testing of bare-metal boards attached to an x86 gitlab-runner system, using an asan mesa build
+.baremetal-arm32-asan-test:
+  variables:
+    S3_ARTIFACT_NAME: mesa-arm32-asan-debugoptimized
+    DEQP_FORCE_ASAN: 1
+  needs:
+    - debian/baremetal_arm32_test
+    - job: debian-arm32-asan
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+
+.baremetal-arm64-asan-test:
+  variables:
+    S3_ARTIFACT_NAME: mesa-arm64-asan-debugoptimized
+    DEQP_FORCE_ASAN: 1
+  needs:
+    - debian/baremetal_arm64_test
+    - job: debian-arm64-asan
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+
+.baremetal-arm64-ubsan-test:
+  extends:
+    - .baremetal-test
+    - .use-debian/baremetal_arm64_test
+  variables:
+    S3_ARTIFACT_NAME: mesa-arm64-ubsan-debugoptimized
+  needs:
+    - debian/baremetal_arm64_test
+    - job: debian-arm64-ubsan
+      artifacts: false
+    - !reference [.required-for-hardware-jobs, needs]
+
+.baremetal-deqp-test:
+  variables:
+    HWCI_TEST_SCRIPT: "/install/deqp-runner.sh"
+    FDO_CI_CONCURRENT: 0 # Default to number of CPUs
+
+# For Valve's bare-metal testing farm jobs.
+.b2c-test:
+  # It would be nice to use ci-templates within Mesa CI for this job's
+  # image:, but the integration is not possible for the current
+  # use-case. Within this job, two containers are managed. 1) the
+  # gitlab runner container from which the job is submitted to the
+  # DUT, and 2) the test container (e.g. debian/x86_64_test-vk) within
+  # which the test cases will run on the DUT. Since ci-templates and
+  # the associated image setting macros in this file rely on variables
+  # like FDO_DISTRIBUTION_TAG for *the* image, there is no way to
+  # depend on more than one image per job. So, the job container is
+  # built as part of the CI in the boot2container project.
+  image: registry.freedesktop.org/gfx-ci/ci-tron/mesa-trigger:2024-01-05.1
+  timeout: 1h 40m
+  variables:
+    # No need to pull the whole git repo, the artifacts from python-artifacts
+    # contain everything we need.
+    GIT_STRATEGY: none
+    # boot2container initrd configuration parameters.
+    B2C_VERSION: v0.9.14
+    B2C_JOB_SUCCESS_REGEX: 'hwci: mesa: pass, exit_code: 0\r$'
+    B2C_LOG_LEVEL: 6
+    B2C_POWEROFF_DELAY: 15
+    B2C_SESSION_END_REGEX: '^.*It''s now safe to turn off your computer\r$'
+    B2C_SESSION_REBOOT_REGEX: ''
+    B2C_TIMEOUT_BOOT_MINUTES: 45
+    B2C_TIMEOUT_BOOT_RETRIES: 0
+    B2C_TIMEOUT_FIRST_CONSOLE_ACTIVITY_MINUTES: 2
+    B2C_TIMEOUT_FIRST_CONSOLE_ACTIVITY_RETRIES: 3
+    B2C_TIMEOUT_CONSOLE_ACTIVITY_MINUTES: 5
+    B2C_TIMEOUT_OVERALL_MINUTES: 90
+    B2C_TIMEOUT_CONSOLE_ACTIVITY_RETRIES: 0
+    B2C_JOB_VOLUME_EXCLUSIONS: "*.shader_cache,install/*,*/install/*,*/vkd3d-proton.cache*,vkd3d-proton.cache*,*.qpa"
+    B2C_MACHINE_REGISTRATION_IMAGE: "registry.freedesktop.org/gfx-ci/ci-tron/machine-registration:latest"
+    B2C_TELEGRAF_IMAGE: "registry.freedesktop.org/gfx-ci/ci-tron/telegraf:latest"
+    B2C_KERNEL_CMDLINE_EXTRAS: ""
+
+    # As noted in the top description, we make a distinction between the
+    # container used by gitlab-runner to queue the work, and the container
+    # used by the DUTs/test machines. To make this distinction quite clear,
+    # we rename the variable.
+    B2C_IMAGE_UNDER_TEST: "$MESA_IMAGE"
+
+    B2C_INSTALL_TARBALL_URL: "https://${PIPELINE_ARTIFACTS_BASE}/${S3_ARTIFACT_NAME}.tar.zst"
+    B2C_CONTAINER_CMD: "./install/common/init-stage2.sh"
+
+    CI_B2C_ARTIFACTS: "./artifacts/b2c"
+    CI_COMMON_SCRIPTS: "./artifacts/ci-common"
+    B2C_JOB_TEMPLATE: "${CI_B2C_ARTIFACTS}/b2c.yml.jinja2.jinja2"
+    JOB_FOLDER: "job_folder"
+
+  needs:
+    - job: python-artifacts
+      artifacts: true
+    - !reference [.required-for-hardware-jobs, needs]
+
+  before_script:
+    # We don't want the tarball unpacking of .test, but will take the JWT bits.
+    - !reference [default, before_script]
+
+    - |
+      set -eux
+
+      section_start b2c_kernel_boot "Booting hardware device"
+
+      # Useful as a hook point for runner admins. You may edit the
+      # config.toml for the Gitlab runner and use a bind-mount to
+      # populate the hook script with some executable commands. This
+      # allows quicker feedback than resubmitting pipelines and
+      # potentially having to wait for a debug build of Mesa to
+      # complete.
+      if [ -x /runner-before-script.sh ]; then
+         echo "Executing runner before-script hook..."
+         sh /runner-before-script.sh
+         if [ $? -ne 0 ]; then
+            echo "Runner hook failed, goodbye"
+            exit $?
+         fi
+      fi
+
+      [ -d "$CI_B2C_ARTIFACTS" ] || exit 1
+      [ -d "$CI_COMMON_SCRIPTS" ] || exit 1
+
+      # Pull all our images through our proxy registry
+      B2C_IMAGE_UNDER_TEST=${B2C_IMAGE_UNDER_TEST//registry.freedesktop.org/{{ fdo_proxy_registry \}\}}
+      B2C_MACHINE_REGISTRATION_IMAGE=${B2C_MACHINE_REGISTRATION_IMAGE//registry.freedesktop.org/{{ fdo_proxy_registry \}\}}
+      B2C_TELEGRAF_IMAGE=${B2C_TELEGRAF_IMAGE//registry.freedesktop.org/{{ fdo_proxy_registry \}\}}
+
+      # The Valve CI gateway receives jobs in a YAML format. Create a
+      # job description from the CI environment.
+      python3 "$CI_B2C_ARTIFACTS"/generate_b2c.py
+
+      cat b2c.yml.jinja2
+
+      rm -rf ${JOB_FOLDER} || true
+      mkdir -v ${JOB_FOLDER}
+
+      # Create a script to regenerate the CI environment when this job
+      # begins running on the remote DUT.
+      set +x
+      "$CI_COMMON_SCRIPTS"/export-gitlab-job-env-for-dut.sh > ${JOB_FOLDER}/set-job-env-vars.sh
+      echo "export SCRIPTS_DIR=./install" >> ${JOB_FOLDER}/set-job-env-vars.sh
+      echo "Variables passed through:"
+      cat ${JOB_FOLDER}/set-job-env-vars.sh
+      set -x
+
+  script: |
+      slugify () {
+          echo "$1" | sed -r s/[~\^]+//g | sed -r s/[^a-zA-Z0-9]+/-/g | sed -r s/^-+\|-+$//g | tr A-Z a-z
+      }
+
+      # Submit the job to Valve's CI gateway service with the CI
+      # provisioned job_folder.
+      PYTHONUNBUFFERED=1 \
+      executorctl run \
+          --machine-id "$CI_RUNNER_DESCRIPTION" \
+          --job-id $(slugify "$CI_JOB_NAME") \
+          --share-directory "$JOB_FOLDER" \
+          --wait \
+          b2c.yml.jinja2
+
+  after_script:
+    # Keep the results path the same as baremetal and LAVA
+    - mkdir -p "${JOB_FOLDER}"/results
+    - mv "${JOB_FOLDER}"/results ./
+    - !reference [default, after_script]
+
+  # Anything our job places in results/ will be collected by the
+  # Gitlab coordinator for status presentation. results/junit.xml
+  # will be parsed by the UI for more detailed explanations of
+  # test execution.
+  artifacts:
+    when: always
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
+    paths:
+      - results
+    reports:
+      junit: results/**/junit.xml
+
+.b2c-x86_64-test:
+  extends:
+    - .b2c-test
+  variables:
+    B2C_KERNEL_URL: 'https://gitlab.freedesktop.org/gfx-ci/ci-tron/-/package_files/519/download'  # Linux 6.1
+    B2C_INITRAMFS_URL: 'https://gitlab.freedesktop.org/gfx-ci/boot2container/-/releases/${B2C_VERSION}/downloads/initramfs.linux_amd64.cpio.xz'
+    S3_ARTIFACT_NAME: "mesa-x86_64-default-debugoptimized"
+
+.b2c-x86_64-test-vk:
+  extends:
+    - .use-debian/x86_64_test-vk
+    - .b2c-x86_64-test
+  needs:
+    - job: debian/x86_64_test-vk
+      artifacts: false
+    - job: debian-testing
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-x86_64-test-vk-manual:
+  extends:
+    - .use-debian/x86_64_test-vk
+    - .b2c-x86_64-test
+  variables:
+    S3_ARTIFACT_NAME: "debian-build-testing"
+  needs:
+    - job: debian/x86_64_test-vk
+      artifacts: false
+    - job: debian-build-testing
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-x86_64-test-gl:
+  extends:
+    - .use-debian/x86_64_test-gl
+    - .b2c-x86_64-test
+  needs:
+    - job: debian/x86_64_test-gl
+      artifacts: false
+    - job: debian-testing
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-x86_64-test-gl-manual:
+  extends:
+    - .use-debian/x86_64_test-gl
+    - .b2c-x86_64-test
+  variables:
+    S3_ARTIFACT_NAME: "debian-build-testing"
+  needs:
+    - job: debian/x86_64_test-gl
+      artifacts: false
+    - job: debian-build-testing
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-arm64-test:
+  extends:
+    - .b2c-test
+  variables:
+    B2C_INITRAMFS_URL: 'https://gitlab.freedesktop.org/gfx-ci/boot2container/-/releases/${B2C_VERSION}/downloads/initramfs.linux_arm64.cpio.xz'
+    B2C_KERNEL_URL: 'https://gitlab.freedesktop.org/gfx-ci/boot2container/-/releases/${B2C_VERSION}/downloads/linux-arm64'
+    S3_ARTIFACT_NAME: "mesa-arm64-default-debugoptimized"
+
+.b2c-arm64-test-vk:
+  extends:
+    - .use-debian/arm64_test-vk
+    - .b2c-arm64-test
+  needs:
+    - job: debian/arm64_test-vk
+      artifacts: false
+    - job: debian-arm64
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-arm64-test-gl:
+  extends:
+    - .use-debian/arm64_test-gl
+    - .b2c-arm64-test
+  needs:
+    - job: debian/arm64_test-gl
+      artifacts: false
+    - job: debian-arm64
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-arm32-test:
+  extends:
+    - .b2c-test
+  variables:
+    B2C_INITRAMFS_URL: 'https://gitlab.freedesktop.org/gfx-ci/boot2container/-/releases/${B2C_VERSION}/downloads/initramfs.linux_arm.cpio.xz'
+    B2C_KERNEL_URL: 'https://gitlab.freedesktop.org/gfx-ci/boot2container/-/releases/${B2C_VERSION}/downloads/linux-arm'
+    S3_ARTIFACT_NAME: "mesa-arm32-default-debugoptimized"
+
+.b2c-arm32-test-vk:
+  extends:
+    - .use-debian/arm32_test-vk
+    - .b2c-arm32-test
+  needs:
+    - job: debian/arm32_test-vk
+      artifacts: false
+    - job: debian-arm32
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-arm32-test-gl:
+  extends:
+    - .use-debian/arm32_test-gl
+    - .b2c-arm32-test
+  needs:
+    - job: debian/arm32_test-gl
+      artifacts: false
+    - job: debian-arm32
+      artifacts: false
+    - !reference [.b2c-test, needs]
+
+.b2c-arm32-test-asan-gl:
+  extends:
+    - .use-debian/arm32_test-gl
+    - .b2c-arm32-test
+  variables:
+    S3_ARTIFACT_NAME: "mesa-arm32-asan-debugoptimized"
+    DEQP_FORCE_ASAN: 1
+  needs:
+    - job: debian/arm32_test-gl
+      artifacts: false
+    - job: debian-arm32-asan
+      artifacts: false
+    - !reference [.b2c-test, needs]

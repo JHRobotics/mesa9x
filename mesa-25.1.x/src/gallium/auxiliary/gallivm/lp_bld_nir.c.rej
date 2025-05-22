@@ -1,0 +1,12 @@
+--- src/gallium/auxiliary/gallivm/lp_bld_nir.c	2025-04-02 18:35:11.000000000 +0200
++++ src/gallium/auxiliary/gallivm/lp_bld_nir.c	2025-02-20 10:54:49.079934500 +0100
+@@ -1707,7 +1707,9 @@
+    case nir_atomic_op_umax: return LLVMAtomicRMWBinOpUMax;
+    case nir_atomic_op_imin: return LLVMAtomicRMWBinOpMin;
+    case nir_atomic_op_imax: return LLVMAtomicRMWBinOpMax;
++#if LLVM_VERSION_MAJOR >= 7 /* JH: I guess, in 6.0.x it is missing */
+    case nir_atomic_op_fadd: return LLVMAtomicRMWBinOpFAdd;
++#endif
+ #if LLVM_VERSION_MAJOR >= 15
+    case nir_atomic_op_fmin: return LLVMAtomicRMWBinOpFMin;
+    case nir_atomic_op_fmax: return LLVMAtomicRMWBinOpFMax;

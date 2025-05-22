@@ -1,0 +1,104 @@
+<?xml version="1.0" ?>
+<genxml>
+  <enum name="Texel Format">
+    <value name="L8" value="0x09"/>
+    <value name="A8" value="0x0a"/>
+    <value name="I8" value="0x0b"/>
+    <value name="BGR_565" value="0x0e"/>
+    <value name="BGRA_5551" value="0x0f"/>
+    <value name="BGRA_4444" value="0x10"/>
+    <value name="L8A8" value="0x11"/>
+    <value name="L16" value="0x12"/>
+    <value name="A16" value="0x13"/>
+    <value name="I16" value="0x14"/>
+    <value name="RGB_888" value="0x15"/>
+    <value name="RGBA_8888" value="0x16"/>
+    <value name="RGBX_8888" value="0x17"/>
+    <value name="ETC1_RGB8" value="0x20"/>
+    <value name="L16_FLOAT" value="0x22"/>
+    <value name="A16_FLOAT" value="0x23"/>
+    <value name="I16_FLOAT" value="0x24"/>
+    <value name="L16A16_FLOAT" value="0x25"/>
+    <value name="R16G16B16A16_FLOAT" value="0x26"/>
+    <value name="Z24X8" value="0x2c"/>
+    <value name="R16G16B16_FLOAT" value="0x2f"/>
+    <!-- This format is only used for depth/stencil reload -->
+    <value name="Z24S8_RLD" value="0x32"/>
+  </enum>
+  <enum name="Texture Range">
+    <value name="UNORM" value="0"/>
+    <value name="SNORM HALF" value="1"/>
+    <value name="SNORM" value="2"/>
+    <value name="UNORM INVERTED" value="3"/>
+  </enum>
+  <enum name="Sampler Dimension">
+    <value name="1D" value="0"/>
+    <value name="2D" value="1"/>
+    <value name="3D" value="2"/>
+  </enum>
+  <enum name="Mipfilter">
+    <value name="Nearest" value="0"/>
+    <value name="Linear" value="3"/>
+  </enum>
+  <enum name="Tex Wrap">
+    <value name="Repeat" value="0"/>
+    <value name="Clamp To Edge" value="1"/>
+    <value name="Clamp" value="2"/>
+    <value name="Clamp To Border" value="3"/>
+    <value name="Mirror Repeat" value="4"/>
+    <value name="Mirror Clamp To Edge" value="5"/>
+    <value name="Mirror Clamp" value="6"/>
+    <value name="Mirror Clamp To Border" value="7"/>
+  </enum>
+  <enum name="Texture Layout">
+    <value name="Linear" value="0"/>
+    <value name="Tiled" value="3"/>
+  </enum>
+  <struct name="Texture Descriptor" size="64">
+    <field name="Texel Format" start="0:0" size="6" type="Texel Format"/>
+    <field name="Reverse Component Order" start="0:6" size="1" type="bool"/>
+    <field name="Swap RB" start="0:7" size="1" type="bool"/>
+    <field name="Range" start="0:8" size="2" type="Texture Range"/>
+    <field name="Has Signed Components" start="0:10" size="1" type="bool"/>
+    <field name="Unknown 0" start="0:11" size="5" type="hex"/>
+    <field name="Stride" start="0:16" size="15" type="uint"/>
+    <field name="Unknown 1" start="0:31" size="8" type="hex"/>
+    <field name="Unnorm Coords" start="1:7" size="1" type="bool"/>
+    <field name="Unknown 2" start="1:8" size="1" type="bool"/>
+    <field name="Cube Map" start="1:9" size="1" type="bool"/>
+    <field name="Sampler Dim" start="1:10" size="2" type="Sampler Dimension"/>
+    <field name="Min Lod" start="1:12" size="8" type="ulod"/>
+    <field name="Max Lod" start="1:20" size="8" type="ulod"/>
+    <field name="Lod Bias" start="1:28" size="9" type="slod"/>
+    <field name="Unknown 3" start="2:5" size="3" type="hex"/>
+    <field name="Has Stride" start="2:8" size="1" type="bool"/>
+    <field name="Mipfilter" start="2:9" size="2" type="Mipfilter"/>
+    <field name="Min Img Filter Nearest" start="2:11" size="1" type="bool"/>
+    <field name="Mag Img Filter Nearest" start="2:12" size="1" type="bool"/>
+    <field name="Wrap S" start="2:13" size="3" type="Tex Wrap"/>
+    <field name="Wrap T" start="2:16" size="3" type="Tex Wrap"/>
+    <field name="Wrap R" start="2:19" size="3" type="Tex Wrap"/>
+    <field name="Width" start="2:22" size="13" type="uint"/>
+    <field name="Height" start="3:3" size="13" type="uint"/>
+    <field name="Depth" start="3:16" size="13" type="uint"/>
+    <field name="Border Red" start="3:29" size="16" type="unorm16"/>
+    <field name="Border Green" start="4:13" size="16" type="unorm16"/>
+    <field name="Border Blue" start="4:29" size="16" type="unorm16"/>
+    <field name="Border Alpha" start="5:13" size="16" type="unorm16"/>
+    <field name="Unknown 4" start="5:29" size="16" type="hex"/>
+    <field name="Layout" start="6:13" size="2" type="Texture Layout"/>
+    <field name="Unknown 5" start="6:15" size="15" type="hex"/>
+    <field name="Mip 0" start="6:30" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 1" start="7:24" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 2" start="8:18" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 3" start="9:12" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 4" start="10:6" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 5" start="11:0" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 6" start="11:26" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 7" start="12:20" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 8" start="13:14" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 9" start="14:8" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Mip 10" start="15:2" size="26" type="hex" modifier="shr(6)"/>
+    <field name="Unknown 6" start="15:28" size="4" type="hex"/>
+  </struct>
+</genxml>

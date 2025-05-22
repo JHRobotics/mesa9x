@@ -1,0 +1,5 @@
+# uprev Piglit in Mesa
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-refcount-multithread,Crash
+
+# CTS bug, tries to use vkCmdSetPatchControlPointsEXT when we don't have that
+dEQP-VK.pipeline.fast_linked_library.misc.interpolate_at_sample_no_sample_shading,Crash

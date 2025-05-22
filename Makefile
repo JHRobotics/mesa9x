@@ -47,7 +47,7 @@ ifeq ($(MESA_VER),mesa-24.1.x)
   MESA_GPU10 := 1
 endif
 
-ifeq ($(MESA_VER),mesa-25.0.x)
+ifeq ($(MESA_VER),mesa-25.1.x)
   MESA_MAJOR := 25
   MESA_GPU10 := 1
 endif
@@ -754,6 +754,8 @@ clean:
 	-$(RM) $(MesaNineLib_OBJS)
 	-$(RM) $(MesaD3D10Lib_OBJS)
 	-$(RM) $(MesaD3D10LibSimd_OBJS)
+	-$(RM) $(MesaOS_OBJS)
+	-$(RM) $(MesaOSSimd_OBJS)
 	-$(RM) $(eight_OBJS)
 	-$(RM) icdtest.c_app$(OBJ)
 	-$(RM) fbtest.c_app$(OBJ)

@@ -1,0 +1,9 @@
+dEQP-VK.memory.mapping.suballocation.sub.1048577.offset_0.size_1048575.subinvalidate_overlapping
+
+dEQP-VK.ray_tracing_pipeline.pipeline_no_null_shaders_flag.*
+
+dEQP-VK.renderpass2.dedicated_allocation.attachment_allocation.input_output.71
+
+dEQP-VK.subgroups.shuffle.framebuffer.subgroupshufflexor_bool_constant_tess_control
+
+dEQP-VK.tessellation.misc_draw.triangles_instances

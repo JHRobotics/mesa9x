@@ -1,0 +1,44 @@
+spec@arb_shader_image_load_store@host-mem-barrier
+spec@arb_shader_image_load_store@host-mem-barrier@Vertex array/RaW/one bit barrier test/64x64
+
+# 2022-11-23 The following two case are xfails, but sometimes pass.
+spec@egl_chromium_sync_control@conformance
+spec@egl_chromium_sync_control@conformance@eglGetSyncValuesCHROMIUM_msc_and_sbc_test
+
+# Flaky with a Fail result since the piglit fix made it stop crashing.
+glx@glx-make-current
+
+# OQ flakes/fails started with no perceivable pattern around 2023-12-13
+dEQP-GLES3.functional.occlusion_query..*
+
+# uprev Piglit in Mesa
+dEQP-GLES3.functional.occlusion_query.scissor_depth_write_stencil_write_stencil_clear
+glx@glx-multithread-texture
+spec@ext_image_dma_buf_import@ext_image_dma_buf_import-refcount-multithread
+
+dEQP-GLES3.functional.occlusion_query.depth_clear_stencil_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_write_stencil_write
+dEQP-GLES3.functional.occlusion_query.depth_write
+dEQP-GLES3.functional.occlusion_query.depth_write_depth_clear_stencil_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.scissor_stencil_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.scissor_depth_clear
+dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.conservative_scissor_stencil_clear
+dEQP-GLES3.functional.occlusion_query.conservative_depth_clear
+dEQP-GLES3.functional.occlusion_query.scissor_depth_clear_stencil_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.conservative_depth_write_stencil_clear
+
+dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_12x12_rgba.srgb8_alpha8_astc_12x12_khr_srgb8_alpha8_astc_12x12_khr.texture2d_to_cubemap
+dEQP-GLES31.functional.copy_image.non_compressed.viewclass_96_bits.rgb32f_rgb32i.texture3d_to_texture2d
+
+glx@glx-visuals-stencil
+spec@!opengl 1.0@gl-1.0-ortho-pos
+spec@amd_shader_trinary_minmax@execution@built-in-functions@fs-mid3-vec4-vec4-vec4
+spec@arb_gpu_shader5@texturegatheroffset@vs-rgba-0-unorm-2d
+spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-assign-bitxor-uint-uint
+spec@arb_vertex_buffer_object@vbo-subdata-many drawelements
+spec@ext_external_objects@vk-ping-pong-multi-sem
+spec@ext_external_objects@vk-semaphores
+spec@ext_framebuffer_multisample@accuracy 4 depth_draw small depthstencil
+spec@glsl-1.30@execution@tex-miplevel-selection texturelodoffset 1d
+spec@glsl-4.30@execution@built-in-functions@cs-op-bitxor-uvec3-uint

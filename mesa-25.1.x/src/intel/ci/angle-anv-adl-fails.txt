@@ -1,0 +1,6 @@
+# New failures ES CTS 3.2.11.0
+KHR-GLES3.clip_distance.coverage,Fail
+KHR-GLES3.cull_distance.functional,Fail
+
+# new failures with ANGLE 2024-10-17
+KHR-GLES31.core.shader_image_load_store.basic-allTargets-loadStoreVS,Fail

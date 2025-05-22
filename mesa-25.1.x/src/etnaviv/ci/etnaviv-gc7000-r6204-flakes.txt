@@ -1,0 +1,1 @@
+dEQP-GLES2.functional.texture.specification.basic_teximage2d.rgba4444_cube

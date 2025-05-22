@@ -1,0 +1,82 @@
+include:
+  - local: 'src/gallium/frontends/lavapipe/ci/gitlab-ci-inc.yml'
+
+lavapipe:
+  variables:
+    DEQP_SUITE: lvp
+    GPU_VERSION: lvp
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+    DEQP_FRACTION: 9
+  stage: software-renderer
+  extends:
+    - .deqp-test
+    - .lavapipe-test
+
+lavapipe-full:
+  extends:
+    - lavapipe
+    - .lavapipe-manual-rules
+  timeout: 2h  # base runtime = 1h15m
+  variables:
+    DEQP_FRACTION: 1
+
+lavapipe-vk-asan:
+  extends:
+    - .deqp-test
+    - .lavapipe-test
+  variables:
+    DEQP_SUITE: lvp-asan
+    GPU_VERSION: lvp-asan
+    DEQP_FORCE_ASAN: 1
+  needs:
+    - debian/x86_64_test-vk
+    - debian-testing-asan
+
+lavapipe-vkd3d:
+  stage: software-renderer-postmerge
+  extends:
+    - .lavapipe-test
+    - .lavapipe-manual-rules
+  timeout: 15m  # base runtime = 8m
+  variables:
+    GPU_VERSION: lvp
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+    # Random tests fail/crash when trying to run them in parallel
+    FDO_CI_CONCURRENT: 1
+  script: install/vkd3d-runner.sh
+
+# Disabled due to only running a single trace which was using old Wine.
+.lavapipe-traces:
+  variables:
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+    PIGLIT_TRACES_FILE: traces-lavapipe.yml
+    PIGLIT_REPLAY_DEVICE_NAME: "vk-lvp"
+    PIGLIT_RESULTS: "${GPU_VERSION}-replay"
+  extends:
+    - .piglit-traces-test
+    - .lavapipe-test
+    - .lavapipe-manual-rules
+
+android-angle-lavapipe:
+  variables:
+    ANDROID_GPU_MODE: mesa_swrast_guest_angle
+    DEQP_SUITE: android-angle-lavapipe
+    GPU_VERSION: lvp-android-angle
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+  timeout: 15m
+  extends:
+    - .test-android
+    - .lavapipe-rules
+    - .test-angle
+
+android-angle-lavapipe-cts:
+  variables:
+    USE_ANDROID_CTS: 1
+    ANDROID_GPU_MODE: mesa_swrast_guest_angle
+    GPU_VERSION: lvp-android-angle
+    MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
+  timeout: 15m
+  extends:
+    - .test-android
+    - .lavapipe-rules
+    - .test-angle

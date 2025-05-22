@@ -1,0 +1,10 @@
+{
+  "src": "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/i915/",
+  "git_hash": "36d0c64694dcee6cf49654f430ab70c22dd647d8",
+  "files": [
+      "adlp_dmc.bin",
+      "adlp_guc_70.bin",
+      "tgl_guc_70.bin"
+  ],
+  "dst": "/lib/firmware/i915/"
+}

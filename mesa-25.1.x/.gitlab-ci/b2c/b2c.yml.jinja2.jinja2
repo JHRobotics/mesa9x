@@ -1,0 +1,155 @@
+version: 1
+
+# Rules to match for a machine to qualify
+target:
+  id: '{{ CI_RUNNER_DESCRIPTION }}'
+
+timeouts:
+
+  first_console_activity:  # This limits the time it can take to receive the first console log
+    minutes: {{ B2C_TIMEOUT_FIRST_CONSOLE_ACTIVITY_MINUTES | default(0, true) }}
+    seconds: {{ B2C_TIMEOUT_FIRST_CONSOLE_ACTIVITY_SECONDS | default(0, true) }}
+    retries: {{ B2C_TIMEOUT_FIRST_CONSOLE_ACTIVITY_RETRIES }}
+
+  console_activity:        # Reset every time we receive a message from the logs
+    minutes: {{ B2C_TIMEOUT_CONSOLE_ACTIVITY_MINUTES | default(0, true) }}
+    seconds: {{ B2C_TIMEOUT_CONSOLE_ACTIVITY_SECONDS | default(0, true) }}
+    retries: {{ B2C_TIMEOUT_CONSOLE_ACTIVITY_RETRIES }}
+
+  boot_cycle:
+    minutes: {{ B2C_TIMEOUT_BOOT_MINUTES | default(0, true) }}
+    seconds: {{ B2C_TIMEOUT_BOOT_SECONDS | default(0, true) }}
+    retries: {{ B2C_TIMEOUT_BOOT_RETRIES }}
+
+  overall:                 # Maximum time the job can take, not overrideable by the "continue" deployment
+    minutes: {{ B2C_TIMEOUT_OVERALL_MINUTES | default(0, true) }}
+    seconds: {{ B2C_TIMEOUT_OVERALL_SECONDS | default(0, true) }}
+    retries: 0
+    # no retries possible here
+
+  watchdogs:
+    boot:
+      minutes: {{ B2C_TIMEOUT_BOOT_WD_MINUTES | default(0, true) }}
+      seconds: {{ B2C_TIMEOUT_BOOT_WD_SECONDS | default(0, true) }}
+      retries: {{ B2C_TIMEOUT_BOOT_WD_RETRIES | default(0, true) }}
+
+console_patterns:
+    session_end:
+        regex: >-
+          {{ B2C_SESSION_END_REGEX }}
+{% if B2C_SESSION_REBOOT_REGEX %}
+    session_reboot:
+        regex: >-
+          {{ B2C_SESSION_REBOOT_REGEX }}
+{% endif %}
+    job_success:
+        regex: >-
+          {{ B2C_JOB_SUCCESS_REGEX }}
+{% if B2C_JOB_WARN_REGEX %}
+    job_warn:
+        regex: >-
+          {{ B2C_JOB_WARN_REGEX }}
+{% endif %}
+
+{% if B2C_BOOT_WD_START_REGEX and B2C_BOOT_WD_STOP_REGEX %}
+    watchdogs:
+        boot:
+            start:
+              regex: >-
+                {{ B2C_BOOT_WD_START_REGEX }}
+            reset:
+              regex: >-
+                {{ B2C_BOOT_WD_RESET_REGEX | default(B2C_BOOT_WD_START_REGEX, true) }}
+            stop:
+              regex: >-
+                {{ B2C_BOOT_WD_STOP_REGEX }}
+{% endif %}
+
+# Environment to deploy
+deployment:
+  # Initial boot
+  start:
+    storage:
+{% if B2C_IMAGESTORE_PLATFORM %}
+        imagestore:
+          public:
+            # List of images that should be pulled into the image store ahead of execution
+            images:
+              mars:
+                name: "{{ B2C_MACHINE_REGISTRATION_IMAGE }}"
+                platform: "{{ B2C_IMAGESTORE_PLATFORM }}"
+                tls_verify: false
+                {% set machine_registration_image="{% raw %}{{ job.imagestore.public.mars.image_id }}{% endraw %}" %}
+              telegraf:
+                name: "{{ B2C_TELEGRAF_IMAGE }}"
+                platform: "{{ B2C_IMAGESTORE_PLATFORM }}"
+                tls_verify: false
+                {% set telegraf_image="{% raw %}{{ job.imagestore.public.telegraf.image_id }}{% endraw %}" %}
+              image_under_test:
+                name: "{{ B2C_IMAGE_UNDER_TEST }}"
+                platform: "{{ B2C_IMAGESTORE_PLATFORM }}"
+                tls_verify: false
+                {% set image_under_test="{% raw %}{{ job.imagestore.public.image_under_test.image_id }}{% endraw %}" %}
+        nbd:
+          storage:
+            max_connections: 5
+            size: 10G
+{% endif %}
+
+        http:
+          - path: "/install.tar.zst"
+            url: "{{ B2C_INSTALL_TARBALL_URL }}"
+          - path: "/b2c-extra-args"
+            data: >
+              b2c.pipefail b2c.poweroff_delay={{ B2C_POWEROFF_DELAY }}
+              b2c.minio="gateway,{{ '{{' }} minio_url }},{{ '{{' }} job_bucket_access_key }},{{ '{{' }} job_bucket_secret_key }}"
+              b2c.volume="{{ '{{' }} job_bucket }}-results,mirror=gateway/{{ '{{' }} job_bucket }},pull_on=pipeline_start,push_on=changes,overwrite{% for excl in B2C_JOB_VOLUME_EXCLUSIONS.split(',') %},exclude={{ excl }}{% endfor %},remove,expiration=pipeline_end,preserve"
+              {% for volume in B2C_VOLUMES %}
+              b2c.volume={{ volume }}
+              {% endfor %}
+              b2c.run_service="--privileged --tls-verify=false --pid=host {{ B2C_TELEGRAF_IMAGE }}" b2c.hostname=dut-{{ '{{' }} machine.full_name }}
+              b2c.run="-ti --tls-verify=false {{ B2C_MACHINE_REGISTRATION_IMAGE }} {% if B2C_MARS_SETUP_TAGS %}setup --tags {{ B2C_MARS_SETUP_TAGS }}{% else %}check{% endif %}"
+              b2c.run="-v {{ '{{' }} job_bucket }}-results:{{ CI_PROJECT_DIR }} -w {{ CI_PROJECT_DIR }} {% for mount_volume in B2C_MOUNT_VOLUMES %} -v {{ mount_volume }}{% endfor %} --tls-verify=false --entrypoint bash {{ B2C_IMAGE_UNDER_TEST }} -euc 'curl --fail -q {{ '{{' }} job.http.url }}/install.tar.zst | tar --zstd -x; {{ B2C_CONTAINER_CMD }}'"
+    kernel:
+{% if B2C_KERNEL_URL %}
+      url: '{{ B2C_KERNEL_URL }}'
+{% endif %}
+
+      # NOTE: b2c.cache_device should not be here, but this works around
+      # a limitation of b2c which will be removed in the next release
+      cmdline: >
+        SALAD.machine_id={{ '{{' }} machine_id }}
+        console={{ '{{' }} local_tty_device }},115200
+        b2c.ntp_peer=10.42.0.1
+        b2c.extra_args_url={{ '{{' }} job.http.url }}/b2c-extra-args
+        {% if B2C_IMAGESTORE_PLATFORM is defined %}
+        {{ '{{' }} imagestore.mount("public").nfs.to_b2c_filesystem("publicimgstore") }}
+        b2c.storage="additionalimagestores=publicimgstore"
+        b2c.nbd=/dev/nbd0,host=ci-gateway,port={% raw %}{{ '{{' }} job.nbd.storage.tcp_port }}{% endraw %},connections=5
+        b2c.cache_device=/dev/nbd0
+        {% else %}
+        b2c.cache_device=auto
+        {% endif %}
+        {% if B2C_KERNEL_CMDLINE_EXTRAS is defined %}
+        {{ B2C_KERNEL_CMDLINE_EXTRAS }}
+        {% endif %}
+
+{% if B2C_INITRAMFS_URL or B2C_FIRMWARE_URL %}
+    initramfs:
+{% if B2C_FIRMWARE_URL %}
+      - url: '{{ B2C_FIRMWARE_URL }}'
+{% endif %}
+{% if B2C_INITRAMFS_URL %}
+      - url: '{{ B2C_INITRAMFS_URL }}'
+{% endif %}
+{% endif %}
+
+{% if B2C_DTB_URL %}
+    dtb:
+      url: '{{ B2C_DTB_URL }}'
+{% if B2C_DTB_MATCH %}
+      format:
+        archive:
+          match: "{{ B2C_DTB_MATCH }}"
+{% endif %}
+{% endif %}
