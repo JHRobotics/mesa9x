@@ -1,4 +1,0 @@
-[[piglit]]
-piglit_folder = "/piglit"
-profile = "quick_gl"
-process_isolation = true

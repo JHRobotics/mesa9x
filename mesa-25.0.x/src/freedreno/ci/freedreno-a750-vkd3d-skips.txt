@@ -1,2 +1,0 @@
-# These vkd3d-proton tests are skipped because they trigger GPU hangs.
-test_vrs_depth_write_dxbc

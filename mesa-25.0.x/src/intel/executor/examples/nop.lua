@@ -1,6 +1,0 @@
-execute {
-  src = [[
-    nop;
-    @eot
-  ]],
-}

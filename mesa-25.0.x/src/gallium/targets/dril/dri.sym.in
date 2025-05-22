@@ -1,7 +1,0 @@
-{
-	global:
-                __driDriverExtensions;
-		__driDriverGetExtensions*;
-	local:
-		*;
-};
