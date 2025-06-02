@@ -1,6 +1,6 @@
 diff -ruN llvm-18.1.8.orig/CMakeLists.txt llvm-18.1.8.src/CMakeLists.txt
 --- llvm-18.1.8.orig/CMakeLists.txt	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/CMakeLists.txt	2024-07-06 03:31:58.367165400 +0200
++++ llvm-18.1.8.src/CMakeLists.txt	2025-06-02 23:28:29.530930500 +0200
 @@ -1171,7 +1171,17 @@
  if( MINGW AND NOT "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" )
    # People report that -O3 is unreliable on MinGW. The traditional
@@ -20,9 +20,68 @@ diff -ruN llvm-18.1.8.orig/CMakeLists.txt llvm-18.1.8.src/CMakeLists.txt
  endif()
  
  if(LLVM_INCLUDE_TESTS)
+diff -ruN llvm-18.1.8.orig/include/llvm/ExecutionEngine/RTDyldMemoryManager.h llvm-18.1.8.src/include/llvm/ExecutionEngine/RTDyldMemoryManager.h
+--- llvm-18.1.8.orig/include/llvm/ExecutionEngine/RTDyldMemoryManager.h	2024-06-15 19:21:32.000000000 +0200
++++ llvm-18.1.8.src/include/llvm/ExecutionEngine/RTDyldMemoryManager.h	2025-06-02 23:30:00.739616100 +0200
+@@ -97,9 +97,7 @@
+   /// Clients writing custom RTDyldMemoryManagers are encouraged to override
+   /// this method and return a SymbolInfo with the flags set correctly. This is
+   /// necessary for RuntimeDyld to correctly handle weak and non-exported symbols.
+-  JITSymbol findSymbol(const std::string &Name) override {
+-    return JITSymbol(getSymbolAddress(Name), JITSymbolFlags::Exported);
+-  }
++  JITSymbol findSymbol(const std::string &Name) override;
+ 
+   /// Legacy symbol lookup -- DEPRECATED! Please override
+   /// findSymbolInLogicalDylib instead.
+@@ -119,11 +117,7 @@
+   /// Clients writing custom RTDyldMemoryManagers are encouraged to override
+   /// this method and return a SymbolInfo with the flags set correctly. This is
+   /// necessary for RuntimeDyld to correctly handle weak and non-exported symbols.
+-  JITSymbol
+-  findSymbolInLogicalDylib(const std::string &Name) override {
+-    return JITSymbol(getSymbolAddressInLogicalDylib(Name),
+-                          JITSymbolFlags::Exported);
+-  }
++  JITSymbol findSymbolInLogicalDylib(const std::string &Name) override;
+ 
+   /// This method returns the address of the specified function. As such it is
+   /// only useful for resolving library symbols, not code generated symbols.
+diff -ruN llvm-18.1.8.orig/include/llvm/Support/Compiler.h llvm-18.1.8.src/include/llvm/Support/Compiler.h
+--- llvm-18.1.8.orig/include/llvm/Support/Compiler.h	2024-06-15 19:21:32.000000000 +0200
++++ llvm-18.1.8.src/include/llvm/Support/Compiler.h	2025-06-02 15:13:16.591791100 +0200
+@@ -18,6 +18,7 @@
+ #include "llvm/Config/llvm-config.h"
+ 
+ #include <stddef.h>
++#include <stdint.h>
+ 
+ #if defined(_MSC_VER)
+ #include <sal.h>
+diff -ruN llvm-18.1.8.orig/lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp llvm-18.1.8.src/lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp
+--- llvm-18.1.8.orig/lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp	2024-06-15 19:21:32.000000000 +0200
++++ llvm-18.1.8.src/lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp	2025-06-02 22:58:53.252421300 +0200
+@@ -292,4 +292,17 @@
+ 
+ void RTDyldMemoryManager::anchor() {}
+ void MCJITMemoryManager::anchor() {}
++
++
++JITSymbol RTDyldMemoryManager::findSymbolInLogicalDylib(const std::string &Name)
++{
++  return JITSymbol(getSymbolAddressInLogicalDylib(Name),
++                          JITSymbolFlags::Exported);
++}
++
++JITSymbol RTDyldMemoryManager::findSymbol(const std::string &Name)
++{
++  return JITSymbol(getSymbolAddress(Name), JITSymbolFlags::Exported);
++}
++
+ } // namespace llvm
 diff -ruN llvm-18.1.8.orig/lib/Support/CrashRecoveryContext.cpp llvm-18.1.8.src/lib/Support/CrashRecoveryContext.cpp
 --- llvm-18.1.8.orig/lib/Support/CrashRecoveryContext.cpp	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/CrashRecoveryContext.cpp	2024-07-02 00:51:12.552172400 +0200
++++ llvm-18.1.8.src/lib/Support/CrashRecoveryContext.cpp	2025-06-02 00:27:06.672821800 +0200
 @@ -314,16 +314,21 @@
    // handler as the front of the list, though there's no assurances that
    // it will remain at the front (another call could install itself before
@@ -48,7 +107,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/CrashRecoveryContext.cpp llvm-18.1.8.src/
    }
 diff -ruN llvm-18.1.8.orig/lib/Support/MemAlloc.cpp llvm-18.1.8.src/lib/Support/MemAlloc.cpp
 --- llvm-18.1.8.orig/lib/Support/MemAlloc.cpp	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/MemAlloc.cpp	2024-07-02 00:51:12.556169800 +0200
++++ llvm-18.1.8.src/lib/Support/MemAlloc.cpp	2025-06-02 00:27:06.677838700 +0200
 @@ -14,7 +14,7 @@
  LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
  llvm::allocate_buffer(size_t Size, size_t Alignment) {
@@ -69,7 +128,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/MemAlloc.cpp llvm-18.1.8.src/lib/Support/
  #endif
 diff -ruN llvm-18.1.8.orig/lib/Support/RandomNumberGenerator.cpp llvm-18.1.8.src/lib/Support/RandomNumberGenerator.cpp
 --- llvm-18.1.8.orig/lib/Support/RandomNumberGenerator.cpp	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/RandomNumberGenerator.cpp	2024-07-02 00:51:12.558170200 +0200
++++ llvm-18.1.8.src/lib/Support/RandomNumberGenerator.cpp	2025-06-02 00:27:06.680848000 +0200
 @@ -21,6 +21,8 @@
  #include "llvm/Support/raw_ostream.h"
  #ifdef _WIN32
@@ -107,7 +166,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/RandomNumberGenerator.cpp llvm-18.1.8.src
      std::error_code Ret;
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/DynamicLibrary.inc llvm-18.1.8.src/lib/Support/Windows/DynamicLibrary.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/DynamicLibrary.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/DynamicLibrary.inc	2024-07-02 00:51:12.562637600 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/DynamicLibrary.inc	2025-06-02 00:27:06.683858700 +0200
 @@ -68,6 +68,7 @@
  static bool GetProcessModules(HANDLE H, DWORD &Bytes, HMODULE *Data = nullptr) {
    // EnumProcessModules will fail on Windows 64 while some versions of
@@ -128,7 +187,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/DynamicLibrary.inc llvm-18.1.8.sr
  void *DynamicLibrary::HandleSet::DLSym(void *Handle, const char *Symbol) {
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Memory.inc llvm-18.1.8.src/lib/Support/Windows/Memory.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Memory.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Memory.inc	2024-07-02 00:51:12.565573700 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Memory.inc	2025-06-02 00:27:06.689878500 +0200
 @@ -62,7 +62,11 @@
  // sucessfull, we return the minimal large memory page size.
  static size_t enableProcessLargePages() {
@@ -143,7 +202,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Memory.inc llvm-18.1.8.src/lib/Su
                       &Token);
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Path.inc llvm-18.1.8.src/lib/Support/Windows/Path.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Path.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Path.inc	2024-07-02 00:51:12.570671000 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Path.inc	2025-06-02 00:27:06.695898000 +0200
 @@ -165,15 +165,20 @@
  }
  
@@ -325,7 +384,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Path.inc llvm-18.1.8.src/lib/Supp
  bool home_directory(SmallVectorImpl<char> &result) {
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Process.inc llvm-18.1.8.src/lib/Support/Windows/Process.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Process.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Process.inc	2024-07-06 09:52:52.863043400 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Process.inc	2025-06-02 00:27:06.698908300 +0200
 @@ -57,7 +57,8 @@
    // GetNativeSystemInfo() provides the physical page size which may differ
    // from GetSystemInfo() in 32-bit applications running under WOW64.
@@ -372,7 +431,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Process.inc llvm-18.1.8.src/lib/S
  typedef NTSTATUS(WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Program.inc llvm-18.1.8.src/lib/Support/Windows/Program.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Program.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Program.inc	2024-07-06 03:29:01.725967100 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Program.inc	2025-06-02 00:27:06.702921700 +0200
 @@ -314,6 +314,7 @@
  
    // Assign the process to a job if a memory limit is defined.
@@ -414,7 +473,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Program.inc llvm-18.1.8.src/lib/S
    DWORD status;
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Signals.inc llvm-18.1.8.src/lib/Support/Windows/Signals.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Signals.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Signals.inc	2024-07-02 00:51:12.582651000 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Signals.inc	2025-06-02 00:27:06.706934600 +0200
 @@ -234,6 +234,7 @@
                                                HANDLE hProcess, HANDLE hThread,
                                                STACKFRAME64 &StackFrameOrig,
@@ -486,7 +545,7 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Signals.inc llvm-18.1.8.src/lib/S
  /// Write a Windows dump file containing process information that can be
 diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Threading.inc llvm-18.1.8.src/lib/Support/Windows/Threading.inc
 --- llvm-18.1.8.orig/lib/Support/Windows/Threading.inc	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Support/Windows/Threading.inc	2024-07-02 00:51:12.585909500 +0200
++++ llvm-18.1.8.src/lib/Support/Windows/Threading.inc	2025-06-02 00:27:06.709945700 +0200
 @@ -49,9 +49,9 @@
    }
  }
@@ -557,9 +616,20 @@ diff -ruN llvm-18.1.8.orig/lib/Support/Windows/Threading.inc llvm-18.1.8.src/lib
  }
  
  unsigned llvm::get_cpus() { return getProcessorGroups().size(); }
+diff -ruN llvm-18.1.8.orig/lib/Target/X86/MCTargetDesc/X86MCTargetDesc.h llvm-18.1.8.src/lib/Target/X86/MCTargetDesc/X86MCTargetDesc.h
+--- llvm-18.1.8.orig/lib/Target/X86/MCTargetDesc/X86MCTargetDesc.h	2024-06-15 19:21:32.000000000 +0200
++++ llvm-18.1.8.src/lib/Target/X86/MCTargetDesc/X86MCTargetDesc.h	2025-06-02 15:29:46.721550700 +0200
+@@ -15,6 +15,7 @@
+ 
+ #include <memory>
+ #include <string>
++#include <cstdint>
+ 
+ namespace llvm {
+ class formatted_raw_ostream;
 diff -ruN llvm-18.1.8.orig/lib/Target/X86/X86ISelLowering.cpp llvm-18.1.8.src/lib/Target/X86/X86ISelLowering.cpp
 --- llvm-18.1.8.orig/lib/Target/X86/X86ISelLowering.cpp	2024-06-15 19:21:32.000000000 +0200
-+++ llvm-18.1.8.src/lib/Target/X86/X86ISelLowering.cpp	2024-07-02 00:51:12.602060000 +0200
++++ llvm-18.1.8.src/lib/Target/X86/X86ISelLowering.cpp	2025-06-02 00:27:06.725997200 +0200
 @@ -57740,8 +57740,17 @@
    // We need a stack probe to conform to the Windows ABI. Choose the right
    // symbol.
