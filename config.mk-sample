@@ -34,11 +34,6 @@ MESA_VER = mesa-23.1.x
 # Allow faster call using assembler, faster (a bit) but more harder to debug
 #USE_ASM := 1
 
-# Optimize for size instead of maximize speed. This option reduce binary size
-# about 25-40% but it can lead to better speed because larger code needs more
-# CPU cache. VM also utilize CPU cache much worse than native system.
-#RELEASE_BASE_OPT = -Os
-
 # compiler names
 CXX = $(PREFIX)g++
 CC  = $(PREFIX)gcc
@@ -89,9 +84,14 @@ SPEED := 1
 #       |       |          | opengl32.w98me.dll = optimalized for debug, enabled asserts/debug logging
 # -------------------------|--------
 
-# enable link-time optimalization, linking with it is super slow, and build is broken anyway (!)
-# DON'T use this yet!
+# enable link-time optimalization, linking with it is super slow
+# make sure you have current mingw toolchain before using this
 #LTO   := 1
+
+# Optimize for size instead of maximize speed. This option reduce binary size
+# about 25-40% but it can lead to better speed because larger code needs more
+# CPU cache. VM also utilize CPU cache much worse than native system.
+#RELEASE_BASE_OPT = -Os
 
 # Show fatal error in GUI message box - nice to users, annoying for developers
 GUI_ERRORS = 1

@@ -299,7 +299,7 @@ CGuicol_d[3]={0.3f, 0.3f, 0.3f}; // Dark
 
 /* Data sizes */
 #define CSIZE_MAXPATH 260
-#define CSIZE_ERRSTR 64
+#define CSIZE_ERRSTR 256
 #define CSIZE_MINUDP 508
 
 /* File IO */

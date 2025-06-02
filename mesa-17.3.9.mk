@@ -504,7 +504,8 @@ MesaWglLib_SRC = \
 	$(MESA_VER)/src/gallium/state_trackers/wgl/stw_tls.c \
 	$(MESA_VER)/src/gallium/state_trackers/wgl/stw_wgl.c \
 	$(MESA_VER)/src/gallium/state_trackers/wgl/stw_debug.c \
-	extra/knownfolders.c
+	extra/knownfolders.c \
+	extra/clock_gettime32.c
 
 MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/cso_cache/cso_cache.c \

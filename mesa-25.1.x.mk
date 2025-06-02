@@ -650,7 +650,8 @@ MesaWglLib_SRC = \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_tls.c \
 	$(MESA_VER)/src/gallium/frontends/wgl/stw_ext_interop.c \
 	$(MESA_VER)/src/gallium/targets/libgl-gdi/stw_wgl.c \
-	extra/knownfolders.c
+	extra/knownfolders.c \
+	extra/clock_gettime32.c
 
 MesaGalliumAuxLib_SRC = \
 	$(MESA_VER)/src/gallium/auxiliary/cso_cache/cso_cache.c \

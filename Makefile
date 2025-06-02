@@ -20,7 +20,7 @@
 
 include config.mk
 
-MESA_VER ?= mesa-25.0.x
+MESA_VER ?= mesa-25.1.x
 DEPS = config.mk Makefile $(MESA_VER).deps
 
 ifeq ($(MESA_VER),mesa-17.3.9)
@@ -399,16 +399,20 @@ else
   EXEFLAGS_CMD = -o $@ -Wl,-subsystem,console$(TUNE_LD)
   
   ifdef LTO
-    CFLAGS       += -flto=auto -fno-fat-lto-objects -pipe  -Werror=implicit-function-declaration
-    CXXFLAGS     += -flto=auto -fno-fat-lto-objects -pipe
+    CFLAGS        += -flto=auto -fno-fat-lto-objects -pipe -Werror=implicit-function-declaration
+    CXXFLAGS      += -flto=auto -fno-fat-lto-objects -pipe -fno-declone-ctor-dtor
+    CFLAGS        += -flto=auto -fno-fat-lto-objects -pipe -Werror=implicit-function-declaration
+
     ifdef LLVM
-      LDFLAGS    += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -pipe -fno-strict-aliasing
+      LDFLAGS       += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -pipe -fno-strict-aliasing
+      SIMD_LDFLAGS  += $(LLVM_CXXFLAGS) -flto=auto -fno-fat-lto-objects -pipe -fno-strict-aliasing
+      SIMD_CXXFLAGS += -flto=auto -fno-fat-lto-objects -pipe -fno-declone-ctor-dtor
     else
       LDFLAGS    += -flto=auto -fno-fat-lto-objects -fno-strict-aliasing -pipe
     endif
     
     CFLAGS_APP   += -flto=auto -fno-fat-lto-objects -pipe
-    CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects -pipe
+    CXXFLAGS_APP += -flto=auto -fno-fat-lto-objects -pipe -fno-declone-ctor-dtor
     LDFLAGS_APP  += -flto=auto -fno-fat-lto-objects -pipe
   endif
 
