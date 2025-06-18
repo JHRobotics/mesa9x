@@ -542,6 +542,7 @@ DEBUG_GET_ONCE_BOOL_OPTION(gmr_cache,    "SVGA_GMR_CACHE_ENABLED", FALSE);
 #define SVGA_SAFE_RAM_CACHE  200*1024*1024 /* stop cache under this value */
 DEBUG_GET_ONCE_NUM_OPTION(mem_max_mb, "SVGA_MEM_MAX", 400); /* max safe allocation (MB) */
 
+#if 0
 #define ALLOC_STATUS_OK    0
 #define ALLOC_STATUS_CACHE 1
 #define ALLOC_STATUS_STOP  2
@@ -594,7 +595,6 @@ static int SVGA_allocation_status(svga_inst_t *svga)
 	return ALLOC_STATUS_OK;
 }
 
-
 BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src)
 {
 	int status = SVGA_allocation_status(svga);
@@ -633,6 +633,7 @@ BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src)
 	
 	return TRUE;	
 }
+#endif
 
 /* create SVGA interface */
 BOOL SVGACreate(svga_inst_t *svga)
@@ -1169,7 +1170,11 @@ static uint32_t SVGARegionCreateLimit(svga_inst_t *svga, uint32_t size, uint32_t
 
 	if(!SVGA_region_create(gmr))
 	{
-		GUIError(svga, "Failed to allocate physical RAM space (%d bytes). Please attach more memory to VM or reboot guest OS.", size);
+		if(rid == start_id)
+		{
+			/* report fatal only when cannot create first GMR */
+			GUIError(svga, "Failed to allocate physical RAM space (%d bytes). Please attach more memory to VM or reboot guest OS.", size);
+		}
 		return 0;
 	}
 
@@ -1898,13 +1903,13 @@ BOOL SVGASurfaceGBCreate(svga_inst_t *svga, SVGAGBSURFCREATE *pCreateParms)
 		{
 			t = SVGA_ALLOC_CREATE_GB_SURF_BUF;
 		}
-			
+/*
 		if(!SVGACanAllocate(svga, size_round, t))
 		{
 			SVGASurfaceIDFree(svga, sid);
 			return FALSE;
 		}
-
+*/
 		pCreateParms->gmrid = SVGARegionCreateLimit(svga, size_round, &userAddress, 10, TRUE, TRUE);
 
 		if(pCreateParms->gmrid == 0)
@@ -2124,4 +2129,29 @@ SVGA_DB_surface_t *SVGASurfaceGet(svga_inst_t *svga, uint32_t sid)
 SVGA_DB_region_t *SVGARegionGet(svga_inst_t *svga, uint32_t rid)
 {
 	return SVGAGMRIDInfo(svga, rid);
+}
+
+static size_t SVGA_mem_size = 0;
+
+size_t SVGA_GMR_pool_size()
+{
+	if(!SVGA_mem_size)
+	{
+		MEMORYSTATUS ms;
+		memset(&ms, 0, sizeof(MEMORYSTATUS));
+		ms.dwLength = sizeof(MEMORYSTATUS);
+		GlobalMemoryStatus(&ms);
+		SVGA_mem_size = ms.dwTotalPhys;
+	}
+
+	if(SVGA_mem_size > 700*1024*1024)
+	{
+		return 32*1024*1024;
+	}
+	else if(SVGA_mem_size > 480*1024*1024)
+	{
+		return 16*1024*1024;
+	}
+
+	return 8*1024*1024;
 }

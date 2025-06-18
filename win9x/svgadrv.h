@@ -137,7 +137,7 @@ void SVGACompose(svga_inst_t *svga, uint32_t cid, uint32_t srcSid, uint32_t dest
 #define SVGA_ALLOC_CREATE_GB_SURF_BUF 3
 #define SVGA_ALLOC_CREATE_REGION  2
 
-BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src);
+//BOOL SVGACanAllocate(svga_inst_t *svga, DWORD bytes, int src);
 
 DWORD SVGA_pitch(DWORD width, DWORD bpp);
 

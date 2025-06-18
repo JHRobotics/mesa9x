@@ -657,7 +657,10 @@ MesaLib_SRC += \
 	$(MESA_VER)/src/mapi/u_execmem.c
 
 ifdef USE_ASM
-  MesaLib_SRC += $(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S
+  MesaLib_SRC += \
+    $(MESA_VER)/src/mapi/glapi/gen/glapi_x86.S \
+    $(MESA_VER)/src/mesa/x86/common_x86.c \
+    $(MESA_VER)/src/mesa/x86/common_x86_asm.S
 endif
 
 MesaWglLib_SRC = \

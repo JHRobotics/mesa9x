@@ -284,12 +284,12 @@ static int vboxVxdRegionCreate(void *pvEnv, uint32_t u32RegionSize, uint32_t *pu
   uint32_t region;
   uint32_t user_address;
   HRESULT hr = E_FAIL;
-
+/*
  	if(!SVGACanAllocate(svga, u32RegionSize, SVGA_ALLOC_CREATE_REGION))
  	{
  		return E_FAIL;
  	}
- 	
+*/
  	if(u32RegionSize == 0)
  	{
  		return E_FAIL;
