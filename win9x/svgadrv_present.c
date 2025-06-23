@@ -429,7 +429,7 @@ static void copy3ways_dma(svga_inst_t *svga, uint32_t sid, RenderRect *rr, BOOL 
 		cmd_dma.box.srcz = 0;
 
 		cmd_dma.suffix.suffixSize            = sizeof(SVGA3dCmdSurfaceDMASuffix);
-		cmd_dma.suffix.maximumOffset         = svga->hda->stride;
+		cmd_dma.suffix.maximumOffset         = svga->hda->surface+svga->hda->stride;
 		cmd_dma.suffix.flags.discard         = 1; // 0
 		cmd_dma.suffix.flags.unsynchronized  = 0;
 		cmd_dma.suffix.flags.reserved        = 0;
@@ -452,7 +452,7 @@ static void copy3ways_dma(svga_inst_t *svga, uint32_t sid, RenderRect *rr, BOOL 
 		vrect.src_y       = rr->y;
 		vrect.src_bpp     = svga->hda->bpp;
 
-		vramcpy(((BYTE*)svga->hda->vram_pm32) + svga->hda->surface, svga->hda->vram_pm32, &vrect);
+		vramcpy(svga->hda->vram_pm32, ((BYTE*)svga->hda->vram_pm32) + svga->hda->surface, &vrect);
 		SVGASend(svga, &cmd_update, sizeof(cmd_update_t), SVGA_CB_UPDATE | SVGA_CB_SYNC, 0);
 	}
 	else if(rr->surf_bpp == 32 && !update_bug)

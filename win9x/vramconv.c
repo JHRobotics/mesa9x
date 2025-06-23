@@ -22,13 +22,13 @@ typedef unsigned short v4us __attribute__ ((vector_size(8)));
 #endif
 
 
-#define R_RGB16(_px) ((_px) & 0xF800 >> 8)
-#define G_RGB16(_px) ((_px) & 0x07E0 >> 3)
-#define B_RGB16(_px) ((_px) & 0x001F << 3)
+#define R_RGB16(_px) (((_px) & 0xF800) >> 8)
+#define G_RGB16(_px) (((_px) & 0x07E0) >> 3)
+#define B_RGB16(_px) (((_px) & 0x001F) << 3)
 
-#define R_RGB15(_px) ((_px) & 0x7E00 >> 7)
-#define G_RGB15(_px) ((_px) & 0x03E0 >> 2)
-#define B_RGB15(_px) ((_px) & 0x001F << 3)
+#define R_RGB15(_px) (((_px) & 0x7E00) >> 7)
+#define G_RGB15(_px) (((_px) & 0x03E0) >> 2)
+#define B_RGB15(_px) (((_px) & 0x001F) << 3)
 
 #define R_RGB32(_px) (((px) >> 16) & 0xFF)
 #define G_RGB32(_px) (((px) >> 8) & 0xFF)
@@ -38,13 +38,13 @@ typedef unsigned short v4us __attribute__ ((vector_size(8)));
 #define G_RGB24 G_RGB32
 #define B_RGB24 B_RGB32
 
-#define B_BGR16(_px) ((_px) & 0xF800 >> 8)
-#define G_BGR16(_px) ((_px) & 0x07E0 >> 3)
-#define R_BGR16(_px) ((_px) & 0x001F << 3)
+#define B_BGR16(_px) (((_px) & 0xF800) >> 8)
+#define G_BGR16(_px) (((_px) & 0x07E0) >> 3)
+#define R_BGR16(_px) (((_px) & 0x001F) << 3)
 
-#define B_BGR15(_px) ((_px) & 0x7E00 >> 7)
-#define G_BGR15(_px) ((_px) & 0x03E0 >> 2)
-#define R_BGR15(_px) ((_px) & 0x001F << 3)
+#define B_BGR15(_px) (((_px) & 0x7E00) >> 7)
+#define G_BGR15(_px) (((_px) & 0x03E0) >> 2)
+#define R_BGR15(_px) (((_px) & 0x001F) << 3)
 
 #define B_BGR32(_px) (((px) >> 16) & 0xFF)
 #define G_BGR32(_px) (((px) >> 8) & 0xFF)
@@ -169,30 +169,151 @@ static inline void memcpy_inline(void *dst, void *src, size_t count)
 CONV_FUNC_COPY_RGB(15);
 CONV_FUNC(16, 15, RGB, fast);
 CONV_FUNC(24, 15, RGB, fast);
-CONV_FUNC(32, 15, RGB, fast);
+//CONV_FUNC(32, 15, RGB, fast);
 
 CONV_FUNC(15, 16, RGB, fast);
 CONV_FUNC_COPY_RGB(16);
 CONV_FUNC(24, 16, RGB, fast);
-CONV_FUNC(32, 16, RGB, fast);
+//CONV_FUNC(32, 16, RGB, fast);
 
 CONV_FUNC24(15, RGB, fast);
 CONV_FUNC24(16, RGB, fast);
 CONV_FUNC_COPY_RGB(24);
-CONV_FUNC24(32, RGB, fast);
+//CONV_FUNC24(32, RGB, fast);
 
-//CONV_FUNC(15, 32, RGB);
-//CONV_FUNC(16, 32, RGB);
-//CONV_FUNC(24, 32, RGB);
+//CONV_FUNC(15, 32, RGB, fast);
+//CONV_FUNC(16, 32, RGB, fast);
+//CONV_FUNC(24, 32, RGB, fast);
 CONV_FUNC_COPY_RGB(32);
 
-/* accelerated 32b rendering to 16b screen */
+/* 16 -> 32 */
 static void vramcpy_16_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
 	pdst += rect->dst_pitch * rect->dst_y;
-			
+
+	for(y = 0; y < rect->dst_h; y++)
+	{
+		uint8_t *src_pix = psrc + (rect->src_x * 2);
+		uint8_t *dst_pix = pdst + (rect->dst_x * 4);
+		int i = rect->dst_w;
+#if defined(__GNUC__) && defined(__SSE__)
+		for(; i >= 4; i -= 4)
+		{
+			v4us v1 = *((v4us*)src_pix);
+			v4ui v = __builtin_convertvector(v1, v4ui);
+			v4ui r, g, b;
+
+			r = v & 0x0000F800;
+			g = v & 0x000007E0;
+			b = v & 0x0000001F;
+			r = r << 8;
+			g = g << 5;
+			b = b << 3;
+			v = r | g | b;
+			*((v4ui*)dst_pix) = v;
+			src_pix += 2*4;
+			dst_pix += 4*4;
+		}
+#endif
+		for(; i > 0; i--)
+		{
+			uint32_t p = *((uint16_t*)src_pix);
+			p =
+				((p & 0x0000F800) << 8) |
+				((p & 0x000007E0) << 5) |
+				((p & 0x0000001F) << 3);
+			*((uint32_t*)dst_pix) = p;
+
+			src_pix += 2;
+			dst_pix += 4;
+		}
+
+		psrc += rect->src_pitch;
+		pdst += rect->dst_pitch;
+	}
+}
+
+/* 15 -> 32 */
+static void vramcpy_15_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+{
+	uint32_t y, x;
+	psrc += rect->src_pitch * rect->src_y;
+	pdst += rect->dst_pitch * rect->dst_y;
+
+	for(y = 0; y < rect->dst_h; y++)
+	{
+		uint8_t *src_pix = psrc + (rect->src_x * 2);
+		uint8_t *dst_pix = pdst + (rect->dst_x * 4);
+		int i = rect->dst_w;
+#if defined(__GNUC__) && defined(__SSE__)
+		for(; i >= 4; i -= 4)
+		{
+			v4us v1 = *((v4us*)src_pix);
+			v4ui v = __builtin_convertvector(v1, v4ui);
+			v4ui r, g, b;
+
+			r = v & 0x00007C00;
+			g = v & 0x000003E0;
+			b = v & 0x0000001F;
+			r = r << 9;
+			g = g << 6;
+			b = b << 3;
+			v = r | g | b;
+			*((v4ui*)dst_pix) = v;
+			src_pix += 2*4;
+			dst_pix += 4*4;
+		}
+#endif
+		for(; i > 0; i--)
+		{
+			uint32_t p = *((uint16_t*)src_pix);
+			p =
+				((p & 0x00007C00) << 9) |
+				((p & 0x000003E0) << 6) |
+				((p & 0x0000001F) << 3);
+			*((uint32_t*)dst_pix) = p;
+
+			src_pix += 2;
+			dst_pix += 4;
+		}
+
+		psrc += rect->src_pitch;
+		pdst += rect->dst_pitch;
+	}
+}
+
+/* 24 -> 32 */
+static void vramcpy_24_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+{
+	uint32_t y, x;
+	psrc += rect->src_pitch * rect->src_y;
+	pdst += rect->dst_pitch * rect->dst_y;
+
+	for(y = 0; y < rect->dst_h; y++)
+	{
+		uint8_t *src_pix = psrc + (rect->src_x * 4);
+		uint8_t *dst_pix = pdst + (rect->dst_x * 3);
+		int i = rect->dst_w;
+		for(; i > 0; i--)
+		{
+			*((uint32_t*)(dst_pix)) = (*((uint32_t*)src_pix)) & 0xFFFFFF;
+			src_pix += 3;
+			dst_pix += 4;
+		}
+		psrc += rect->src_pitch;
+		pdst += rect->dst_pitch;
+	}
+}
+
+/* 32 -> 16 */
+static void vramcpy_32_16_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+{
+	uint32_t y, x;
+	psrc += rect->src_pitch * rect->src_y;
+	pdst += rect->dst_pitch * rect->dst_y;
+
 	for(y = 0; y < rect->dst_h; y++)
 	{
 		uint8_t *src_pix = psrc + (rect->src_x * 4);
@@ -229,19 +350,19 @@ static void vramcpy_16_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_
 			src_pix += 4;
 			dst_pix += 2;
 		}
-		
+
 		psrc += rect->src_pitch;
 		pdst += rect->dst_pitch;
 	}
 }
 
-/* accelerated 32b rendering to 15b screen (S3) */
-static void vramcpy_15_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+/* 32 -> 15 */
+static void vramcpy_32_15_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
 	pdst += rect->dst_pitch * rect->dst_y;
-			
+
 	for(y = 0; y < rect->dst_h; y++)
 	{
 		uint8_t *src_pix = psrc + (rect->src_x * 4);
@@ -262,7 +383,7 @@ static void vramcpy_15_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_
 			v = r | g | b;
 			v1 = __builtin_convertvector(v, v4us);
 			*((v4us*)dst_pix) = v1;
-			
+
 			src_pix += 4*4;
 			dst_pix += 2*4;
 		}
@@ -278,19 +399,19 @@ static void vramcpy_15_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_
 			src_pix += 4;
 			dst_pix += 2;
 		}
-		
+
 		psrc += rect->src_pitch;
 		pdst += rect->dst_pitch;
 	}
 }
 
-/* accelerated 32b rendering to 24b */
-static void vramcpy_24_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
+/* 32 -> 24 */
+static void vramcpy_32_24_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_t *rect)
 {
 	uint32_t y, x;
 	psrc += rect->src_pitch * rect->src_y;
 	pdst += rect->dst_pitch * rect->dst_y;
-			
+
 	for(y = 0; y < rect->dst_h; y++)
 	{
 		uint8_t *src_pix = psrc + (rect->src_x * 4);
@@ -302,15 +423,15 @@ static void vramcpy_24_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_
 			uint32_t p2 = *((uint32_t*)(src_pix+4))  & 0x00FFFFFF;
 			uint32_t p3 = *((uint32_t*)(src_pix+8))  & 0x00FFFFFF;
 			uint32_t p4 = *((uint32_t*)(src_pix+12)) & 0x00FFFFFF;
-			
+
 			p1 = p1 | (p2 << 24);
 			p2 = (p2 >> 8) | (p3 << 16);
 			p3 = (p3 >> 16) | (p4 << 8); 
-			
+
 			*((uint32_t*)(dst_pix  )) = p1;
 			*((uint32_t*)(dst_pix+4)) = p2;
 			*((uint32_t*)(dst_pix+8)) = p3;
-			
+
 			src_pix += 4*4;
 			dst_pix += 3*4;
 		}
@@ -322,11 +443,12 @@ static void vramcpy_24_32_RGB_faster(uint8_t *psrc, uint8_t *pdst, vramcpy_rect_
 			*(dst_pix+2) =  px & 0xFF;
 			dst_pix += 3;
 		}
-		
+
 		psrc += rect->src_pitch;
 		pdst += rect->dst_pitch;
 	}
 }
+
 
 #undef GAMMA_R
 #undef GAMMA_G
@@ -363,17 +485,17 @@ static void vramcpy_init()
 	VRAMCPY_ENTRY(vram_tbl, 15,15,RGB, copy);
 	VRAMCPY_ENTRY(vram_tbl, 16,15,RGB, fast);
 	VRAMCPY_ENTRY(vram_tbl, 24,15,RGB, fast);
-	VRAMCPY_ENTRY(vram_tbl, 32,15,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 32,15,RGB, faster);
 
 	VRAMCPY_ENTRY(vram_tbl, 15,16,RGB, fast);
 	VRAMCPY_ENTRY(vram_tbl, 16,16,RGB, copy);
 	VRAMCPY_ENTRY(vram_tbl, 24,16,RGB, fast);
-	VRAMCPY_ENTRY(vram_tbl, 32,16,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 32,16,RGB, faster);
 
 	VRAMCPY_ENTRY(vram_tbl, 15,24,RGB, fast);
 	VRAMCPY_ENTRY(vram_tbl, 16,24,RGB, fast);
 	VRAMCPY_ENTRY(vram_tbl, 24,24,RGB, copy);
-	VRAMCPY_ENTRY(vram_tbl, 32,24,RGB, fast);
+	VRAMCPY_ENTRY(vram_tbl, 32,24,RGB, faster);
 
 	VRAMCPY_ENTRY(vram_tbl, 15,32,RGB, faster);
 	VRAMCPY_ENTRY(vram_tbl, 16,32,RGB, faster);
