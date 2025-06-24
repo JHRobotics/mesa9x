@@ -2373,6 +2373,13 @@ tu_upload_shader(struct tu_device *dev,
       tu_cs_begin_sub_stream(&shader->cs, vpc_size, &sub_cs);
       TU_CALLX(dev, tu6_emit_vpc)(&sub_cs, NULL, NULL, NULL, v, NULL);
       shader->binning_state = tu_cs_end_draw_state(&shader->cs, &sub_cs);
+
+      if (safe_const) {
+         tu_cs_begin_sub_stream(&shader->cs, vpc_size, &sub_cs);
+         TU_CALLX(dev, tu6_emit_vpc)(&sub_cs, NULL, NULL, NULL, safe_const, NULL);
+         shader->safe_const_binning_state =
+            tu_cs_end_draw_state(&shader->cs, &sub_cs);
+      }
    }
 
    return VK_SUCCESS;

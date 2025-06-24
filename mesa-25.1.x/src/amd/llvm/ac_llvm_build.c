@@ -1585,7 +1585,7 @@ static const char *get_atomic_name(enum ac_atomic_op op)
 
 LLVMValueRef ac_build_image_opcode(struct ac_llvm_context *ctx, struct ac_image_args *a)
 {
-   const char *overload[3] = {"", "", ""};
+   const char *overload[5] = {"", "", "", "", ""};
    unsigned num_overloads = 0;
    LLVMValueRef args[18];
    unsigned num_args = 0;
@@ -1703,9 +1703,15 @@ LLVMValueRef ac_build_image_opcode(struct ac_llvm_context *ctx, struct ac_image_
    overload[num_overloads++] = sample ? (a->a16 ? ".f16" : ".f32") : (a->a16 ? ".i16" : ".i32");
 
    args[num_args++] = a->resource;
+   #if LLVM_VERSION_MAJOR >= 20
+   overload[num_overloads++] = ".v8i32";
+   #endif
    if (sample) {
       args[num_args++] = a->sampler;
       args[num_args++] = LLVMConstInt(ctx->i1, a->unorm, false);
+      #if LLVM_VERSION_MAJOR >= 20
+      overload[num_overloads++] = ".v4i32";
+      #endif
    }
 
    args[num_args++] = a->tfe ? ctx->i32_1 : ctx->i32_0; /* texfailctrl */
@@ -1792,11 +1798,11 @@ LLVMValueRef ac_build_image_opcode(struct ac_llvm_context *ctx, struct ac_image_
    snprintf(intr_name, sizeof(intr_name),
             "llvm.amdgcn.image.%s%s" /* base name */
             "%s%s%s%s"               /* sample/gather modifiers */
-            ".%s.%s%s%s%s",          /* dimension and type overloads */
+            ".%s.%s%s%s%s%s%s",      /* dimension and type overloads */
             name, atomic_subop, a->compare ? ".c" : "",
             a->bias ? ".b" : lod_suffix ? ".l" : a->derivs[0] ? ".d" : a->level_zero ? ".lz" : "",
             a->min_lod ? ".cl" : "", a->offset ? ".o" : "", dimname,
-            data_type_str, overload[0], overload[1], overload[2]);
+            data_type_str, overload[0], overload[1], overload[2], overload[3], overload[4]);
 
    LLVMTypeRef retty;
    if (a->opcode == ac_image_store || a->opcode == ac_image_store_mip)
@@ -2554,8 +2560,13 @@ static LLVMValueRef _ac_build_readlane(struct ac_llvm_context *ctx, LLVMValueRef
    if (lane)
       lane = LLVMBuildZExt(ctx->builder, lane, ctx->i32, "");
 
+   #if LLVM_VERSION_MAJOR >= 19
+   const char *intr_name = lane == NULL ? "llvm.amdgcn.readfirstlane.i32" : "llvm.amdgcn.readlane.i32";
+   #else
+   const char *intr_name = lane == NULL ? "llvm.amdgcn.readfirstlane" : "llvm.amdgcn.readlane";
+   #endif
    result =
-      ac_build_intrinsic(ctx, lane == NULL ? "llvm.amdgcn.readfirstlane" : "llvm.amdgcn.readlane",
+      ac_build_intrinsic(ctx, intr_name,
                          ctx->i32, (LLVMValueRef[]){src, lane}, lane == NULL ? 1 : 2, 0);
 
    return LLVMBuildTrunc(ctx->builder, result, type, "");
@@ -2601,7 +2612,8 @@ LLVMValueRef ac_build_readlane(struct ac_llvm_context *ctx, LLVMValueRef src, LL
 LLVMValueRef ac_build_writelane(struct ac_llvm_context *ctx, LLVMValueRef src, LLVMValueRef value,
                                 LLVMValueRef lane)
 {
-   return ac_build_intrinsic(ctx, "llvm.amdgcn.writelane", ctx->i32,
+   const char *intr_name = LLVM_VERSION_MAJOR >= 19 ? "llvm.amdgcn.writelane.i32" : "llvm.amdgcn.writelane";
+   return ac_build_intrinsic(ctx, intr_name, ctx->i32,
                              (LLVMValueRef[]){value, lane, src}, 3, 0);
 }
 
@@ -2742,8 +2754,13 @@ static LLVMValueRef _ac_build_permlane16(struct ac_llvm_context *ctx, LLVMValueR
       bound_ctrl ? ctx->i1true : ctx->i1false,
    };
 
+   #if LLVM_VERSION_MAJOR >= 19
+   const char *intr_name = exchange_rows ? "llvm.amdgcn.permlanex16.i32" : "llvm.amdgcn.permlane16.i32";
+   #else
+   const char *intr_name = exchange_rows ? "llvm.amdgcn.permlanex16" : "llvm.amdgcn.permlane16";
+   #endif
    result =
-      ac_build_intrinsic(ctx, exchange_rows ? "llvm.amdgcn.permlanex16" : "llvm.amdgcn.permlane16",
+      ac_build_intrinsic(ctx, intr_name,
                          ctx->i32, args, 6, 0);
 
    return LLVMBuildTrunc(ctx->builder, result, type, "");

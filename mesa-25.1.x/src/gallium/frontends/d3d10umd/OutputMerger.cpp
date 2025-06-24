@@ -236,8 +236,8 @@ ClearRenderTargetView(D3D10DDI_HDEVICE hDevice,                      // IN
                              surface,
                              &clear_color,
                              0, 0,
-                             surface->width,
-                             surface->height,
+                             pipe_surface_width(surface),
+                             pipe_surface_height(surface),
                              true);
 }
 
@@ -385,8 +385,8 @@ ClearDepthStencilView(D3D10DDI_HDEVICE hDevice,                      // IN
                              Depth,
                              Stencil,
                              0, 0,
-                             surface->width,
-                             surface->height,
+                             pipe_surface_width(surface),
+                             pipe_surface_height(surface),
                              true);
 }
 

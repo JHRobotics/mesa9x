@@ -46,7 +46,6 @@ void vlVaHandlePictureParameterBufferH264(vlVaDriver *drv, vlVaContext *context,
 {
    VAPictureParameterBufferH264 *h264 = buf->data;
    unsigned int top_or_bottom_field;
-   bool is_ref;
    unsigned i;
 
    assert(buf->size >= sizeof(VAPictureParameterBufferH264) && buf->num_elements == 1);
@@ -136,16 +135,12 @@ void vlVaHandlePictureParameterBufferH264(vlVaDriver *drv, vlVaContext *context,
 
       top_or_bottom_field = h264->ReferenceFrames[i].flags &
          (VA_PICTURE_H264_TOP_FIELD | VA_PICTURE_H264_BOTTOM_FIELD);
-      is_ref = !!(h264->ReferenceFrames[i].flags &
-         (VA_PICTURE_H264_SHORT_TERM_REFERENCE | VA_PICTURE_H264_LONG_TERM_REFERENCE));
       context->desc.h264.is_long_term[i] = !!(h264->ReferenceFrames[i].flags &
           VA_PICTURE_H264_LONG_TERM_REFERENCE);
-      context->desc.h264.top_is_reference[i] =
-         !!(h264->ReferenceFrames[i].flags & VA_PICTURE_H264_TOP_FIELD) ||
-         ((!top_or_bottom_field) && is_ref);
-      context->desc.h264.bottom_is_reference[i] =
-         !!(h264->ReferenceFrames[i].flags & VA_PICTURE_H264_BOTTOM_FIELD) ||
-         ((!top_or_bottom_field) && is_ref);
+      context->desc.h264.top_is_reference[i] = !top_or_bottom_field ||
+         !!(h264->ReferenceFrames[i].flags & VA_PICTURE_H264_TOP_FIELD);
+      context->desc.h264.bottom_is_reference[i] = !top_or_bottom_field ||
+         !!(h264->ReferenceFrames[i].flags & VA_PICTURE_H264_BOTTOM_FIELD);
       context->desc.h264.field_order_cnt_list[i][0] =
          top_or_bottom_field != VA_PICTURE_H264_BOTTOM_FIELD ?
          h264->ReferenceFrames[i].TopFieldOrderCnt: INT_MAX;

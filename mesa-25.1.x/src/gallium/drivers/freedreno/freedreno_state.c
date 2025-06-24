@@ -725,40 +725,35 @@ fd_set_global_binding(struct pipe_context *pctx, unsigned first, unsigned count,
                       struct pipe_resource **prscs, uint32_t **handles) in_dt
 {
    struct fd_context *ctx = fd_context(pctx);
-   struct fd_global_bindings_stateobj *so = &ctx->global_bindings;
-   unsigned mask = 0;
+   unsigned old_size = util_dynarray_num_elements(&ctx->global_bindings, *prscs);
 
-   if (prscs) {
-      for (unsigned i = 0; i < count; i++) {
-         unsigned n = i + first;
+   if (old_size < first + count) {
+      /* we are screwed no matter what */
+      if (!util_dynarray_grow(&ctx->global_bindings, *prscs,
+                              (first + count) - old_size))
+         unreachable("out of memory");
 
-         mask |= BIT(n);
+      for (unsigned i = old_size; i < first + count; i++)
+         *util_dynarray_element(&ctx->global_bindings,
+                                struct pipe_resource *, i) = NULL;
+   }
 
-         pipe_resource_reference(&so->buf[n], prscs[i]);
+   for (unsigned i = first; i < first + count; ++i) {
+      struct pipe_resource **res = util_dynarray_element(&ctx->global_bindings,
+                                                         struct pipe_resource *,
+                                                         first + i);
+      if (prscs && prscs[i]) {
+         pipe_resource_reference(res, prscs[i]);
 
-         if (so->buf[n]) {
-            struct fd_resource *rsc = fd_resource(so->buf[n]);
-            uint32_t offset = *handles[i];
-            uint64_t iova = fd_bo_get_iova(rsc->bo) + offset;
+         struct fd_resource *rsc = fd_resource(prscs[i]);
+         uint32_t offset = *handles[i];
+         uint64_t iova = fd_bo_get_iova(rsc->bo) + offset;
 
-            /* Yes, really, despite what the type implies: */
-            memcpy(handles[i], &iova, sizeof(iova));
-         }
-
-         if (prscs[i])
-            so->enabled_mask |= BIT(n);
-         else
-            so->enabled_mask &= ~BIT(n);
+         /* Yes, really, despite what the type implies: */
+         memcpy(handles[i], &iova, sizeof(iova));
+      } else {
+         pipe_resource_reference(res, NULL);
       }
-   } else {
-      mask = (BIT(count) - 1) << first;
-
-      for (unsigned i = 0; i < count; i++) {
-         unsigned n = i + first;
-         pipe_resource_reference(&so->buf[n], NULL);
-      }
-
-      so->enabled_mask &= ~mask;
    }
 }
 

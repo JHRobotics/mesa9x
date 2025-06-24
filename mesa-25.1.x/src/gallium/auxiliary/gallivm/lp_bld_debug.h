@@ -33,6 +33,7 @@
 #include "gallivm/lp_bld_init.h"
 
 #include "util/compiler.h"
+#include "util/detect_os.h"
 #include "util/u_string.h"
 
 #include <llvm-c/DebugInfo.h>
@@ -103,7 +104,11 @@ void
 lp_function_add_debug_info(struct gallivm_state *gallivm, LLVMValueRef func, LLVMTypeRef func_type);
 
 
+#if DETECT_OS_ANDROID
+#define LP_NIR_SHADER_DUMP_DIR "/data/local/tmp/nir_shaders"
+#else
 #define LP_NIR_SHADER_DUMP_DIR "/tmp/nir_shaders"
+#endif
 
 
 #ifdef __cplusplus

@@ -2662,7 +2662,6 @@ iris_compile_fs(struct iris_screen *screen,
    brw_nir_lower_fs_outputs(nir);
 
    int null_rts = brw_nir_fs_needs_null_rt(devinfo, nir,
-                                           key->multisample_fbo,
                                            key->alpha_to_coverage) ? 1 : 0;
 
    struct iris_binding_table bt;

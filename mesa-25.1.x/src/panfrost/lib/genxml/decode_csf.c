@@ -275,7 +275,7 @@ print_cs_instr(FILE *fp, const uint64_t *instr)
 
       const char *format_name[] = {".index", ".mask"};
 
-      fprintf(fp, "NEXT_SB_ENTR%s%s r%u", sb_type_name[I.sb_type],
+      fprintf(fp, "NEXT_SB_ENTRY%s%s r%u", sb_type_name[I.sb_type],
               format_name[I.format], I.destination);
 
       break;

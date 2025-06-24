@@ -995,11 +995,13 @@ isl_genX(buffer_fill_state_s)(const struct isl_device *dev, void *state,
        *   VUID-VkDescriptorGetInfoEXT-type-09428
        *   VUID-VkBufferViewCreateInfo-range-00930
        *   VUID-VkBufferViewCreateInfo-range-04059
+       *
+       * Regardless, the bit fields we program in our registers on SKL and
+       * newer are enough to fit 32bit num_elements.
        */
       if (num_elements > (1 << 27)) {
          mesa_logw("%s: num_elements is too big: %u (buffer size: %"PRIu64")\n",
                    __func__, num_elements, buffer_size);
-         num_elements = 1 << 27;
       }
    }
 

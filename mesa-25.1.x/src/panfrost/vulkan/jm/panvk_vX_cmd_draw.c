@@ -838,8 +838,7 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
          cfg.point_size_array_format = MALI_POINT_SIZE_ARRAY_FORMAT_FP16;
 
       cfg.first_provoking_vertex =
-         cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
-            VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+         cmdbuf->state.gfx.render.first_provoking_vertex != U_TRISTATE_NO;
 
       if (ia->primitive_restart_enable)
          cfg.primitive_restart = MALI_PRIMITIVE_RESTART_IMPLICIT;
@@ -944,21 +943,30 @@ panvk_emit_tiler_dcd(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
-set_provoking_vertex_mode(struct panvk_cmd_buffer *cmdbuf)
+set_provoking_vertex_mode(struct panvk_cmd_buffer *cmdbuf,
+                          enum u_tristate first_provoking_vertex)
 {
-   struct pan_fb_info *fbinfo = &cmdbuf->state.gfx.render.fb.info;
-   bool first_provoking_vertex =
-      cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
-         VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+   struct panvk_cmd_graphics_state *state = &cmdbuf->state.gfx;
 
-   /* If this is not the first draw, first_provoking_vertex should match
-    * the one from the previous draws. Unfortunately, we can't check it
-    * when the render pass is inherited. */
-   assert(!cmdbuf->cur_batch->fb.desc.gpu ||
-          fbinfo->first_provoking_vertex == first_provoking_vertex);
+   if (first_provoking_vertex != U_TRISTATE_UNSET) {
+      /* If this is not the first draw, first_provoking_vertex should match
+       * the one from the previous draws. Unfortunately, we can't check it
+       * when the render pass is inherited. */
+      assert(state->render.first_provoking_vertex == U_TRISTATE_UNSET ||
+             state->render.first_provoking_vertex == first_provoking_vertex);
+      state->render.first_provoking_vertex = first_provoking_vertex;
+   }
 
-   fbinfo->first_provoking_vertex = first_provoking_vertex;
+   /* Once we emit the first FBDs/TDs, we need to commit to a state. If we
+    * choose the wrong one, we will fail the assert when the next application
+    * draw happens (with a different state). Use PROVOKING_VERTEX_MODE_FIRST
+    * because it's the vulkan default, and so likely to be right more often.
+    *
+    * TODO: handle this case better */
+   if (state->render.first_provoking_vertex == U_TRISTATE_UNSET)
+      state->render.first_provoking_vertex = U_TRISTATE_YES;
 }
+
 
 static VkResult
 panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
@@ -1178,7 +1186,16 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
       cmdbuf->state.gfx.occlusion_query.mode != MALI_OCCLUSION_MODE_DISABLED;
    bool needs_tiling = !rs->rasterizer_discard_enable || active_occlusion;
 
-   set_provoking_vertex_mode(cmdbuf);
+   if (cmdbuf->state.gfx.vk_meta) {
+      /* vk_meta doesn't care about the provoking vertex mode, we should use
+       * the same mode that the application uses. */
+      set_provoking_vertex_mode(cmdbuf, U_TRISTATE_UNSET);
+   } else {
+      enum u_tristate first_provoking_vertex = u_tristate_make(
+         cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
+         VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT);
+      set_provoking_vertex_mode(cmdbuf, first_provoking_vertex);
+   }
 
    if (!rs->rasterizer_discard_enable) {
       struct pan_fb_info *fbinfo = &cmdbuf->state.gfx.render.fb.info;

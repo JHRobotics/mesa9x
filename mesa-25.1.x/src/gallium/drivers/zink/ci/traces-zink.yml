@@ -28,6 +28,7 @@ traces:
         47127: error: caught an unhandled exception
     gl-zink-anv-tgl:
       checksum: 5bfd510c1298c71ccd3c24c0662b857e
+      label: [skip, flakes]
 
   blender/blender-demo-ellie_pose.trace:
     gl-zink-anv-adl:

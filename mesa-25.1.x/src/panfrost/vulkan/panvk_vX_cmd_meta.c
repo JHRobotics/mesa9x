@@ -106,6 +106,8 @@ panvk_per_arch(cmd_meta_gfx_start)(
    cmdbuf->state.gfx.occlusion_query.ptr = 0;
    cmdbuf->state.gfx.occlusion_query.mode = MALI_OCCLUSION_MODE_DISABLED;
    gfx_state_set_dirty(cmdbuf, OQ);
+
+   cmdbuf->state.gfx.vk_meta = true;
 }
 
 void
@@ -156,6 +158,8 @@ panvk_per_arch(cmd_meta_gfx_end)(
    gfx_state_set_dirty(cmdbuf, OQ);
    gfx_state_set_dirty(cmdbuf, DESC_STATE);
    gfx_state_set_dirty(cmdbuf, RENDER_STATE);
+
+   cmdbuf->state.gfx.vk_meta = false;
 }
 
 VKAPI_ATTR void VKAPI_CALL

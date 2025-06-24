@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include "genxml/gen_macros.h"
 
+#include "drm-uapi/panthor_drm.h"
+
 #include "panvk_buffer.h"
 #include "panvk_cmd_alloc.h"
 #include "panvk_cmd_buffer.h"
@@ -42,6 +44,153 @@
 #include "vk_meta.h"
 #include "vk_pipeline_layout.h"
 #include "vk_render_pass.h"
+
+static enum cs_reg_perm
+provoking_vertex_fn_reg_perm_cb(struct cs_builder *b, unsigned reg)
+{
+   return CS_REG_RW;
+}
+
+#define PROVOKING_VERTEX_FN_MAX_SIZE 512
+
+static size_t
+generate_fn_set_fbds_provoking_vertex(struct panvk_device *dev,
+                                      struct cs_buffer fn_mem, bool has_zs_ext,
+                                      uint32_t rt_count,
+                                      uint32_t *dump_region_size)
+{
+   const struct drm_panthor_csif_info *csif_info =
+      panthor_kmod_get_csif_props(dev->kmod.dev);
+
+   struct cs_builder b;
+   struct cs_builder_conf conf = {
+      .nr_registers = csif_info->cs_reg_count,
+      .nr_kernel_registers = MAX2(csif_info->unpreserved_cs_reg_count, 4),
+      .reg_perm = provoking_vertex_fn_reg_perm_cb,
+   };
+   cs_builder_init(&b, &conf, fn_mem);
+
+   struct cs_function function;
+   struct cs_function_ctx function_ctx = {
+      .ctx_reg = cs_subqueue_ctx_reg(&b),
+      .dump_addr_offset =
+         offsetof(struct panvk_cs_subqueue_context, reg_dump_addr),
+   };
+
+   cs_function_def(&b, &function, function_ctx) {
+      uint32_t fbd_sz = get_fbd_size(has_zs_ext, rt_count);
+
+      /* argument passed in by the caller */
+      struct cs_index fbd_count = cs_scratch_reg32(&b, 0);
+
+      /* normal scratch regs */
+      struct cs_index scratch_reg = cs_scratch_reg32(&b, 1);
+      struct cs_index fbd_addr = cs_scratch_reg64(&b, 2);
+
+      cs_add64(&b, fbd_addr, cs_sr_reg64(&b, FRAGMENT, FBD_POINTER), 0);
+
+      cs_while(&b, MALI_CS_CONDITION_GREATER, fbd_count) {
+         /* provoking_vertex flag is bit 14 of word 11 */
+         unsigned offset = 11 * 4;
+         cs_load32_to(&b, scratch_reg, fbd_addr, offset);
+         cs_wait_slot(&b, SB_ID(LS), false);
+         cs_add32(&b, scratch_reg, scratch_reg, -(1 << 14));
+         cs_store32(&b, scratch_reg, fbd_addr, offset);
+         cs_wait_slot(&b, SB_ID(LS), false);
+
+         cs_add32(&b, fbd_count, fbd_count, -1);
+         cs_add64(&b, fbd_addr, fbd_addr, fbd_sz);
+      }
+   }
+
+   assert(cs_is_valid(&b));
+   cs_finish(&b);
+
+   *dump_region_size = function.dump_size;
+
+   return function.length * sizeof(uint64_t);
+}
+
+static uint32_t
+get_fn_set_fbds_provoking_vertex_idx(bool has_zs_ext, uint32_t rt_count)
+{
+   assert(rt_count >= 1 && rt_count <= MAX_RTS);
+   uint32_t idx = has_zs_ext * MAX_RTS + (rt_count - 1);
+   assert(idx < 2 * MAX_RTS);
+   return idx;
+}
+
+static uint32_t
+calc_fn_set_fbds_provoking_vertex_idx(struct panvk_cmd_buffer *cmdbuf)
+{
+   const struct pan_fb_info *fb = &cmdbuf->state.gfx.render.fb.info;
+   bool has_zs_ext = fb->zs.view.zs || fb->zs.view.s;
+   uint32_t rt_count = MAX2(fb->rt_count, 1);
+
+   return get_fn_set_fbds_provoking_vertex_idx(has_zs_ext, rt_count);
+}
+
+VkResult
+panvk_per_arch(device_draw_context_init)(struct panvk_device *dev)
+{
+   dev->draw_ctx = vk_alloc(&dev->vk.alloc,
+            sizeof(struct panvk_device_draw_context),
+            _Alignof(struct panvk_device_draw_context),
+            VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+   if (dev->draw_ctx == NULL)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+
+   VkResult result = panvk_priv_bo_create(
+      dev, PROVOKING_VERTEX_FN_MAX_SIZE * 2 * MAX_RTS, 0,
+      VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, &dev->draw_ctx->fns_bo);
+   if (result != VK_SUCCESS)
+      goto free_draw_ctx;
+
+   for (uint32_t has_zs_ext = 0; has_zs_ext <= 1; has_zs_ext++) {
+      for (uint32_t rt_count = 1; rt_count <= MAX_RTS; rt_count++) {
+         uint32_t idx =
+            get_fn_set_fbds_provoking_vertex_idx(has_zs_ext, rt_count);
+         /* Check that we have calculated a fn_stride if we need it to offset
+          * addresses. */
+         assert(idx == 0 ||
+                dev->draw_ctx->fn_set_fbds_provoking_vertex_stride != 0);
+         size_t offset =
+            idx * dev->draw_ctx->fn_set_fbds_provoking_vertex_stride;
+
+         struct cs_buffer fn_mem = {
+            .cpu = dev->draw_ctx->fns_bo->addr.host + offset,
+            .gpu = dev->draw_ctx->fns_bo->addr.dev + offset,
+            .capacity = PROVOKING_VERTEX_FN_MAX_SIZE / sizeof(uint64_t),
+         };
+
+         uint32_t dump_region_size;
+         size_t fn_length =
+            generate_fn_set_fbds_provoking_vertex(dev, fn_mem, has_zs_ext,
+                                                  rt_count, &dump_region_size);
+
+         /* All functions must have the same length */
+         assert(idx == 0 ||
+                fn_length == dev->draw_ctx->fn_set_fbds_provoking_vertex_stride);
+         dev->draw_ctx->fn_set_fbds_provoking_vertex_stride = fn_length;
+         dev->dump_region_size[PANVK_SUBQUEUE_VERTEX_TILER] =
+            MAX2(dev->dump_region_size[PANVK_SUBQUEUE_VERTEX_TILER],
+                 dump_region_size);
+      }
+   }
+
+   return VK_SUCCESS;
+
+free_draw_ctx:
+   vk_free(&dev->vk.alloc, dev->draw_ctx);
+   return result;
+}
+
+void
+panvk_per_arch(device_draw_context_cleanup)(struct panvk_device *dev)
+{
+   panvk_priv_bo_unref(dev->draw_ctx->fns_bo);
+   vk_free(&dev->vk.alloc, dev->draw_ctx);
+}
 
 static void
 emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
@@ -802,6 +951,8 @@ cs_render_desc_ringbuf_move_ptr(struct cs_builder *b, uint32_t size,
    cs_wait_slot(b, SB_ID(LS), false);
 }
 
+static bool get_first_provoking_vertex(struct panvk_cmd_buffer *cmdbuf);
+
 static VkResult
 get_tiler_desc(struct panvk_cmd_buffer *cmdbuf)
 {
@@ -851,9 +1002,7 @@ get_tiler_desc(struct panvk_cmd_buffer *cmdbuf)
 
       cfg.sample_pattern = pan_sample_pattern(fbinfo->nr_samples);
 
-      cfg.first_provoking_vertex =
-         cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
-            VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+      cfg.first_provoking_vertex = get_first_provoking_vertex(cmdbuf);
 
       /* This will be overloaded. */
       cfg.layer_count = 1;
@@ -902,6 +1051,15 @@ get_tiler_desc(struct panvk_cmd_buffer *cmdbuf)
    cs_load_to(b, cs_scratch_reg_tuple(b, 6, 4), cs_subqueue_ctx_reg(b),
               BITFIELD_MASK(4),
               offsetof(struct panvk_cs_subqueue_context, render.tiler_heap));
+
+   /* If we don't know what provoking vertex mode the application wants yet,
+    * leave space to patch it later */
+   if (cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET) {
+      cs_maybe(b, &cmdbuf->state.gfx.render.maybe_set_tds_provoking_vertex)
+         /* provoking_vertex flag is bit 18 of word 2 */
+         cs_add32(b, cs_scratch_reg32(b, 2), cs_scratch_reg32(b, 2),
+                  -(1 << 18));
+   }
 
    /* Fill extra fields with zeroes so we can reset the completed
     * top/bottom and private states. */
@@ -1151,6 +1309,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    fbinfo->sample_positions =
       dev->sample_positions->addr.dev +
       panfrost_sample_positions_offset(pan_sample_pattern(fbinfo->nr_samples));
+   fbinfo->first_provoking_vertex = get_first_provoking_vertex(cmdbuf);
 
    VkResult result = panvk_per_arch(cmd_fb_preload)(cmdbuf, fbinfo);
    if (result != VK_SUCCESS)
@@ -1190,6 +1349,9 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    }
 
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
+
+   bool unset_provoking_vertex =
+      cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET;
 
    if (copy_fbds) {
       struct cs_index cur_tiler = cs_reg64(b, 38);
@@ -1231,6 +1393,15 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                   cs_load_to(b, cs_scratch_reg_tuple(b, 0, 14),
                              pass_src_fbd_ptr, BITFIELD_MASK(14), fbd_off);
                   cs_add64(b, cs_scratch_reg64(b, 14), cur_tiler, 0);
+
+                  /* If we don't know what provoking vertex mode the
+                   * application wants yet, leave space to patch it later. */
+                  if (unset_provoking_vertex) {
+                     /* provoking_vertex flag is bit 14 of word 11 */
+                     struct cs_index word = cs_scratch_reg32(b, 11);
+                     cs_maybe(b, &cmdbuf->state.gfx.render.maybe_set_fbds_provoking_vertex)
+                        cs_add32(b, word, word, -(1 << 14));
+                  }
                } else {
                   cs_load_to(b, cs_scratch_reg_tuple(b, 0, 16),
                              pass_src_fbd_ptr, BITFIELD_MASK(16), fbd_off);
@@ -1280,26 +1451,85 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                       fbds.gpu | fbd_flags);
          cs_move64_to(b, cs_reg64(b, 38), cmdbuf->state.gfx.render.tiler);
       }
+
+      /* If we don't know what provoking vertex mode the application wants yet,
+       * leave space to patch it later */
+      if (cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET) {
+         uint32_t fbd_count = calc_enabled_layer_count(cmdbuf) *
+            (1 + PANVK_IR_PASS_COUNT);
+         /* passed to fn_set_fbds_provoking_vertex */
+         struct cs_index fbd_count_reg = cs_scratch_reg32(b, 0);
+         cs_move32_to(b, fbd_count_reg, fbd_count);
+
+         struct cs_index length_reg = cs_scratch_reg32(b, 1);
+         struct cs_index addr_reg = cs_scratch_reg64(b, 2);
+         uint32_t fn_idx = calc_fn_set_fbds_provoking_vertex_idx(cmdbuf);
+         uint32_t fn_stride =
+            dev->draw_ctx->fn_set_fbds_provoking_vertex_stride;
+         uint32_t fn_addr =
+            dev->draw_ctx->fns_bo->addr.dev + fn_idx * fn_stride;
+         cs_move64_to(b, addr_reg, fn_addr);
+         cs_move32_to(b, length_reg, fn_stride);
+
+         cs_maybe(b, &cmdbuf->state.gfx.render.maybe_set_fbds_provoking_vertex)
+            cs_call(b, addr_reg, length_reg);
+      }
    }
 
    return VK_SUCCESS;
 }
 
-static void
-set_provoking_vertex_mode(struct panvk_cmd_buffer *cmdbuf)
+static bool
+get_first_provoking_vertex(struct panvk_cmd_buffer *cmdbuf)
 {
-   struct pan_fb_info *fbinfo = &cmdbuf->state.gfx.render.fb.info;
-   bool first_provoking_vertex =
-      cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
-         VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT;
+   switch (cmdbuf->state.gfx.render.first_provoking_vertex) {
+      case U_TRISTATE_NO:
+         return false;
+      case U_TRISTATE_YES:
+         return true;
+      /* If we don't know the provoking vertex mode yet, guess that it will
+       * be PROVOKING_VERTEX_MODE_FIRST. This is the vulkan default, and so
+       * likely to be right more often. */
+      case U_TRISTATE_UNSET:
+         return true;
+      default:
+         unreachable("Invalid u_tristate");
+   }
+}
 
-   /* If this is not the first draw, first_provoking_vertex should match
-    * the one from the previous draws. Unfortunately, we can't check it
-    * when the render pass is inherited. */
-   assert(!cmdbuf->state.gfx.render.fbds.gpu || inherits_render_ctx(cmdbuf) ||
-          fbinfo->first_provoking_vertex == first_provoking_vertex);
+static void
+set_provoking_vertex_mode(struct panvk_cmd_buffer *cmdbuf,
+                          enum u_tristate first_provoking_vertex)
+{
+   struct panvk_cmd_graphics_state *state = &cmdbuf->state.gfx;
 
-   fbinfo->first_provoking_vertex = first_provoking_vertex;
+   if (first_provoking_vertex != U_TRISTATE_UNSET) {
+      /* If this is not the first draw, first_provoking_vertex should match
+       * the one from the previous draws. Unfortunately, we can't check it
+       * when the render pass is inherited. */
+      assert(state->render.first_provoking_vertex == U_TRISTATE_UNSET ||
+             state->render.first_provoking_vertex == first_provoking_vertex);
+      state->render.first_provoking_vertex = first_provoking_vertex;
+   }
+
+   /* If the application uses PROVOKING_VERTEX_MODE_LAST after we previously
+    * emitted FBDs/TDs with the wrong mode set, patch the CS to flip the
+    * provoking vertex mode bits. */
+   if (state->render.first_provoking_vertex == U_TRISTATE_NO &&
+       state->render.maybe_set_tds_provoking_vertex)
+   {
+      struct cs_builder *b =
+         panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
+      cs_patch_maybe(b, state->render.maybe_set_tds_provoking_vertex);
+      state->render.maybe_set_tds_provoking_vertex = NULL;
+   }
+   if (state->render.first_provoking_vertex == U_TRISTATE_NO &&
+       state->render.maybe_set_fbds_provoking_vertex) {
+      struct cs_builder *b =
+         panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_FRAGMENT);
+      cs_patch_maybe(b, state->render.maybe_set_fbds_provoking_vertex);
+      state->render.maybe_set_fbds_provoking_vertex = NULL;
+   }
 }
 
 static VkResult
@@ -1887,7 +2117,16 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
    /* FIXME: support non-IDVS. */
    assert(idvs);
 
-   set_provoking_vertex_mode(cmdbuf);
+   if (cmdbuf->state.gfx.vk_meta) {
+      /* vk_meta doesn't care about the provoking vertex mode, we should use
+       * the same mode that the application uses. */
+      set_provoking_vertex_mode(cmdbuf, U_TRISTATE_UNSET);
+   } else {
+      enum u_tristate first_provoking_vertex = u_tristate_make(
+         cmdbuf->vk.dynamic_graphics_state.rs.provoking_vertex ==
+         VK_PROVOKING_VERTEX_MODE_FIRST_VERTEX_EXT);
+      set_provoking_vertex_mode(cmdbuf, first_provoking_vertex);
+   }
 
    result = update_tls(cmdbuf);
    if (result != VK_SUCCESS)
@@ -2083,6 +2322,9 @@ panvk_per_arch(cmd_prepare_exec_cmd_for_draws)(
       return VK_SUCCESS;
 
    if (!inherits_render_ctx(primary)) {
+      enum u_tristate first_provoking_vertex =
+         secondary->state.gfx.render.first_provoking_vertex;
+      set_provoking_vertex_mode(primary, first_provoking_vertex);
       VkResult result  = get_render_ctx(primary);
       if (result != VK_SUCCESS)
          return result;
@@ -2395,6 +2637,9 @@ panvk_per_arch(cmd_inherit_render_state)(
       to_panvk_physical_device(dev->vk.physical);
    struct pan_fb_info *fbinfo = &cmdbuf->state.gfx.render.fb.info;
 
+   cmdbuf->state.gfx.render.first_provoking_vertex = U_TRISTATE_UNSET;
+   cmdbuf->state.gfx.render.maybe_set_tds_provoking_vertex = NULL;
+   cmdbuf->state.gfx.render.maybe_set_fbds_provoking_vertex = NULL;
    cmdbuf->state.gfx.render.suspended = false;
    cmdbuf->state.gfx.render.flags = inheritance_info->flags;
 

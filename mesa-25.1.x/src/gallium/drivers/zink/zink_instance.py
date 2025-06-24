@@ -269,9 +269,11 @@ zink_create_instance(struct zink_screen *screen, struct zink_instance_info *inst
    if (err != VK_SUCCESS) {
       if (!screen->driver_name_is_inferred)
           mesa_loge("ZINK: vkCreateInstance failed (%s)", vk_Result_to_str(err));
-   }
 
-   return instance;
+      return NULL;
+   } else {
+      return instance;
+   }
 }
 
 void

@@ -465,7 +465,7 @@ struct tc_renderpass_info {
       uint32_t data32[2];
       /* cso info is in data16[2] */
       uint16_t data16[4];
-      /* zsbuf fb info is in data8[3] */
+      /* zsbuf fb info is in data8[3] & BITFIELD_MASK(4) */
       uint8_t data8[8];
    };
 };
@@ -518,6 +518,7 @@ struct tc_batch {
    /* whether the first set_framebuffer_state call has been seen by this batch */
    bool first_set_fb;
    uint8_t batch_idx;
+   uint32_t generation;
    struct tc_unflushed_batch_token *token;
    uint64_t slots[TC_SLOTS_PER_BATCH];
    struct util_dynarray renderpass_infos;
@@ -634,6 +635,7 @@ struct threaded_context {
    int8_t last_completed;
 
    uint8_t num_vertex_buffers;
+   unsigned last_generation_completed;
    unsigned max_const_buffers;
    unsigned max_shader_buffers;
    unsigned max_images;

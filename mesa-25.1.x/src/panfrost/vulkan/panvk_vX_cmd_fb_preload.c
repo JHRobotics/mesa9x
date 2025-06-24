@@ -492,7 +492,14 @@ cmd_emit_dcd(struct panvk_cmd_buffer *cmdbuf, struct pan_fb_info *fbinfo,
          fbinfo->zs.view.zs ? pan_image_view_get_zs_plane(fbinfo->zs.view.zs)
                             : pan_image_view_get_s_plane(fbinfo->zs.view.s);
       enum pipe_format fmt = plane->layout.format;
-      bool always = false;
+      /* On some GPUs (e.g. G31), we must use SHADER_MODE_ALWAYS rather than
+       * SHADER_MODE_INTERSECT for full screen operations. Since the full
+       * screen rectangle will always intersect, this won't affect
+       * performance.
+       */
+      bool always = !fbinfo->extent.minx && !fbinfo->extent.miny &&
+                    fbinfo->extent.maxx == (fbinfo->width - 1) &&
+                    fbinfo->extent.maxy == (fbinfo->height - 1);
 
       /* If we're dealing with a combined ZS resource and only one
        * component is cleared, we need to reload the whole surface
@@ -510,11 +517,21 @@ cmd_emit_dcd(struct panvk_cmd_buffer *cmdbuf, struct pan_fb_info *fbinfo,
        * Thing's haven't been benchmarked to determine what's
        * preferable (saving bandwidth vs having ZS preloaded
        * earlier), so let's leave it like that for now.
+       * HOWEVER, EARLY_ZS_ALWAYS doesn't exist on 7.0, only on
+       * 7.2 and later, so check for that!
        */
-      fbinfo->bifrost.pre_post.modes[dcd_idx] =
-         PAN_ARCH > 6
-            ? MALI_PRE_POST_FRAME_SHADER_MODE_EARLY_ZS_ALWAYS
-         : always ? MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS
+      struct panvk_physical_device *pdev =
+         to_panvk_physical_device(dev->vk.physical);
+      unsigned gpu_id = pdev->kmod.props.gpu_prod_id;
+
+      /* the PAN_ARCH check is redundant but allows compiler optimization
+         when PAN_ARCH <= 6 */
+      if (PAN_ARCH > 6 && gpu_id >= 0x7200)
+         fbinfo->bifrost.pre_post.modes[dcd_idx] =
+            MALI_PRE_POST_FRAME_SHADER_MODE_EARLY_ZS_ALWAYS;
+      else
+         fbinfo->bifrost.pre_post.modes[dcd_idx] = always
+                  ? MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS
                   : MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT;
    }
 

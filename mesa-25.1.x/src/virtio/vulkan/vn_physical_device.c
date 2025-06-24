@@ -2065,8 +2065,9 @@ vn_GetPhysicalDeviceProperties2(VkPhysicalDevice physicalDevice,
    if (!layered_vk_props)
       return;
 
-   VN_COPY_STRUCT_GUTS(layered_vk_props, &layered_props->vk,
-                       sizeof(layered_props->vk));
+   VN_COPY_STRUCT_GUTS(&layered_vk_props->properties,
+                       &layered_props->vk.properties,
+                       sizeof(layered_props->vk.properties));
    vk_foreach_struct(layered_vk_pnext, layered_vk_props->properties.pNext) {
       switch (layered_vk_pnext->sType) {
       case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES:

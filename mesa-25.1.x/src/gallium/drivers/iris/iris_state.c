@@ -6885,6 +6885,14 @@ iris_upload_dirty_render_state(struct iris_context *ice,
        ice->shaders.prog[MESA_SHADER_TESS_EVAL])
       ice->state.stage_dirty |= IRIS_STAGE_DIRTY_TES;
 
+   /* Reprogram SF_CLIP & CC_STATE together. This reproduces the windows driver programming.
+    * Since blorp disables 3DSTATE_CLIP::ClipEnable and dirties CC_STATE, this takes care of
+    * Wa_14016820455 which requires SF_CLIP to be reprogrammed whenever
+    * 3DSTATE_CLIP::ClipEnable is enabled.
+    */
+   if (ice->state.dirty & (IRIS_DIRTY_CC_VIEWPORT | IRIS_DIRTY_SF_CL_VIEWPORT))
+      ice->state.dirty |= IRIS_DIRTY_CC_VIEWPORT | IRIS_DIRTY_SF_CL_VIEWPORT;
+
    uint64_t dirty = ice->state.dirty;
    uint64_t stage_dirty = ice->state.stage_dirty;
 
@@ -7101,11 +7109,11 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       /* Blend constants modified for Wa_14018912822. */
       if (ice->state.color_blend_zero != color_blend_zero) {
          ice->state.color_blend_zero = color_blend_zero;
-         ice->state.dirty |= IRIS_DIRTY_COLOR_CALC_STATE;
+         dirty |= IRIS_DIRTY_COLOR_CALC_STATE;
       }
       if (ice->state.alpha_blend_zero != alpha_blend_zero) {
          ice->state.alpha_blend_zero = alpha_blend_zero;
-         ice->state.dirty |= IRIS_DIRTY_COLOR_CALC_STATE;
+         dirty |= IRIS_DIRTY_COLOR_CALC_STATE;
       }
 
       uint32_t blend_state_header;

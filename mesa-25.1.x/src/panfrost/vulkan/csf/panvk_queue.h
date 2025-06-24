@@ -38,6 +38,12 @@ struct panvk_subqueue {
    struct panvk_priv_mem context;
    uint32_t *reg_file;
 
+   /* Memory to save/restore CS registers in functions/exception handlers.
+    * Because registers are dumped to a fixed address rather than a moving
+    * stack pointer, nested function/exception handler calls are not supported.
+    */
+   struct panvk_priv_mem regs_save;
+
    struct {
       struct pan_kmod_bo *bo;
       size_t size;
@@ -68,7 +74,6 @@ struct panvk_queue {
    struct panvk_desc_ringbuf render_desc_ringbuf;
    struct panvk_priv_mem syncobjs;
    struct panvk_priv_mem debug_syncobjs;
-   struct panvk_priv_mem tiler_oom_regs_save;
 
    struct {
       struct vk_sync *sync;

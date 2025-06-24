@@ -220,6 +220,11 @@ panvk_per_arch(cmd_init_render_state)(struct panvk_cmd_buffer *cmdbuf,
    memset(state->render.fb.bos, 0, sizeof(state->render.fb.bos));
 #endif
 
+   state->render.first_provoking_vertex = U_TRISTATE_UNSET;
+#if PAN_ARCH >= 10
+   state->render.maybe_set_tds_provoking_vertex = NULL;
+   state->render.maybe_set_fbds_provoking_vertex = NULL;
+#endif
    memset(state->render.fb.crc_valid, 0, sizeof(state->render.fb.crc_valid));
    memset(&state->render.color_attachments, 0,
           sizeof(state->render.color_attachments));

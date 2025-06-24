@@ -366,7 +366,7 @@ dst.x |= ((uint32_t) pack_fmt_1x8(src0.w)) << 24;
 def unpack_2x16(fmt):
    unop_horiz("unpack_" + fmt + "_2x16", 2, tfloat32, 1, tuint32, """
 dst.x = unpack_fmt_1x16((uint16_t)(src0.x & 0xffff));
-dst.y = unpack_fmt_1x16((uint16_t)(src0.x << 16));
+dst.y = unpack_fmt_1x16((uint16_t)(src0.x >> 16));
 """.replace("fmt", fmt))
 
 def unpack_4x8(fmt):

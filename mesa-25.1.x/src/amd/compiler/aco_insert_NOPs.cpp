@@ -1618,9 +1618,9 @@ handle_instruction_gfx11(State& state, NOP_ctx_gfx11& ctx, aco_ptr<Instruction>&
       }
 
       if (instr->isVALU() && !instr->definitions.empty()) {
-         PhysReg reg = instr->definitions[0].physReg();
+         PhysReg reg = instr->definitions.back().physReg();
          if (reg < m0 && ctx.sgpr_read_by_valu[reg / 2]) {
-            for (unsigned i = 0; i < instr->definitions[0].size(); i++)
+            for (unsigned i = 0; i < instr->definitions.back().size(); i++)
                ctx.sgpr_read_by_valu_then_wr_by_valu.set(reg + i);
          }
       } else if (instr->isSALU() && !instr->definitions.empty()) {

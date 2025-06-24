@@ -94,6 +94,7 @@ struct panvk_cs_subqueue_context {
    uint64_t syncobjs;
    uint32_t iter_sb;
    uint32_t pad;
+   uint64_t reg_dump_addr;
    struct {
       struct panvk_cs_desc_ringbuf desc_ringbuf;
       uint64_t tiler_heap;
@@ -105,7 +106,6 @@ struct panvk_cs_subqueue_context {
       uint64_t fbds[PANVK_IR_PASS_COUNT];
       uint32_t td_count;
       uint32_t layer_count;
-      uint64_t reg_dump_addr;
    } tiler_oom_ctx;
    struct {
       uint64_t syncobjs;

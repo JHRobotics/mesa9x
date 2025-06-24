@@ -692,10 +692,10 @@ fn nvb097_fill_null_tic(zero_page_address: u64, desc_out: &mut [u32; 8]) {
 
     set_enum!(th, clb097, TEXHEAD_BL_TEXTURE_TYPE, TWO_D_ARRAY);
     set_enum!(th, clb097, TEXHEAD_BL_BORDER_SIZE, BORDER_SAMPLER_COLOR);
-    th.set_field(cl9097::TEXHEADV2_NORMALIZED_COORDS, true);
+    th.set_field(clb097::TEXHEAD_BL_NORMALIZED_COORDS, true);
 
-    th.set_field(cl9097::TEXHEADV2_RES_VIEW_MIN_MIP_LEVEL, 1_u8);
-    th.set_field(cl9097::TEXHEADV2_RES_VIEW_MAX_MIP_LEVEL, 0_u8);
+    th.set_field(clb097::TEXHEAD_BL_RES_VIEW_MIN_MIP_LEVEL, 1_u8);
+    th.set_field(clb097::TEXHEAD_BL_RES_VIEW_MAX_MIP_LEVEL, 0_u8);
 
     // This is copied from the D3D12 driver. I have no idea what these bits do
     // or if they even do anything.

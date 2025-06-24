@@ -2823,7 +2823,21 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
    }
    case nir_op_ldexp: {
       if (dst.regClass() == v2b) {
-         emit_vop2_instruction(ctx, instr, aco_opcode::v_ldexp_f16, dst, false);
+         nir_scalar scalar = nir_get_scalar(&instr->def, 0);
+         scalar = nir_scalar_chase_alu_src(scalar, 1);
+
+         Temp exp;
+
+         /* Convert the exponent to 16bit int with saturation. */
+         if (nir_scalar_is_const(scalar)) {
+            int16_t clamped = MIN2(MAX2(nir_scalar_as_int(scalar), INT16_MIN), INT16_MAX);
+            exp = bld.copy(bld.def(v2b), Operand::c16(clamped));
+         } else {
+            exp = get_alu_src(ctx, instr->src[1]);
+            exp = bld.vop3(aco_opcode::v_cvt_pk_i16_i32, bld.def(v2b), exp, Operand::c32(0));
+         }
+
+         bld.vop2(aco_opcode::v_ldexp_f16, Definition(dst), get_alu_src(ctx, instr->src[0]), exp);
       } else if (dst.regClass() == v1) {
          emit_vop3a_instruction(ctx, instr, aco_opcode::v_ldexp_f32, dst);
       } else if (dst.regClass() == v2) {
@@ -3163,11 +3177,7 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
             }
          }
       } else if (instr->src[0].src.ssa->bit_size == 32) {
-         if (dst.regClass() == v1b && ctx->program->gfx_level >= GFX11)
-            bld.vop3(aco_opcode::p_v_cvt_pk_u8_f32, Definition(dst),
-                     get_alu_src(ctx, instr->src[0]));
-         else
-            emit_vop1_instruction(ctx, instr, aco_opcode::v_cvt_u32_f32, dst);
+         emit_vop1_instruction(ctx, instr, aco_opcode::v_cvt_u32_f32, dst);
       } else {
          emit_vop1_instruction(ctx, instr, aco_opcode::v_cvt_u32_f64, dst);
       }

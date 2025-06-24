@@ -2713,7 +2713,8 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
          LLVMTypeRef src_type = LLVMIntTypeInContext(ctx->ac.context, ctx->ac.wave_size);
          src = LLVMBuildTrunc(ctx->ac.builder, src, src_type, "");
       }
-      result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.inverse.ballot", ctx->ac.i1, &src, 1, 0);
+      const char *intr_name = ctx->ac.wave_size == 64 ? "llvm.amdgcn.inverse.ballot.i64" : "llvm.amdgcn.inverse.ballot.i32";
+      result = ac_build_intrinsic(&ctx->ac, intr_name, ctx->ac.i1, &src, 1, 0);
       break;
    }
    case nir_intrinsic_read_invocation:
@@ -2921,7 +2922,8 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
 
          src = LLVMBuildZExt(ctx->ac.builder, src, ctx->ac.i32, "");
 
-         result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.readlane", ctx->ac.i32,
+         const char *intr_name = LLVM_VERSION_MAJOR >= 19 ? "llvm.amdgcn.readlane.i32" : "llvm.amdgcn.readlane";
+         result = ac_build_intrinsic(&ctx->ac, intr_name, ctx->ac.i32,
                                      (LLVMValueRef[]){src, index_val}, 2, 0);
 
          result = LLVMBuildTrunc(ctx->ac.builder, result, type, "");
@@ -2932,14 +2934,17 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
    case nir_intrinsic_reduce:
       result = ac_build_reduce(&ctx->ac, get_src(ctx, instr->src[0]), instr->const_index[0],
                                instr->const_index[1]);
+      result = ac_to_integer(&ctx->ac, result);
       break;
    case nir_intrinsic_inclusive_scan:
       result =
          ac_build_inclusive_scan(&ctx->ac, get_src(ctx, instr->src[0]), instr->const_index[0]);
+      result = ac_to_integer(&ctx->ac, result);
       break;
    case nir_intrinsic_exclusive_scan:
       result =
          ac_build_exclusive_scan(&ctx->ac, get_src(ctx, instr->src[0]), instr->const_index[0]);
+      result = ac_to_integer(&ctx->ac, result);
       break;
    case nir_intrinsic_quad_broadcast: {
       unsigned lane = nir_src_as_uint(instr->src[1]);
@@ -3154,8 +3159,9 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       result = LLVMBuildICmp(ctx->ac.builder, LLVMIntEQ, visit_first_invocation(ctx),
                              ac_get_thread_id(&ctx->ac), "");
       break;
-   case nir_intrinsic_lane_permute_16_amd:
-      result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.permlane16", ctx->ac.i32,
+   case nir_intrinsic_lane_permute_16_amd: {
+      const char *intr_name = LLVM_VERSION_MAJOR >= 19 ? "llvm.amdgcn.permlane16.i32" : "llvm.amdgcn.permlane16";
+      result = ac_build_intrinsic(&ctx->ac, intr_name, ctx->ac.i32,
                                   (LLVMValueRef[]){get_src(ctx, instr->src[0]),
                                                    get_src(ctx, instr->src[0]),
                                                    get_src(ctx, instr->src[1]),
@@ -3163,6 +3169,7 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
                                                    ctx->ac.i1false,
                                                    ctx->ac.i1false}, 6, 0);
       break;
+   }
    case nir_intrinsic_load_scalar_arg_amd:
    case nir_intrinsic_load_vector_arg_amd: {
       assert(nir_intrinsic_base(instr) < AC_MAX_ARGS);
@@ -3728,16 +3735,7 @@ static void visit_tex(struct ac_nir_context *ctx, nir_tex_instr *instr)
 
    result = build_tex_intrinsic(ctx, instr, &args);
 
-   LLVMValueRef code = NULL;
-   if (instr->is_sparse) {
-      unsigned num_color_components = num_components - 1;
-      code = ac_llvm_extract_elem(&ctx->ac, result, num_color_components);
-      result = ac_trim_vector(&ctx->ac, result, num_color_components);
-   }
-
-   if (is_new_style_shadow)
-      result = LLVMBuildExtractElement(ctx->ac.builder, result, ctx->ac.i32_0, "");
-   else if (instr->op == nir_texop_fragment_mask_fetch_amd) {
+   if (instr->op == nir_texop_fragment_mask_fetch_amd) {
       /* Use 0x76543210 if the image doesn't have FMASK. */
       LLVMValueRef tmp = LLVMBuildBitCast(ctx->ac.builder, args.resource, ctx->ac.v8i32, "");
       tmp = LLVMBuildExtractElement(ctx->ac.builder, tmp, ctx->ac.i32_1, "");
@@ -3746,12 +3744,19 @@ static void visit_tex(struct ac_nir_context *ctx, nir_tex_instr *instr)
                                LLVMBuildExtractElement(ctx->ac.builder, result, ctx->ac.i32_0, ""),
                                LLVMConstInt(ctx->ac.i32, 0x76543210, false), "");
    } else {
-      unsigned num_color_components = num_components - (instr->is_sparse ? 1 : 0);
-      result = ac_trim_vector(&ctx->ac, result, num_color_components);
-   }
+      /* ac_build_image_opcode always returns 4 components plus 1 optional value
+       * containing residency information. Adjust result to match the output expected by
+       * the NIR instruction.
+       */
+      LLVMValueRef code = NULL;
+      if (instr->is_sparse)
+         code = ac_llvm_extract_elem(&ctx->ac, result, 4);
 
-   if (instr->is_sparse)
-      result = ac_build_concat(&ctx->ac, result, code);
+      result = ac_trim_vector(&ctx->ac, result, num_components - (instr->is_sparse ? 1 : 0));
+
+      if (code)
+         result = ac_build_concat(&ctx->ac, result, code);
+   }
 
    if (result) {
       result = ac_to_integer(&ctx->ac, result);

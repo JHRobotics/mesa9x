@@ -82,10 +82,22 @@ nvk_GetMemoryFdPropertiesKHR(VkDevice device,
 
    uint32_t type_bits = 0;
    if (handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT) {
-      /* We allow a dma-buf to be imported anywhere because there's no way
-       * for us to actually know where it came from.
-       */
-      type_bits = BITFIELD_MASK(pdev->mem_type_count);
+      for (unsigned t = 0; t < ARRAY_SIZE(pdev->mem_types); t++) {
+         const VkMemoryType *type = &pdev->mem_types[t];
+         const enum nvkmd_mem_flags type_flags =
+            nvk_memory_type_flags(type, handleType);
+
+         /* Flags required to be set on mem to be imported as type
+          *
+          * If we're importing into a host-visible heap, we have to be able to
+          * map the memory.
+          */
+         const enum nvkmd_mem_flags req_flags = type_flags & NVKMD_MEM_CAN_MAP;
+         if (req_flags & ~mem->flags)
+            continue;
+
+         type_bits |= (1 << t);
+      }
    } else {
       for (unsigned t = 0; t < ARRAY_SIZE(pdev->mem_types); t++) {
          const enum nvkmd_mem_flags flags =

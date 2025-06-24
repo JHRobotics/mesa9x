@@ -281,6 +281,9 @@ struct pan_shader_info {
    /* Floating point controls that the driver should try to honour */
    bool ftz_fp16, ftz_fp32;
 
+   /* True if the shader contains a shader_clock instruction. */
+   bool has_shader_clk_instr;
+
    unsigned sampler_count;
    unsigned texture_count;
    unsigned ubo_count;

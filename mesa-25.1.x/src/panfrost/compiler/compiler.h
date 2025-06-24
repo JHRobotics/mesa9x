@@ -886,6 +886,7 @@ struct bi_shader_info {
    unsigned tls_size;
    unsigned work_reg_count;
    unsigned push_offset;
+   bool has_ld_gclk_instr;
 };
 
 /* State of index-driven vertex shading for current shader */

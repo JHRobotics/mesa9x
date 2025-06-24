@@ -49,8 +49,16 @@ panfrost_afrc_get_format_info(enum pipe_format format)
    const struct util_format_description *desc = util_format_description(format);
    struct pan_afrc_format_info info = {0};
 
+   /* No AFRC(compressed) */
+   if (util_format_is_compressed(format))
+      return info;
+
    /* No AFRC(ZS). */
    if (desc->colorspace == UTIL_FORMAT_COLORSPACE_ZS)
+      return info;
+
+   /* No AFRC(YUV) yet. */
+   if (panfrost_format_is_yuv(format))
       return info;
 
    unsigned bpc = 0;
@@ -63,19 +71,9 @@ panfrost_afrc_get_format_info(enum pipe_format format)
 
    info.bpc = bpc;
 
-   if (desc->colorspace == UTIL_FORMAT_COLORSPACE_YUV) {
-      if (desc->layout != UTIL_FORMAT_LAYOUT_SUBSAMPLED)
-         info.ichange_fmt = PAN_AFRC_ICHANGE_FORMAT_YUV444;
-      else if (util_format_is_subsampled_422(format))
-         info.ichange_fmt = PAN_AFRC_ICHANGE_FORMAT_YUV422;
-      else
-         info.ichange_fmt = PAN_AFRC_ICHANGE_FORMAT_YUV420;
-   } else {
-      assert(desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
-             desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB);
-      info.ichange_fmt = PAN_AFRC_ICHANGE_FORMAT_RAW;
-   }
-
+   assert(desc->colorspace == UTIL_FORMAT_COLORSPACE_RGB ||
+          desc->colorspace == UTIL_FORMAT_COLORSPACE_SRGB);
+   info.ichange_fmt = PAN_AFRC_ICHANGE_FORMAT_RAW;
    info.num_planes = util_format_get_num_planes(format);
    info.num_comps = util_format_get_nr_components(format);
    return info;
@@ -84,13 +82,9 @@ panfrost_afrc_get_format_info(enum pipe_format format)
 bool
 panfrost_format_supports_afrc(enum pipe_format format)
 {
-   const struct util_format_description *desc = util_format_description(format);
-   int c = util_format_get_first_non_void_channel(desc->format);
+   struct pan_afrc_format_info finfo = panfrost_afrc_get_format_info(format);
 
-   if (c == -1)
-      return false;
-
-   return desc->is_array && desc->channel[c].size == 8;
+   return finfo.num_comps != 0;
 }
 
 struct panfrost_afrc_block_size {

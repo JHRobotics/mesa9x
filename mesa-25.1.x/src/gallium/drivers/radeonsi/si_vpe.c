@@ -1092,7 +1092,6 @@ si_vpe_construct_blt(struct vpe_video_processor *vpeproc,
     */
    result = si_vpe_processor_check_and_build_settins(vpeproc, process_properties, src_surfaces, dst_surfaces);
    if (VPE_STATUS_OK != result) {
-      SIVPE_ERR("Failed in checking process operation and build settings(%d)\n", result);
       return result;
    }
 

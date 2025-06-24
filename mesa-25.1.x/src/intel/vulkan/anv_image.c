@@ -312,7 +312,7 @@ anv_image_choose_isl_surf_usage(struct anv_physical_device *device,
    if (comp_flags & VK_IMAGE_COMPRESSION_DISABLED_EXT)
       isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
 
-   if (anv_is_storage_format_emulated(vk_format)) {
+   if (anv_is_storage_format_atomics_emulated(devinfo, vk_format)) {
       isl_usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT |
                    ISL_SURF_USAGE_SOFTWARE_DETILING;
    }

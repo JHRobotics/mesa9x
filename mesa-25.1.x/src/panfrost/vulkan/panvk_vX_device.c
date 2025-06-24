@@ -17,6 +17,7 @@
 #include "panvk_cmd_alloc.h"
 #include "panvk_cmd_buffer.h"
 #include "panvk_device.h"
+#include "panvk_cmd_draw.h"
 #include "panvk_entrypoints.h"
 #include "panvk_instance.h"
 #include "panvk_macros.h"
@@ -321,6 +322,18 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
 
    panvk_device_init_mempools(device);
 
+#if PAN_ARCH >= 10
+   /* The only reason this is a heap allocation is that PANVK_SUBQUEUE_COUNT
+    * isn't available in the header */
+   device->dump_region_size =
+      vk_zalloc(&device->vk.alloc, PANVK_SUBQUEUE_COUNT * sizeof(uint32_t),
+                alignof(uint32_t), VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+   if (!device->dump_region_size) {
+      result = panvk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+      goto err_free_priv_bos;
+   }
+#endif
+
 #if PAN_ARCH <= 9
    result = panvk_priv_bo_create(
       device, 128 * 1024 * 1024,
@@ -361,9 +374,15 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
    if (result != VK_SUCCESS)
       goto err_free_priv_bos;
 
-   result = panvk_meta_init(device);
+#if PAN_ARCH >= 10
+   result = panvk_per_arch(device_draw_context_init)(device);
    if (result != VK_SUCCESS)
       goto err_free_precomp;
+#endif
+
+   result = panvk_meta_init(device);
+   if (result != VK_SUCCESS)
+      goto err_free_draw_ctx;
 
    for (unsigned i = 0; i < pCreateInfo->queueCreateInfoCount; i++) {
       const VkDeviceQueueCreateInfo *queue_create =
@@ -413,7 +432,11 @@ err_finish_queues:
 
    panvk_meta_cleanup(device);
 
+err_free_draw_ctx:
+#if PAN_ARCH >= 10
+   panvk_per_arch(device_draw_context_cleanup)(device);
 err_free_precomp:
+#endif
    panvk_precomp_cleanup(device);
 err_free_priv_bos:
    if (device->printf.bo)
@@ -423,6 +446,7 @@ err_free_priv_bos:
    panvk_priv_bo_unref(device->sample_positions);
    panvk_priv_bo_unref(device->tiler_heap);
    panvk_device_cleanup_mempools(device);
+   vk_free(&device->vk.alloc, device->dump_region_size);
    pan_kmod_vm_destroy(device->kmod.vm);
    util_vma_heap_finish(&device->as.heap);
    simple_mtx_destroy(&device->as.lock);
@@ -455,6 +479,9 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
    }
 
    panvk_precomp_cleanup(device);
+#if PAN_ARCH >= 10
+   panvk_per_arch(device_draw_context_cleanup)(device);
+#endif
    panvk_meta_cleanup(device);
    u_printf_destroy(&device->printf.ctx);
    panvk_priv_bo_unref(device->printf.bo);
@@ -462,6 +489,7 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
    panvk_priv_bo_unref(device->tiler_heap);
    panvk_priv_bo_unref(device->sample_positions);
    panvk_device_cleanup_mempools(device);
+   vk_free(&device->vk.alloc, device->dump_region_size);
    pan_kmod_vm_destroy(device->kmod.vm);
    util_vma_heap_finish(&device->as.heap);
    simple_mtx_destroy(&device->as.lock);

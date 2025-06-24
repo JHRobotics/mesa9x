@@ -140,6 +140,8 @@ panvk_per_arch(cmd_close_batch)(struct panvk_cmd_buffer *cmdbuf)
       fbinfo->sample_positions = dev->sample_positions->addr.dev +
                                  panfrost_sample_positions_offset(
                                     pan_sample_pattern(fbinfo->nr_samples));
+      fbinfo->first_provoking_vertex =
+         cmdbuf->state.gfx.render.first_provoking_vertex != U_TRISTATE_NO;
 
       if (batch->vtc_jc.first_tiler) {
          VkResult result = panvk_per_arch(cmd_fb_preload)(cmdbuf, fbinfo);

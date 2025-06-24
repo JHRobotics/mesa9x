@@ -509,6 +509,7 @@ static void *evergreen_create_rs_state(struct pipe_context *ctx,
 		S_028810_DX_LINEAR_ATTR_CLIP_ENA(1) |
 		S_028810_DX_RASTERIZATION_KILL(state->rasterizer_discard);
 	rs->multisample_enable = state->multisample;
+	rs->line_width = state->line_width;
 
 	/* offset */
 	rs->offset_units = state->offset_units;
@@ -524,6 +525,7 @@ static void *evergreen_create_rs_state(struct pipe_context *ctx,
 		psize_min = state->point_size;
 		psize_max = state->point_size;
 	}
+	rs->max_point_size = psize_max;
 
 	spi_interp = S_0286D4_FLAT_SHADE_ENA(1);
 	spi_interp |= S_0286D4_PNT_SPRITE_ENA(1) |
@@ -2459,6 +2461,39 @@ static void border_swizzle_nr_channels_2(const unsigned *swizzle,
 	}
 }
 
+/* These two functions cayman_sint8() and cayman_sint16() calculate
+ * the sint border color value in a way compatible with cayman.
+ * The functions check first that the value is in the representable
+ * range, if not the value is clamped. In both cases the value is
+ * truncated to be compatible with what cayman expects. */
+static inline unsigned cayman_sint8(const unsigned value)
+{
+	const unsigned mask = 0xffffff80U;
+	const unsigned value_masked = value & mask;
+
+	if (likely(!value_masked ||
+		   value_masked == mask))
+		return value & 0xff;
+
+	return value & (1U<<31) ?
+		0x80 :
+		0x7f;
+}
+
+static inline unsigned cayman_sint16(const unsigned value)
+{
+	const unsigned mask = 0xffff8000U;
+	const unsigned value_masked = value & mask;
+
+	if (likely(!value_masked ||
+		   value_masked == mask))
+		return value & 0xffff;
+
+	return value & (1U<<31) ?
+		0x8000 :
+		0x7fff;
+}
+
 static void cayman_convert_border_color(union pipe_color_union *in,
                                         union pipe_color_union *out,
                                         struct pipe_sampler_view *view)
@@ -2494,10 +2529,28 @@ static void cayman_convert_border_color(union pipe_color_union *in,
 		} else {
 			memcpy(output_swz, neutral_swz, sizeof(output_swz));
 		}
-		out->f[output_swz[0]] = in->f[0];
-		out->f[output_swz[1]] = in->f[1];
-		out->f[output_swz[2]] = in->f[2];
-		out->f[output_swz[3]] = in->f[3];
+		switch(format) {
+		case PIPE_FORMAT_R8_SINT:
+		case PIPE_FORMAT_R8G8_SINT:
+			out->ui[output_swz[0]] = cayman_sint8(in->ui[0]);
+			out->ui[output_swz[1]] = cayman_sint8(in->ui[1]);
+			out->ui[output_swz[2]] = cayman_sint8(in->ui[2]);
+			out->ui[output_swz[3]] = cayman_sint8(in->ui[3]);
+			break;
+		case PIPE_FORMAT_R16_SINT:
+		case PIPE_FORMAT_R16G16_SINT:
+			out->ui[output_swz[0]] = cayman_sint16(in->ui[0]);
+			out->ui[output_swz[1]] = cayman_sint16(in->ui[1]);
+			out->ui[output_swz[2]] = cayman_sint16(in->ui[2]);
+			out->ui[output_swz[3]] = cayman_sint16(in->ui[3]);
+			break;
+		default:
+			out->f[output_swz[0]] = in->f[0];
+			out->f[output_swz[1]] = in->f[1];
+			out->f[output_swz[2]] = in->f[2];
+			out->f[output_swz[3]] = in->f[3];
+			break;
+		}
 	} else if ((!util_format_is_alpha(format) &&
 		    !util_format_is_luminance(format) &&
 		    !util_format_is_luminance_alpha(format) &&
@@ -2523,6 +2576,23 @@ static void cayman_convert_border_color(union pipe_color_union *in,
                 out->f[1] = values[view->swizzle_g];
                 out->f[2] = values[view->swizzle_b];
                 out->f[3] = values[view->swizzle_a];
+
+		switch(format) {
+		case PIPE_FORMAT_R8G8B8X8_SINT:
+			out->ui[0] = cayman_sint8(out->ui[0]);
+			out->ui[1] = cayman_sint8(out->ui[1]);
+			out->ui[2] = cayman_sint8(out->ui[2]);
+			out->ui[3] = cayman_sint8(out->ui[3]);
+			break;
+		case PIPE_FORMAT_R16G16B16X16_SINT:
+			out->ui[0] = cayman_sint16(out->ui[0]);
+			out->ui[1] = cayman_sint16(out->ui[1]);
+			out->ui[2] = cayman_sint16(out->ui[2]);
+			out->ui[3] = cayman_sint16(out->ui[3]);
+			break;
+		default:
+			break;
+		}
 	} else {
 		memcpy(out->f, in->f, 4 * sizeof(float));
 	}

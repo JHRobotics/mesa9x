@@ -109,8 +109,7 @@ radv_compute_queue_enabled(const struct radv_physical_device *pdev)
 static bool
 radv_vrs_attachment_enabled(const struct radv_physical_device *pdev)
 {
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   return pdev->info.gfx_level >= GFX11 || !(instance->debug_flags & RADV_DEBUG_NO_HIZ);
+   return pdev->info.gfx_level >= GFX11 || pdev->use_hiz;
 }
 
 static bool
@@ -854,7 +853,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .descriptorBindingVariableDescriptorCount = true,
       .runtimeDescriptorArray = true,
 
-      .samplerFilterMinmax = true,
+      .samplerFilterMinmax = radv_filter_minmax_enabled(pdev),
       .scalarBlockLayout = pdev->info.gfx_level >= GFX7,
       .imagelessFramebuffer = true,
       .uniformBufferStandardLayout = true,
@@ -1773,7 +1772,10 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .maxPerStageDescriptorUpdateAfterBindAccelerationStructures = max_descriptor_set_size,
       .maxDescriptorSetAccelerationStructures = max_descriptor_set_size,
       .maxDescriptorSetUpdateAfterBindAccelerationStructures = max_descriptor_set_size,
-      .minAccelerationStructureScratchOffsetAlignment = 128,
+      /* Technically we can work with 128-byte alignment, but DOOM: The Dark Ages breaks if
+       * the alignment is lower than this.
+       */
+      .minAccelerationStructureScratchOffsetAlignment = 256,
 
       /* VK_EXT_multi_draw */
       .maxMultiDrawCount = 2048,
@@ -1842,9 +1844,11 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .maxSamplerDescriptorBufferBindings = MAX_SETS,
       .maxEmbeddedImmutableSamplerBindings = MAX_SETS,
       .maxEmbeddedImmutableSamplers = radv_max_descriptor_set_size(),
-      /* No data required for capture/replay but these values need to be non-zero. */
+      /* No data required for capture/replay (except for sparse images) but these values need to be
+       * non-zero.
+       */
       .bufferCaptureReplayDescriptorDataSize = 1,
-      .imageCaptureReplayDescriptorDataSize = 1,
+      .imageCaptureReplayDescriptorDataSize = 8,
       .imageViewCaptureReplayDescriptorDataSize = 1,
       .samplerCaptureReplayDescriptorDataSize = 1,
       .accelerationStructureCaptureReplayDescriptorDataSize = 1,
@@ -2155,6 +2159,10 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
    pdev->dcc_msaa_allowed = (instance->perftest_flags & RADV_PERFTEST_DCC_MSAA);
 
    pdev->use_fmask = pdev->info.gfx_level < GFX11 && !(instance->debug_flags & RADV_DEBUG_NO_FMASK);
+
+   pdev->use_hiz = !(instance->debug_flags & RADV_DEBUG_NO_HIZ);
+   if (pdev->info.gfx_level == GFX12 && instance->drirc.disable_hiz_his_gfx12)
+      pdev->use_hiz = false;
 
    pdev->use_ngg = (pdev->info.gfx_level >= GFX10 && pdev->info.family != CHIP_NAVI14 &&
                     !(instance->debug_flags & RADV_DEBUG_NO_NGG)) ||

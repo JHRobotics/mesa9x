@@ -1989,7 +1989,7 @@ wsi_finish_create_blit_context(const struct wsi_swapchain *chain,
                               0,
                               0, NULL,
                               0, NULL,
-                              1, img_mem_barriers);
+                              img_mem_barrier_count, img_mem_barriers);
 
       if (chain->blit.type == WSI_SWAPCHAIN_BUFFER_BLIT) {
          struct VkBufferImageCopy buffer_image_copy = {

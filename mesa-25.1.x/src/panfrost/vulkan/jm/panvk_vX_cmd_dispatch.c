@@ -49,9 +49,10 @@ panvk_per_arch(cmd_dispatch_prepare_tls)(struct panvk_cmd_buffer *cmdbuf,
       unsigned core_id_range;
 
       panfrost_query_core_count(&phys_dev->kmod.props, &core_id_range);
-      batch->tlsinfo.wls.instances = pan_wls_instances(dim);
-      batch->wls_total_size = pan_wls_adjust_size(batch->tlsinfo.wls.size) *
-                              batch->tlsinfo.wls.instances * core_id_range;
+      batch->tlsinfo.wls.instances = pan_calc_wls_instances(
+         &shader->cs.local_size, &phys_dev->kmod.props, indirect ? NULL : dim);
+      batch->wls_total_size = pan_calc_total_wls_size(
+         batch->tlsinfo.wls.size, batch->tlsinfo.wls.instances, core_id_range);
    }
 
    return batch->tls.gpu;

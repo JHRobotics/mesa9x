@@ -282,8 +282,8 @@ brw_opt_register_coalesce(brw_shader &s)
       if (inst->opcode == SHADER_OPCODE_LOAD_PAYLOAD) {
          for (int i = 0; i < src_size; i++) {
             dst_reg_offset[i] = inst->dst.offset / REG_SIZE + i;
+            mov[i] = inst;
          }
-         mov[0] = inst;
          channels_remaining -= regs_written(inst);
       } else {
          const int offset = inst->src[0].offset / REG_SIZE;
@@ -297,9 +297,10 @@ brw_opt_register_coalesce(brw_shader &s)
             channels_remaining = -1;
             continue;
          }
-         for (unsigned i = 0; i < MAX2(inst->size_written / REG_SIZE, 1); i++)
+         for (unsigned i = 0; i < MAX2(inst->size_written / REG_SIZE, 1); i++) {
             dst_reg_offset[offset + i] = inst->dst.offset / REG_SIZE + i;
-         mov[offset] = inst;
+            mov[offset + i] = inst;
+         }
          channels_remaining -= regs_written(inst);
       }
 
@@ -318,7 +319,7 @@ brw_opt_register_coalesce(brw_shader &s)
          dst_var[i] = live.var_from_vgrf[dst_reg] + dst_reg_offset[i];
          src_var[i] = live.var_from_vgrf[src_reg] + i;
 
-         if (!can_coalesce_vars(devinfo, live, ips, s.cfg, inst, dst_var[i], src_var[i]) ||
+         if (!can_coalesce_vars(devinfo, live, ips, s.cfg, mov[i], dst_var[i], src_var[i]) ||
              would_violate_eot_restriction(s, s.cfg, dst_reg, src_reg)) {
             can_coalesce = false;
             src_reg = ~0u;
@@ -331,7 +332,7 @@ brw_opt_register_coalesce(brw_shader &s)
 
       progress = true;
 
-      for (int i = 0; i < src_size; i++) {
+      for (int i = 0; i < src_size; i += regs_written(mov[i])) {
          if (!mov[i])
             continue;
 

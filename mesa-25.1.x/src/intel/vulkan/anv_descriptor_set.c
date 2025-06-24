@@ -1354,6 +1354,7 @@ anv_descriptor_pool_heap_reset(struct anv_device *device,
 
    util_vma_heap_finish(&heap->heap);
    util_vma_heap_init(&heap->heap, POOL_HEAP_OFFSET, heap->size);
+   heap->alloc_size = 0;
 }
 
 static VkResult

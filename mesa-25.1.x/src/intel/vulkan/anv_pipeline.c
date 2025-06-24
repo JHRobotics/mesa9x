@@ -1506,7 +1506,6 @@ anv_pipeline_link_fs(const struct brw_compiler *compiler,
       num_rt_bindings = stage->key.wm.nr_color_regions;
    } else if (brw_nir_fs_needs_null_rt(
                  compiler->devinfo, stage->nir,
-                 stage->key.wm.multisample_fbo != INTEL_NEVER,
                  stage->key.wm.alpha_to_coverage != INTEL_NEVER)) {
       /* Ensure the shader doesn't discard the writes */
       stage->key.wm.color_outputs_valid = 0x1;

@@ -2325,10 +2325,6 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_BindImageMemory2(VkDevice _device,
       VkBindMemoryStatusKHR *status = (void*)vk_find_struct_const(&pBindInfos[i], BIND_MEMORY_STATUS_KHR);
       bool did_bind = false;
 
-      if (!mem) {
-         continue;
-      }
-
 #ifdef LVP_USE_WSI_PLATFORM
       vk_foreach_struct_const(s, bind_info->pNext) {
          switch (s->sType) {
@@ -2358,6 +2354,10 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_BindImageMemory2(VkDevice _device,
 #endif
 
       if (!did_bind) {
+         if (!mem) {
+            continue;
+         }
+
          uint64_t offset_B = 0;
          VkResult result;
          if (image->disjoint) {

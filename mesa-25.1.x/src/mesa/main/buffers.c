@@ -33,6 +33,7 @@
 #include "util/glheader.h"
 #include "buffers.h"
 #include "context.h"
+#include "draw_validate.h"
 #include "enums.h"
 #include "fbobject.h"
 #include "framebuffer.h"
@@ -867,6 +868,8 @@ _mesa_drawbuffers(struct gl_context *ctx, struct gl_framebuffer *fb,
          }
       }
    }
+
+   _mesa_update_valid_to_render_state(ctx);
 }
 
 

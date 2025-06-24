@@ -367,7 +367,7 @@ agx_pack_sample_mask_src(const agx_instr *I, agx_index src)
 {
    unsigned value = src.value;
    unsigned packed_value =
-      (value & BITFIELD_MASK(6)) | (((value >> 6) & BITFIELD_MASK(2)) << 10);
+      (value & BITFIELD_MASK(6)) | (((value >> 6) & BITFIELD_MASK(2)) << 8);
 
    if (src.type == AGX_INDEX_IMMEDIATE) {
       pack_assert(I, value < 0x100);
@@ -601,6 +601,7 @@ agx_pack_instr(struct util_dynarray *emission, struct util_dynarray *fixups,
       unsigned T = I->src[0].value;
       bool Tt = I->src[0].type == AGX_INDEX_IMMEDIATE;
       pack_assert(I, Tt || I->src[0].type == AGX_INDEX_REGISTER);
+      pack_assert(I, S < (1 << 10));
       uint32_t raw = 0xc1 | (Tt ? BITFIELD_BIT(8) : 0) |
                      ((T & BITFIELD_MASK(6)) << 9) | ((S & 0xff) << 16) |
                      ((T >> 6) << 24) | ((S >> 8) << 26);

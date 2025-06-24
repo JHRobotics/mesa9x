@@ -465,13 +465,15 @@ panfrost_get_mod_convert_shaders(struct panfrost_context *ctx,
 
    shader = rzalloc(ctx->mod_convert_shaders.shaders, struct pan_mod_convert_shader_data);
    shader->key = key;
-   _mesa_hash_table_insert(ctx->mod_convert_shaders.shaders, &shader->key, shader);
 
 #define COMPILE_SHADER(name, ...)                                              \
    {                                                                           \
       nir_shader *nir =                                                        \
          panfrost_create_##name##_shader(screen, __VA_ARGS__);            \
       nir->info.num_ubos = 1;                                                  \
+      /* "default" UBO is maybe not correct here, but in panfrost we're */     \
+      /* using this as an indicator for whether UBO0 is a user UBO */          \
+      nir->info.first_ubo_is_default_ubo = true;                               \
       shader->name##_cso = pipe_shader_from_nir(pctx, nir);                    \
    }
 
@@ -500,6 +502,14 @@ panfrost_afbc_context_init(struct panfrost_context *ctx)
 void
 panfrost_afbc_context_destroy(struct panfrost_context *ctx)
 {
+   hash_table_foreach(ctx->mod_convert_shaders.shaders, he) {
+      assert(he->data);
+      struct pan_mod_convert_shader_data *shader = he->data;
+      ctx->base.delete_compute_state(&ctx->base, shader->afbc_size_cso);
+      ctx->base.delete_compute_state(&ctx->base, shader->afbc_pack_cso);
+      ctx->base.delete_compute_state(&ctx->base, shader->mtk_detile_cso);
+   }
+
    _mesa_hash_table_destroy(ctx->mod_convert_shaders.shaders, NULL);
    pthread_mutex_destroy(&ctx->mod_convert_shaders.lock);
 }

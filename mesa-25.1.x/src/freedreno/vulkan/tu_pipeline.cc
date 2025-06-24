@@ -2289,6 +2289,8 @@ tu_emit_program_state(struct tu_cs *sub_cs,
    prog->ds_state = draw_states[MESA_SHADER_TESS_EVAL];
    prog->gs_state = draw_states[MESA_SHADER_GEOMETRY];
    prog->gs_binning_state =
+      (safe_variants & (1u << MESA_SHADER_GEOMETRY)) ?
+      shaders[MESA_SHADER_GEOMETRY]->safe_const_binning_state :
       shaders[MESA_SHADER_GEOMETRY]->binning_state;
    prog->fs_state = draw_states[MESA_SHADER_FRAGMENT];
 
@@ -3874,9 +3876,11 @@ tu_emit_draw_state(struct tu_cmd_buffer *cmd)
       dirty_draw_states |= (1u << id);                                        \
    }
 #define DRAW_STATE_FDM(name, id, ...)                                         \
-   if ((EMIT_STATE(name) || (cmd->state.dirty & TU_CMD_DIRTY_FDM)) &&         \
+   if ((EMIT_STATE(name) || (cmd->state.dirty &                               \
+                             (TU_CMD_DIRTY_FDM |                              \
+                              TU_CMD_DIRTY_PER_VIEW_VIEWPORT))) &&            \
        !(cmd->state.pipeline_draw_states & (1u << id))) {                     \
-      if (cmd->state.shaders[MESA_SHADER_FRAGMENT]->fs.has_fdm) {             \
+      if (cmd->state.has_fdm) {                                               \
          tu_cs_set_writeable(&cmd->sub_cs, true);                             \
          tu6_emit_##name##_fdm(&cs, cmd, __VA_ARGS__);                        \
          cmd->state.dynamic_state[id] =                                       \

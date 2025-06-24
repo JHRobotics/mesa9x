@@ -1060,7 +1060,7 @@ rewrite_comp_uses_within_if(nir_builder *b, nir_if *nif, bool invert,
  *        use(d)
  */
 static bool
-opt_if_rewrite_uniform_uses(nir_builder *b, nir_if *nif, nir_scalar cond, bool accept_ine)
+opt_if_rewrite_uniform_uses(nir_builder *b, nir_if *nif, nir_scalar cond, unsigned iand_depth)
 {
    bool progress = false;
 
@@ -1068,20 +1068,23 @@ opt_if_rewrite_uniform_uses(nir_builder *b, nir_if *nif, nir_scalar cond, bool a
       return false;
 
    nir_op op = nir_scalar_alu_op(cond);
-   if (op == nir_op_iand) {
-      progress |= opt_if_rewrite_uniform_uses(b, nif, nir_scalar_chase_alu_src(cond, 0), false);
-      progress |= opt_if_rewrite_uniform_uses(b, nif, nir_scalar_chase_alu_src(cond, 1), false);
+   if (op == nir_op_iand && iand_depth < 10) {
+      progress |= opt_if_rewrite_uniform_uses(b, nif, nir_scalar_chase_alu_src(cond, 0), iand_depth + 1);
+      progress |= opt_if_rewrite_uniform_uses(b, nif, nir_scalar_chase_alu_src(cond, 1), iand_depth + 1);
       return progress;
    }
 
-   if (op != nir_op_ieq && (op != nir_op_ine || !accept_ine))
+   if (op != nir_op_ieq && (op != nir_op_ine || iand_depth != 0))
       return false;
 
    for (unsigned i = 0; i < 2; i++) {
       nir_scalar src_uni = nir_scalar_chase_alu_src(cond, i);
       nir_scalar src_div = nir_scalar_chase_alu_src(cond, !i);
 
-      if (nir_scalar_is_const(src_uni) && src_div.def != src_uni.def)
+      if (nir_scalar_is_const(src_div))
+         continue;
+
+      if (nir_scalar_is_const(src_uni))
          return rewrite_comp_uses_within_if(b, nif, op == nir_op_ine, src_div, src_uni);
 
       if (!nir_scalar_is_intrinsic(src_uni))
@@ -1413,7 +1416,7 @@ opt_if_safe_cf_list(nir_builder *b, struct exec_list *cf_list, nir_opt_if_option
          progress |= opt_if_safe_cf_list(b, &nif->else_list, options);
          progress |= opt_if_evaluate_condition_use(b, nif);
          nir_scalar cond = nir_scalar_resolved(nif->condition.ssa, 0);
-         progress |= opt_if_rewrite_uniform_uses(b, nif, cond, true);
+         progress |= opt_if_rewrite_uniform_uses(b, nif, cond, 0);
          progress |= opt_if_phi_src_unused(b, nif);
          break;
       }

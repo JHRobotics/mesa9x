@@ -324,6 +324,9 @@
 #define   S_D10_CACHE_POLICY(x)                       ((x & 3) << 2)
 #define   S_D10_POLL_INTERVAL(x)                      ((x & 0xFFFF) << 16)
 
+#define PKT3_UPDATE_DB_SUMMARIZER_TIMEOUT    0xEF /* GFX12+ */
+#define   S_EF1_SUMM_CNTL_EVICT_TIMEOUT(x)   ((x & 0xFFF) << 0)
+
 #define PKT2_NOP_PAD PKT_TYPE_S(2)
 #define PKT3_NOP_PAD PKT3(PKT3_NOP, 0x3fff, 0) /* header-only version */
 

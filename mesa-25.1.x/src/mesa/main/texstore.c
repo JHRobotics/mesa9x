@@ -776,7 +776,9 @@ texstore_rgba(TEXSTORE_PARAMS)
       }
 
       /* Convert from src to RGBA float */
-      src = (GLubyte *) srcAddr;
+      src = (GLubyte *)
+         _mesa_image_address(dims, srcPacking, srcAddr, srcWidth, srcHeight,
+                             srcFormat, srcType, 0, 0, 0);
       dst = (GLubyte *) tempRGBA;
       for (img = 0; img < srcDepth; img++) {
          _mesa_format_convert(dst, RGBA32_FLOAT, 4 * srcWidth * sizeof(float),

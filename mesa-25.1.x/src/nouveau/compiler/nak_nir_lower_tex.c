@@ -231,8 +231,6 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, const struct nak_compiler *nak)
       nir_src_rewrite(&tex->src[0].src, nir_vec(b, src0, src0_comps));
 
       if (src1_comps > 0) {
-         while (src1_comps < 4)
-            PUSH(src1, nir_undef(b, 1, 32));
          num_backend_srcs = 2;
          tex->src[1].src_type = nir_tex_src_backend2;
          nir_src_rewrite(&tex->src[1].src, nir_vec(b, src1, src1_comps));

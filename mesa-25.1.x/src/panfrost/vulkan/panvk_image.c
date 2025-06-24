@@ -544,12 +544,12 @@ VKAPI_ATTR VkResult VKAPI_CALL
 panvk_BindImageMemory2(VkDevice device, uint32_t bindInfoCount,
                        const VkBindImageMemoryInfo *pBindInfos)
 {
-   const VkBindImageMemorySwapchainInfoKHR *swapchain_info =
-      vk_find_struct_const(pBindInfos->pNext, BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
-
    for (uint32_t i = 0; i < bindInfoCount; ++i) {
       VK_FROM_HANDLE(panvk_image, image, pBindInfos[i].image);
       struct pan_kmod_bo *old_bo = image->bo;
+      const VkBindImageMemorySwapchainInfoKHR *swapchain_info =
+         vk_find_struct_const(pBindInfos[i].pNext,
+                              BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
 
       if (swapchain_info && swapchain_info->swapchain != VK_NULL_HANDLE) {
          VkImage wsi_vk_image = wsi_common_get_image(swapchain_info->swapchain,

@@ -58,6 +58,9 @@ zink_format_needs_mutable(enum pipe_format a, enum pipe_format b)
       return util_format_linear(a) != b;
    if (util_format_is_srgb(b))
       return util_format_linear(b) != a;
+   if (zink_format_emulate_x8(b) == a || zink_format_emulate_x8(a) == b ||
+       zink_format_get_emulated_alpha(b) == a || zink_format_get_emulated_alpha(a) == b)
+      return false;
    return true;
 }
 #endif

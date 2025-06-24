@@ -504,6 +504,8 @@ v3d_set_framebuffer_state(struct pipe_context *pctx,
 
         v3d->swap_color_rb = 0;
         v3d->blend_dst_alpha_one = 0;
+        v3d->submitted_any_jobs_for_current_fbo = false;
+
         for (int i = 0; i < v3d->framebuffer.nr_cbufs; i++) {
                 struct pipe_surface *cbuf = v3d->framebuffer.cbufs[i];
                 if (!cbuf)

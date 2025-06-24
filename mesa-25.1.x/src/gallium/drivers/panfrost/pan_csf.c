@@ -122,14 +122,14 @@ csf_oom_handler_init(struct panfrost_context *ctx)
    };
    cs_builder_init(&b, &conf, queue);
 
-   struct cs_exception_handler_ctx handler_ctx = {
+   struct cs_function_ctx handler_ctx = {
       .ctx_reg = cs_reg64(&b, TILER_OOM_CTX_REG),
       .dump_addr_offset = offsetof(struct pan_csf_tiler_oom_ctx, dump_addr),
       .ls_sb_slot = 0,
    };
-   struct cs_exception_handler handler;
+   struct cs_function handler;
 
-   cs_exception_handler_def(&b, &handler, handler_ctx) {
+   cs_function_def(&b, &handler, handler_ctx) {
       struct cs_index tiler_oom_ctx = cs_reg64(&b, TILER_OOM_CTX_REG);
       struct cs_index counter = cs_reg32(&b, 47);
       struct cs_index zero = cs_reg64(&b, 48);

@@ -839,6 +839,7 @@ hk_upload_shader(struct hk_device *dev, struct hk_shader *shader)
       cfg.preshader_register_count = shader->b.info.nr_preamble_gprs;
       cfg.sampler_state_register_count = agx_translate_sampler_state_count(
          shader->b.info.uses_txf ? 1 : 0, false);
+      cfg.texture_state_register_count = 0;
    }
 }
 

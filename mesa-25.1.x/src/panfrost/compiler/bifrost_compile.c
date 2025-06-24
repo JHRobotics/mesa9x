@@ -2231,9 +2231,9 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_shader_clock:
-      assert(nir_intrinsic_memory_scope(instr) == SCOPE_SUBGROUP);
       bi_ld_gclk_u64_to(b, dst, BI_SOURCE_CYCLE_COUNTER);
       bi_split_def(b, &instr->def);
+      b->shader->info.has_ld_gclk_instr = true;
       break;
 
    case nir_intrinsic_ddx:
@@ -6208,6 +6208,7 @@ bi_compile_variant(nir_shader *nir,
 
    info->ubo_mask |= ctx->ubo_mask;
    info->tls_size = MAX2(info->tls_size, ctx->info.tls_size);
+   info->has_shader_clk_instr = ctx->info.has_ld_gclk_instr;
 
    if (idvs == BI_IDVS_VARYING) {
       info->vs.secondary_enable = (binary->size > offset);
@@ -6296,10 +6297,12 @@ bifrost_compile_shader_nir(nir_shader *nir,
     */
    NIR_PASS(_, nir, pan_nir_lower_zs_store);
 
-   info->vs.idvs = bi_should_idvs(nir, inputs);
+   if (nir->info.stage == MESA_SHADER_VERTEX) {
+      info->vs.idvs = bi_should_idvs(nir, inputs);
 
-   if (info->vs.idvs)
-      NIR_PASS(_, nir, bifrost_nir_lower_shader_output);
+      if (info->vs.idvs)
+         NIR_PASS(_, nir, bifrost_nir_lower_shader_output);
+   }
 
    bi_optimize_nir(nir, inputs->gpu_id, inputs->is_blend);
 
@@ -6307,12 +6310,14 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    pan_nir_collect_varyings(nir, info, PAN_MEDIUMP_VARY_32BIT);
 
-   /* On Avalon, IDVS is only in one binary */
-   if (info->vs.idvs && pan_arch(inputs->gpu_id) >= 12) {
-      bi_compile_variant(nir, inputs, binary, info, BI_IDVS_ALL);
-   } else if (info->vs.idvs) {
-      bi_compile_variant(nir, inputs, binary, info, BI_IDVS_POSITION);
-      bi_compile_variant(nir, inputs, binary, info, BI_IDVS_VARYING);
+   if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
+      /* On Avalon, IDVS is only in one binary */
+      if (pan_arch(inputs->gpu_id) >= 12)
+         bi_compile_variant(nir, inputs, binary, info, BI_IDVS_ALL);
+      else {
+         bi_compile_variant(nir, inputs, binary, info, BI_IDVS_POSITION);
+         bi_compile_variant(nir, inputs, binary, info, BI_IDVS_VARYING);
+      }
    } else {
       bi_compile_variant(nir, inputs, binary, info, BI_IDVS_NONE);
    }

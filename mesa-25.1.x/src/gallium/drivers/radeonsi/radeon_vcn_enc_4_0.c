@@ -76,6 +76,7 @@ static void radeon_enc_session_init(struct radeon_encoder *enc)
    RADEON_ENC_CS(enc->enc_pic.session_init.slice_output_enabled);
    RADEON_ENC_CS(enc->enc_pic.session_init.display_remote);
    RADEON_ENC_CS(enc->enc_pic.session_init.WA_flags);
+   RADEON_ENC_CS(0);
    RADEON_ENC_END();
 }
 

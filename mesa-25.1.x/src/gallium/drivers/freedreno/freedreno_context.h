@@ -14,6 +14,7 @@
 #include "util/list.h"
 #include "util/slab.h"
 #include "util/u_blitter.h"
+#include "util/u_dynarray.h"
 #include "util/u_string.h"
 #include "util/u_threaded_context.h"
 #include "util/perf/u_trace.h"
@@ -108,12 +109,6 @@ struct fd_streamout_stateobj {
     * Begin.  Used for overflow checking for SW queries.
     */
    unsigned verts_written;
-};
-
-#define MAX_GLOBAL_BUFFERS 16
-struct fd_global_bindings_stateobj {
-   struct pipe_resource *buf[MAX_GLOBAL_BUFFERS];
-   uint32_t enabled_mask;
 };
 
 /* group together the vertex and vertexbuf state.. for ease of passing
@@ -507,7 +502,7 @@ struct fd_context {
    struct fd_shaderbuf_stateobj shaderbuf[PIPE_SHADER_TYPES] dt;
    struct fd_shaderimg_stateobj shaderimg[PIPE_SHADER_TYPES] dt;
    struct fd_streamout_stateobj streamout dt;
-   struct fd_global_bindings_stateobj global_bindings dt;
+   struct util_dynarray global_bindings dt;
    struct pipe_clip_state ucp dt;
 
    struct pipe_query *cond_query dt;

@@ -87,44 +87,21 @@ panfrost_padded_vertex_count(unsigned vertex_count)
       return panfrost_large_padded_vertex_count(vertex_count);
 }
 
-/* The much, much more irritating case -- instancing is enabled. See
- * panfrost_job.h for notes on how this works */
-
 unsigned
-panfrost_compute_magic_divisor(unsigned hw_divisor, unsigned *o_shift,
-                               unsigned *extra_flags)
+panfrost_compute_magic_divisor(unsigned hw_divisor, unsigned *divisor_r,
+                               unsigned *divisor_e)
 {
-   /* We have a NPOT divisor. Here's the fun one (multipling by
-    * the inverse and shifting) */
+   unsigned r = util_logbase2(hw_divisor);
 
-   /* floor(log2(d)) */
-   unsigned shift = util_logbase2(hw_divisor);
+   uint64_t shift_hi = 32 + r;
+   uint64_t t = (uint64_t)1 << shift_hi;
+   uint64_t f0 = t + hw_divisor / 2;
+   uint64_t fi = f0 / hw_divisor;
+   uint64_t ff = f0 - fi * hw_divisor;
 
-   /* m = ceil(2^(32 + shift) / d) */
-   uint64_t shift_hi = 32 + shift;
-   uint64_t t = 1ll << shift_hi;
-   double t_f = t;
-   double hw_divisor_d = hw_divisor;
-   double m_f = ceil(t_f / hw_divisor_d);
-   unsigned m = m_f;
+   uint64_t d = fi - (1ul << 31);
+   *divisor_r = r;
+   *divisor_e = ff > hw_divisor / 2 ? 1 : 0;
 
-   /* Default case */
-   uint32_t magic_divisor = m;
-
-   /* e = 2^(shift + 32) % d */
-   uint64_t e = t % hw_divisor;
-
-   /* Apply round-down algorithm? e <= 2^shift?. XXX: The blob
-    * seems to use a different condition */
-   if (e <= (1ll << shift)) {
-      magic_divisor = m - 1;
-      *extra_flags = 1;
-   }
-
-   /* Top flag implicitly set */
-   assert(magic_divisor & (1u << 31));
-   magic_divisor &= ~(1u << 31);
-   *o_shift = shift;
-
-   return magic_divisor;
+   return d;
 }

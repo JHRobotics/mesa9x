@@ -30,6 +30,7 @@
 #define PANVK_MAX_QUEUE_FAMILIES 1
 
 struct panvk_precomp_cache;
+struct panvk_device_draw_context;
 
 struct panvk_device {
    struct vk_device vk;
@@ -51,7 +52,6 @@ struct panvk_device {
    struct {
       struct panvk_priv_bo *handlers_bo;
       uint32_t handler_stride;
-      uint32_t dump_region_size;
    } tiler_oom;
 
    struct vk_meta_device meta;
@@ -61,6 +61,10 @@ struct panvk_device {
       struct panvk_pool rw_nc;
       struct panvk_pool exec;
    } mempools;
+
+   /* For each subqueue, maximum size of the register dump region needed by
+    * exception handlers or functions */
+   uint32_t *dump_region_size;
 
    struct vk_device_dispatch_table cmd_dispatch;
 
@@ -75,6 +79,8 @@ struct panvk_device {
       struct panvk_utrace_perfetto utp;
 #endif
    } utrace;
+
+   struct panvk_device_draw_context* draw_ctx;
 
    struct {
       struct pandecode_context *decode_ctx;

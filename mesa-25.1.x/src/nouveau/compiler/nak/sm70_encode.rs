@@ -1939,9 +1939,7 @@ impl SM70Op for OpF2F {
 impl SM70Op for OpF2FP {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
         let gpr = op_gpr(self);
-        let [src0, src1] = &mut self.srcs;
-        swap_srcs_if_not_reg(src0, src1, gpr);
-
+        let [src0, _src1] = &mut self.srcs;
         b.copy_alu_src_if_not_reg(src0, gpr, SrcType::ALU);
     }
 

@@ -1271,7 +1271,15 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
       enum pipe_format fmt = fb->zs.view.zs
                                 ? fb->zs.view.zs->planes[0]->layout.format
                                 : fb->zs.view.s->planes[0]->layout.format;
-      UNUSED bool always = false;
+      /* On some GPUs (e.g. G31), we must use SHADER_MODE_ALWAYS rather than
+       * SHADER_MODE_INTERSECT for full screen operations. Since the full
+       * screen rectangle will always intersect, this won't affect
+       * performance. The UNUSED tag is because some PAN_ARCH variants do not
+       * need this test.
+       */
+      UNUSED bool always = !fb->extent.minx && !fb->extent.miny &&
+                           fb->extent.maxx == (fb->width - 1) &&
+                           fb->extent.maxy == (fb->height - 1);
 
       /* If we're dealing with a combined ZS resource and only one
        * component is cleared, we need to reload the whole surface
@@ -1297,13 +1305,22 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
       fb->bifrost.pre_post.modes[dcd_idx] =
          always ? MALI_PRE_POST_FRAME_SHADER_MODE_PREPASS_ALWAYS
                 : MALI_PRE_POST_FRAME_SHADER_MODE_PREPASS_INTERSECT;
-#elif PAN_ARCH >= 7 && PAN_ARCH <= 12
+#elif PAN_ARCH > 7 && PAN_ARCH <= 12
       fb->bifrost.pre_post.modes[dcd_idx] =
          MALI_PRE_POST_FRAME_SHADER_MODE_EARLY_ZS_ALWAYS;
 #else
-      fb->bifrost.pre_post.modes[dcd_idx] =
-         always ? MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS
-                : MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT;
+      /* EARLY_ZS_ALWAYS was introduced in 7.2, so we have to check the
+       * GPU id to find if it's supported, not just PAN_ARCH.
+       * The PAN_ARCH check is redundant but allows the compiler to optimize
+       * when PAN_ARCH < 7.
+       */
+      if (PAN_ARCH >= 7 && cache->gpu_id >= 0x7200)
+         fb->bifrost.pre_post.modes[dcd_idx] =
+            MALI_PRE_POST_FRAME_SHADER_MODE_EARLY_ZS_ALWAYS;
+      else
+         fb->bifrost.pre_post.modes[dcd_idx] =
+            always ? MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS
+                   : MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT;
 #endif
    } else {
       fb->bifrost.pre_post.modes[dcd_idx] =

@@ -1987,6 +1987,7 @@ get_nir_def(nir_to_brw_state &ntb, const nir_def &def, bool all_sources_uniform)
          break;
 
       case nir_intrinsic_load_uniform:
+      case nir_intrinsic_load_push_constant:
          is_scalar = get_nir_src(ntb, instr->src[0], 0).is_scalar;
          break;
 
@@ -6154,7 +6155,8 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_uniform: {
+   case nir_intrinsic_load_uniform:
+   case nir_intrinsic_load_push_constant: {
       /* Offsets are in bytes but they should always aligned to
        * the type size
        */

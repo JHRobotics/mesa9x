@@ -560,6 +560,7 @@ pub mod cl_slice {
     use crate::api::util::CLResult;
     use mesa_rust_util::ptr::addr;
     use rusticl_opencl_gen::CL_INVALID_VALUE;
+    use std::ffi::c_void;
     use std::mem;
     use std::slice;
 
@@ -584,6 +585,22 @@ pub mod cl_slice {
         //
         // The caller has to uphold the other safety requirements imposed by [`std::slice::from_raw_parts`].
         unsafe { Ok(slice::from_raw_parts(data, len)) }
+    }
+
+    /// same as [self::from_raw_parts] just that `len` is provided in bytes and must be a multiple
+    /// of Ts size.
+    #[inline]
+    pub unsafe fn from_raw_parts_bytes_len<'a, T>(
+        data: *const c_void,
+        len: usize,
+    ) -> CLResult<&'a [T]> {
+        let size = mem::size_of::<T>();
+        if len % size != 0 {
+            return Err(CL_INVALID_VALUE);
+        }
+
+        let len = len / size;
+        unsafe { self::from_raw_parts(data.cast(), len) }
     }
 
     /// Wrapper around [`std::slice::from_raw_parts_mut`] that returns `Err(CL_INVALID_VALUE)` if any of these conditions is met:

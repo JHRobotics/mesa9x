@@ -2558,7 +2558,7 @@ v3dv_BindImageMemory2(VkDevice _device,
       }
 
       const VkBindImageMemorySwapchainInfoKHR *swapchain_info =
-         vk_find_struct_const(pBindInfos->pNext,
+         vk_find_struct_const(pBindInfos[i].pNext,
                               BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR);
       if (swapchain_info && swapchain_info->swapchain) {
 #if !DETECT_OS_ANDROID

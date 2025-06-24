@@ -65,27 +65,6 @@ prepare_driver_set(struct panvk_cmd_buffer *cmdbuf)
    return VK_SUCCESS;
 }
 
-static unsigned
-calculate_workgroups_per_task(const struct panvk_shader *shader,
-                              struct panvk_physical_device *phys_dev)
-{
-   /* Each shader core can run N tasks and a total of M threads at any single
-    * time, thus each task should ideally have no more than M/N threads. */
-   unsigned max_threads_per_task = phys_dev->kmod.props.max_threads_per_core /
-                                   phys_dev->kmod.props.max_tasks_per_core;
-
-   /* To achieve the best utilization, we should aim for as many workgroups
-    * per tasks as we can fit without exceeding the above thread limit */
-   unsigned threads_per_wg = shader->cs.local_size.x * shader->cs.local_size.y *
-                             shader->cs.local_size.z;
-   assert(threads_per_wg > 0 &&
-          threads_per_wg <= phys_dev->kmod.props.max_threads_per_wg);
-   unsigned wg_per_task = DIV_ROUND_UP(max_threads_per_task, threads_per_wg);
-   assert(wg_per_task > 0 && wg_per_task <= max_threads_per_task);
-
-   return wg_per_task;
-}
-
 uint64_t
 panvk_per_arch(cmd_dispatch_prepare_tls)(struct panvk_cmd_buffer *cmdbuf,
                                          const struct panvk_shader *shader,
@@ -103,35 +82,16 @@ panvk_per_arch(cmd_dispatch_prepare_tls)(struct panvk_cmd_buffer *cmdbuf,
       .tls.size = shader->info.tls_size,
       .wls.size = shader->info.wls_size,
    };
-   unsigned core_id_range;
-   unsigned core_count =
-      panfrost_query_core_count(&phys_dev->kmod.props, &core_id_range);
-
-   /* Only used for indirect dispatch */
-   unsigned wg_per_task = 0;
-   if (indirect)
-      wg_per_task = calculate_workgroups_per_task(shader, phys_dev);
 
    if (tlsinfo.wls.size) {
-      /* NOTE: If the instance count is lower than the number of workgroups
-       * being dispatched, the HW will hold back workgroups until instances
-       * can be reused. */
-      /* NOTE: There is no benefit from allocating more instances than what
-       * can concurrently be used by the HW */
-      if (indirect) {
-         /* Assume we utilize all shader cores to the max */
-         tlsinfo.wls.instances = util_next_power_of_two(
-            wg_per_task * phys_dev->kmod.props.max_tasks_per_core * core_count);
-      } else {
-         /* TODO: Similar to what we are doing for indirect this should change
-          * to calculate the maximum number of workgroups we can execute
-          * concurrently. */
-         tlsinfo.wls.instances = pan_wls_instances(dim);
-      }
+      unsigned core_id_range;
+      panfrost_query_core_count(&phys_dev->kmod.props, &core_id_range);
 
-      /* TODO: Clamp WLS instance to some maximum WLS budget. */
-      unsigned wls_total_size = pan_wls_adjust_size(tlsinfo.wls.size) *
-                                tlsinfo.wls.instances * core_id_range;
+      tlsinfo.wls.instances = pan_calc_wls_instances(
+         &shader->cs.local_size, &phys_dev->kmod.props, indirect ? NULL : dim);
+
+      unsigned wls_total_size = pan_calc_total_wls_size(
+         tlsinfo.wls.size, tlsinfo.wls.instances, core_id_range);
 
       /* TODO: Reuse WLS allocation for all dispatch commands in the command
        * buffer, similar to what we do for TLS in draw. As WLS size (and
@@ -192,7 +152,8 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    /* Only used for indirect dispatch */
    unsigned wg_per_task = 0;
    if (indirect)
-      wg_per_task = calculate_workgroups_per_task(shader, phys_dev);
+      wg_per_task = pan_calc_workgroups_per_task(&shader->cs.local_size,
+                                                 &phys_dev->kmod.props);
 
    if (compute_state_dirty(cmdbuf, DESC_STATE) ||
        compute_state_dirty(cmdbuf, CS)) {

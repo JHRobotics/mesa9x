@@ -670,3 +670,6 @@ glx@glx_arb_sync_control@swapbuffersmsc-return,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-divisor-zero,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-return swap_interval 0,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-return swap_interval 1,Fail
+
+# Validation error VUID-StandaloneSpirv-None-10684
+KHR-GL46.buffer_storage.map_persistent_texture,Crash

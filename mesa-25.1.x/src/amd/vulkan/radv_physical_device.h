@@ -99,6 +99,9 @@ struct radv_physical_device {
    /* Whether to enable FMASK compression for MSAA textures (GFX6-GFX10.3) */
    bool use_fmask;
 
+   /* Whether to enable HTILE compression for depth/stencil images. */
+   bool use_hiz;
+
    /* Whether to enable NGG. */
    bool use_ngg;
 

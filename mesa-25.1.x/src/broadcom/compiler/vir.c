@@ -1541,6 +1541,10 @@ v3d_nir_sort_constant_ubo_load(nir_block *block, nir_intrinsic_instr *ref)
                         exec_node_insert_after(&pos->node, &inst->node);
 
                 progress = true;
+
+                /* If this was the last instruction in the block we are done */
+                if (!next_inst)
+                        break;
         }
 
         return progress;

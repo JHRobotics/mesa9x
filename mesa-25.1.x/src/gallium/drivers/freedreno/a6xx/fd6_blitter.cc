@@ -918,8 +918,10 @@ fd6_clear_buffer(struct pipe_context *pctx,
       break;
    }
 
-   /* unsupported clear_value_size and when alignment doesn't match fallback */
-   if ((dst_fmt == PIPE_FORMAT_NONE) || (offset % clear_value_size)) {
+   /* unsupported clear_value_size and when alignment doesn't match, fallback */
+   if ((dst_fmt == PIPE_FORMAT_NONE) ||
+       (offset % clear_value_size) ||
+       (size % clear_value_size)) {
       u_default_clear_buffer(pctx, prsc, offset, size, clear_value, clear_value_size);
       return;
    }
@@ -954,20 +956,37 @@ fd6_clear_buffer(struct pipe_context *pctx,
    emit_clear_color(ring, dst_fmt, &color);
    emit_blit_setup<CHIP>(ring, dst_fmt, false, &color, 0, ROTATE_0);
 
-   unsigned dshift = (offset / clear_value_size) & 0x3f;
-   for (unsigned part_offset = 0; part_offset < size; part_offset += (0x4000 - 0x40)) {
-      unsigned doff = (offset + part_offset) & ~0x3f;
+   /*
+    * Buffers can have dimensions bigger than max width (0x4000), so
+    * remap into multiple 1d blits to fit within max dimension
+    *
+    * Additionally, the low 6 bits of DST addresses need to be zero (ie.
+    * address aligned to 64 (0x40)) so we need to shift dst x1/x2 to make
+    * up the difference, on top of already splitting up the blit so width
+    * isn't > 16k.
+    */
 
-      unsigned w = MIN2((size - part_offset) / clear_value_size, (0x4000 - 0x40));
+    /* # of pixels, ie blocks of clear_value_size: */
+   unsigned blocks = size / clear_value_size;
 
-      emit_blit_buffer_dst(ring, rsc, doff, 0, fd6_color_format(dst_fmt, TILE6_LINEAR));
+   enum a6xx_format fmt = fd6_color_format(dst_fmt, TILE6_LINEAR);
+
+   while (blocks) {
+      uint32_t dst_x = (offset & 0x3f) / clear_value_size;
+      uint32_t doff  = offset & ~0x3f;
+      uint32_t width = MIN2(blocks, 0x4000 - dst_x);
+
+      emit_blit_buffer_dst(ring, rsc, doff, 0, fmt);
 
       OUT_PKT4(ring, REG_A6XX_GRAS_2D_DST_TL, 2);
-      OUT_RING(ring, A6XX_GRAS_2D_DST_TL_X(dshift) | A6XX_GRAS_2D_DST_TL_Y(0));
-      OUT_RING(ring, A6XX_GRAS_2D_DST_BR_X(dshift + w - 1) |
+      OUT_RING(ring, A6XX_GRAS_2D_DST_TL_X(dst_x) | A6XX_GRAS_2D_DST_TL_Y(0));
+      OUT_RING(ring, A6XX_GRAS_2D_DST_BR_X(dst_x + width - 1) |
                         A6XX_GRAS_2D_DST_BR_Y(0));
 
       emit_blit_fini<CHIP>(ctx, ring);
+
+      offset += width * clear_value_size;
+      blocks -= width;
    }
 
    fd6_emit_flushes<CHIP>(batch->ctx, ring,

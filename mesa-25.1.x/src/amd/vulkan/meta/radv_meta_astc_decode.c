@@ -42,7 +42,7 @@ decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_ivie
    bool is_3Dimage = (src_iview->image->vk.image_type == VK_IMAGE_TYPE_3D) ? true : false;
    int push_constants[5] = {offset->x / blk_w, offset->y / blk_h, extent->width + offset->x, extent->height + offset->y,
                             is_3Dimage};
-   vk_common_CmdPushConstants(radv_cmd_buffer_to_handle(cmd_buffer), device->meta_state.etc_decode.pipeline_layout,
+   vk_common_CmdPushConstants(radv_cmd_buffer_to_handle(cmd_buffer), device->meta_state.astc_decode->p_layout,
                               VK_SHADER_STAGE_COMPUTE_BIT, 0, 20, push_constants);
 
    struct radv_dispatch_info info = {

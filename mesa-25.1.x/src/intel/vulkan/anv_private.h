@@ -5271,6 +5271,10 @@ enum anv_format_flag {
    ANV_FORMAT_FLAG_CAN_VIDEO = BITFIELD_BIT(1),
    /* Format works if custom border colors without format is disabled */
    ANV_FORMAT_FLAG_NO_CBCWF  = BITFIELD_BIT(2),
+   /* The isl_format associated with this format is only for storage (64bit
+    * emulated through 2x32bit, does not allow read/write without format)
+    */
+   ANV_FORMAT_FLAG_STORAGE_FORMAT_EMULATED = BITFIELD_BIT(3),
 };
 
 struct anv_format {
@@ -5401,8 +5405,13 @@ anv_is_compressed_format_emulated(const struct anv_physical_device *pdevice,
 }
 
 static inline bool
-anv_is_storage_format_emulated(VkFormat format)
+anv_is_storage_format_atomics_emulated(const struct intel_device_info *devinfo,
+                                       VkFormat format)
 {
+   /* No emulation required on Xe2+ */
+   if (devinfo->ver >= 20)
+      return false;
+
    return format == VK_FORMAT_R64_SINT ||
           format == VK_FORMAT_R64_UINT;
 }
@@ -6281,7 +6290,8 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
                                VkFormat vk_format,
                                const struct anv_format *anv_format,
                                VkImageTiling vk_tiling,
-                               bool is_sparse,
+                               VkImageUsageFlags usage,
+                               VkImageCreateFlags create_flags,
                                const struct isl_drm_modifier_info *isl_mod_info);
 
 void anv_fill_buffer_surface_state(struct anv_device *device,

@@ -231,9 +231,9 @@ static int si_init_surface(struct si_screen *sscreen, struct radeon_surf *surfac
          enum pipe_format format = util_format_get_depth_only(ptex->format);
 
          /* These should be set for both color and Z/S. */
-         surface->u.gfx9.color.dcc_number_type = ac_get_cb_number_type(format);
-         surface->u.gfx9.color.dcc_data_format = ac_get_cb_format(sscreen->info.gfx_level, format);
-         surface->u.gfx9.color.dcc_write_compress_disable = false;
+         surface->u.gfx9.dcc_number_type = ac_get_cb_number_type(format);
+         surface->u.gfx9.dcc_data_format = ac_get_cb_format(sscreen->info.gfx_level, format);
+         surface->u.gfx9.dcc_write_compress_disable = false;
       }
 
       if (modifier == DRM_FORMAT_MOD_INVALID &&

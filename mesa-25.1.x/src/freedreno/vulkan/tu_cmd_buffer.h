@@ -444,6 +444,7 @@ struct tu_cmd_state
 
    uint32_t max_vbs_bound;
 
+   bool has_fdm;
    bool per_view_viewport;
 
    /* saved states to re-emit in TU_CMD_DIRTY_DRAW_STATE case */

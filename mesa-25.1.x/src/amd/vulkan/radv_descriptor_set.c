@@ -1633,7 +1633,7 @@ radv_GetDescriptorEXT(VkDevice _device, const VkDescriptorGetInfoEXT *pDescripto
       write_sampler_descriptor(pDescriptor, *pDescriptorInfo->data.pSampler);
       break;
    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-      write_image_descriptor(pDescriptor, 64, pDescriptorInfo->type, pDescriptorInfo->data.pCombinedImageSampler);
+      write_image_descriptor(pDescriptor, 80, pDescriptorInfo->type, pDescriptorInfo->data.pCombinedImageSampler);
       if (pDescriptorInfo->data.pCombinedImageSampler) {
          write_sampler_descriptor((uint32_t *)pDescriptor + 20, pDescriptorInfo->data.pCombinedImageSampler->sampler);
       }

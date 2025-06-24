@@ -5390,7 +5390,7 @@ void genX(CmdBeginRendering)(
       enum isl_aux_usage aux_usage =
          anv_layout_to_aux_usage(cmd_buffer->device->info,
                                  iview->image,
-                                 VK_IMAGE_ASPECT_COLOR_BIT,
+                                 iview->vk.aspects,
                                  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                  att->imageLayout,
                                  cmd_buffer->queue_family->queueFlags);
@@ -5432,7 +5432,7 @@ void genX(CmdBeginRendering)(
             if (is_multiview) {
                u_foreach_bit(view, gfx->view_mask) {
                   transition_color_buffer(cmd_buffer, iview->image,
-                                          VK_IMAGE_ASPECT_COLOR_BIT,
+                                          iview->vk.aspects,
                                           iview->vk.base_mip_level, 1,
                                           iview->vk.base_array_layer + view,
                                           1, /* layer_count */
@@ -5443,7 +5443,7 @@ void genX(CmdBeginRendering)(
                }
             } else {
                transition_color_buffer(cmd_buffer, iview->image,
-                                       VK_IMAGE_ASPECT_COLOR_BIT,
+                                       iview->vk.aspects,
                                        iview->vk.base_mip_level, 1,
                                        iview->vk.base_array_layer,
                                        gfx->layer_count,
@@ -5465,7 +5465,7 @@ void genX(CmdBeginRendering)(
                anv_image_ccs_op(cmd_buffer, iview->image,
                                 iview->planes[0].isl.format,
                                 iview->planes[0].isl.swizzle,
-                                VK_IMAGE_ASPECT_COLOR_BIT,
+                                iview->vk.aspects,
                                 0, 0, 1, ISL_AUX_OP_FAST_CLEAR,
                                 &fast_clear_color,
                                 false);
@@ -5473,7 +5473,7 @@ void genX(CmdBeginRendering)(
                anv_image_mcs_op(cmd_buffer, iview->image,
                                 iview->planes[0].isl.format,
                                 iview->planes[0].isl.swizzle,
-                                VK_IMAGE_ASPECT_COLOR_BIT,
+                                iview->vk.aspects,
                                 0, 1, ISL_AUX_OP_FAST_CLEAR,
                                 &fast_clear_color,
                                 false);
@@ -5492,7 +5492,7 @@ void genX(CmdBeginRendering)(
          if (is_multiview) {
             u_foreach_bit(view, clear_view_mask) {
                anv_image_clear_color(cmd_buffer, iview->image,
-                                     VK_IMAGE_ASPECT_COLOR_BIT,
+                                     iview->vk.aspects,
                                      aux_usage,
                                      iview->planes[0].isl.format,
                                      iview->planes[0].isl.swizzle,
@@ -5502,7 +5502,7 @@ void genX(CmdBeginRendering)(
             }
          } else if (clear_rect.layerCount > 0) {
             anv_image_clear_color(cmd_buffer, iview->image,
-                                  VK_IMAGE_ASPECT_COLOR_BIT,
+                                  iview->vk.aspects,
                                   aux_usage,
                                   iview->planes[0].isl.format,
                                   iview->planes[0].isl.swizzle,
@@ -5527,7 +5527,7 @@ void genX(CmdBeginRendering)(
 
       anv_image_fill_surface_state(cmd_buffer->device,
                                    iview->image,
-                                   VK_IMAGE_ASPECT_COLOR_BIT,
+                                   iview->vk.aspects,
                                    &isl_view,
                                    ISL_SURF_USAGE_RENDER_TARGET_BIT,
                                    aux_usage, &fast_clear_color,
@@ -5830,6 +5830,9 @@ cmd_buffer_mark_attachment_written(struct anv_cmd_buffer *cmd_buffer,
    if (iview == NULL)
       return;
 
+   if (aspect == 0)
+      aspect = iview->vk.aspects;
+
    if (gfx->view_mask == 0) {
       genX(cmd_buffer_mark_image_written)(cmd_buffer, iview->image,
                                           aspect, att->aux_usage,
@@ -5866,8 +5869,7 @@ void genX(CmdEndRendering)(
       is_multiview ? util_last_bit(gfx->view_mask) : gfx->layer_count;
 
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
-      cmd_buffer_mark_attachment_written(cmd_buffer, &gfx->color_att[i],
-                                         VK_IMAGE_ASPECT_COLOR_BIT);
+      cmd_buffer_mark_attachment_written(cmd_buffer, &gfx->color_att[i], 0);
    }
 
    cmd_buffer_mark_attachment_written(cmd_buffer, &gfx->depth_att,

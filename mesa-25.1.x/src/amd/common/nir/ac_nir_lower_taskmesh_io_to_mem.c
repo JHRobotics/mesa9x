@@ -289,6 +289,9 @@ ac_nir_lower_task_outputs_to_mem(nir_shader *shader,
    };
    progress |= nir_lower_task_shader(shader, lower_ts_opt);
 
+   /* Needed after nir_lower_task_shader */
+   progress |= nir_lower_vars_to_ssa(shader);
+
    lower_tsms_io_state state = {
       .draw_entry_bytes = 16,
       .payload_entry_bytes = task_payload_entry_bytes,

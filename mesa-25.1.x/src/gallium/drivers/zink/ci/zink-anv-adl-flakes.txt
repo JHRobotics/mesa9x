@@ -854,3 +854,4 @@ glx@glx-fbconfig-bad
 glx@glx-query-drawable-glxpixmap-glx_width
 glx@glx_arb_create_context@invalid opengl version
 glx@glx_arb_create_context_profile@invalid profile
+glx@glx-tfp

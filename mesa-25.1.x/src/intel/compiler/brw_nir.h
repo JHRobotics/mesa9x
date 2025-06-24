@@ -143,8 +143,7 @@ brw_nir_ubo_surface_index_get_bti(nir_src src)
 /* Returns true if a fragment shader needs at least one render target */
 static inline bool
 brw_nir_fs_needs_null_rt(const struct intel_device_info *devinfo,
-                         nir_shader *nir,
-                         bool multisample_fbo, bool alpha_to_coverage)
+                         nir_shader *nir, bool alpha_to_coverage)
 {
    assert(nir->info.stage == MESA_SHADER_FRAGMENT);
 
@@ -158,15 +157,11 @@ brw_nir_fs_needs_null_rt(const struct intel_device_info *devinfo,
     * output.
     */
    if (nir->info.outputs_written & (BITFIELD_BIT(FRAG_RESULT_DEPTH) |
-                                    BITFIELD_BIT(FRAG_RESULT_STENCIL)))
+                                    BITFIELD_BIT(FRAG_RESULT_STENCIL) |
+                                    BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK)))
       return true;
 
-   uint64_t relevant_outputs = 0;
-   if (multisample_fbo)
-      relevant_outputs |= BITFIELD64_BIT(FRAG_RESULT_SAMPLE_MASK);
-
-   return (alpha_to_coverage ||
-           (nir->info.outputs_written & relevant_outputs) != 0);
+   return alpha_to_coverage;
 }
 
 void brw_preprocess_nir(const struct brw_compiler *compiler,

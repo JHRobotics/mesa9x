@@ -4279,6 +4279,13 @@ tu_CmdBindPipeline(VkCommandBuffer commandBuffer,
    u_foreach_bit(i, pipeline->set_state_mask)
       cmd->state.dynamic_state[i] = pipeline->dynamic_state[i];
 
+   if (pipeline->shaders[MESA_SHADER_FRAGMENT]->fs.has_fdm !=
+       cmd->state.has_fdm) {
+      cmd->state.dirty |= TU_CMD_DIRTY_FDM;
+      cmd->state.has_fdm =
+         pipeline->shaders[MESA_SHADER_FRAGMENT]->fs.has_fdm;
+   }
+
    if (pipeline->program.per_view_viewport != cmd->state.per_view_viewport) {
       cmd->state.per_view_viewport = pipeline->program.per_view_viewport;
       cmd->state.dirty |= TU_CMD_DIRTY_PER_VIEW_VIEWPORT;

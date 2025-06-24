@@ -2343,7 +2343,9 @@ zink_buffer_map(struct pipe_context *pctx,
    /* ideally never ever read or write to non-cached mem */
    bool is_cached_mem = (screen->info.mem_props.memoryTypes[res->obj->bo->base.base.placement].propertyFlags & VK_STAGING_RAM) == VK_STAGING_RAM;
    /* but this is only viable with a certain amount of vram since it may fully duplicate lots of large buffers */
-   bool host_mem_type_check = screen->always_cached_upload ? is_cached_mem : res->obj->host_visible;
+   bool host_mem_type_check = res->obj->host_visible;
+   if (screen->always_cached_upload)
+      host_mem_type_check &= is_cached_mem;
    if (usage & PIPE_MAP_DISCARD_RANGE && !(usage & PIPE_MAP_PERSISTENT) &&
        (!host_mem_type_check || !(usage & (PIPE_MAP_UNSYNCHRONIZED)))) {
 

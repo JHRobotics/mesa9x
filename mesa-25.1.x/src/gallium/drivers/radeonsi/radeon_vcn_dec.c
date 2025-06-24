@@ -2699,7 +2699,7 @@ static int radeon_dec_jpeg_end_frame(struct pipe_video_codec *decoder, struct pi
    if (dec->jpg.crop_y + dec->jpg.crop_height > pic->picture_parameter.picture_height)
       dec->jpg.crop_height = 0;
    dec->send_cmd(dec, target, picture);
-   dec->ws->cs_flush(&dec->jcs[dec->cb_idx], picture->flush_flags, NULL);
+   dec->ws->cs_flush(&dec->jcs[dec->cb_idx], picture->flush_flags, picture->fence);
    next_buffer(dec);
    dec->cb_idx = (dec->cb_idx+1) % dec->njctx;
    return 0;

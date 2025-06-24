@@ -898,7 +898,7 @@ u_trace_clone_append(struct u_trace_iterator begin_it,
              to_copy * sizeof(struct u_trace_event));
 
       /* Take a refcount on payloads from from_chunk if needed. */
-      if (begin_it.ut != into) {
+      if (from_chunk != to_chunk) {
          struct u_trace_payload_buf **in_payload;
          u_vector_foreach (in_payload, &from_chunk->payloads) {
             struct u_trace_payload_buf **out_payload =

@@ -506,6 +506,8 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
    bool from_client = extra_create_info && extra_create_info->from_client;
    vk_image_view_init(&device->vk, &iview->vk, !from_client, pCreateInfo);
 
+   memset(&iview->descriptor, 0, sizeof(iview->descriptor));
+
    iview->image = image;
    iview->plane_id = radv_plane_from_aspect(pCreateInfo->subresourceRange.aspectMask);
    iview->nbc_view.valid = false;

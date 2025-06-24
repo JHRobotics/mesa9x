@@ -60,6 +60,10 @@
 #include <spirv-tools/linker.hpp>
 #include <spirv-tools/optimizer.hpp>
 
+#if LLVM_VERSION_MAJOR >= 16
+#include <llvm/TargetParser/Triple.h>
+#endif
+
 #if LLVM_VERSION_MAJOR >= 20
 #include <llvm/Support/VirtualFileSystem.h>
 #endif
@@ -800,11 +804,17 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
       c->addDependencyCollector(dep);
    }
 
+#if LLVM_VERSION_MAJOR >= 21
+   auto diag_opts = c->getDiagnosticOpts();
+#else
+   auto diag_opts = &c->getDiagnosticOpts();
+#endif
+
    clang::DiagnosticsEngine diag {
       new clang::DiagnosticIDs,
-      new clang::DiagnosticOptions,
+      diag_opts,
       new clang::TextDiagnosticPrinter(diag_log_stream,
-                                       &c->getDiagnosticOpts())
+                                       diag_opts)
    };
 
 #if LLVM_VERSION_MAJOR >= 17
@@ -861,7 +871,7 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
 #endif
                    new clang::TextDiagnosticPrinter(
                            diag_log_stream,
-                           &c->getDiagnosticOpts()));
+                           diag_opts));
 
    c->setTarget(clang::TargetInfo::CreateTargetInfo(
                    c->getDiagnostics(), c->getInvocation().TargetOpts));
@@ -1130,7 +1140,12 @@ llvm_mod_to_spirv(std::unique_ptr<::llvm::Module> mod,
       auto target = TargetRegistry::lookupTarget(triple, error_msg);
       if (target) {
          auto TM = target->createTargetMachine(
-            triple, "", "", {}, std::nullopt, std::nullopt,
+#if LLVM_VERSION_MAJOR >= 21
+            llvm::Triple(triple),
+#else
+            triple,
+#endif
+            "", "", {}, std::nullopt, std::nullopt,
 #if LLVM_VERSION_MAJOR >= 18
             ::llvm::CodeGenOptLevel::None
 #else

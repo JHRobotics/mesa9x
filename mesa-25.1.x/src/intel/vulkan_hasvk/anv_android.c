@@ -216,7 +216,7 @@ get_ahw_buffer_format_properties2(
    p->samplerYcbcrConversionComponents.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
    p->suggestedYcbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601;
-   p->suggestedYcbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
+   p->suggestedYcbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
 
    p->suggestedXChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
    p->suggestedYChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;

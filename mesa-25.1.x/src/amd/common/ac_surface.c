@@ -3626,11 +3626,11 @@ void ac_surface_apply_bo_metadata(enum amd_gfx_level gfx_level, struct radeon_su
       surf->u.gfx9.swizzle_mode = AMDGPU_TILING_GET(tiling_flags, GFX12_SWIZZLE_MODE);
       surf->u.gfx9.color.dcc.max_compressed_block_size =
          AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
-      surf->u.gfx9.color.dcc_data_format =
+      surf->u.gfx9.dcc_data_format =
          AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_DATA_FORMAT);
-      surf->u.gfx9.color.dcc_number_type =
+      surf->u.gfx9.dcc_number_type =
          AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_NUMBER_TYPE);
-      surf->u.gfx9.color.dcc_write_compress_disable =
+      surf->u.gfx9.dcc_write_compress_disable =
          AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_WRITE_COMPRESS_DISABLE);
       scanout = AMDGPU_TILING_GET(tiling_flags, GFX12_SCANOUT);
    } else if (gfx_level >= GFX9) {
@@ -3677,9 +3677,9 @@ void ac_surface_compute_bo_metadata(const struct radeon_info *info, struct radeo
       *tiling_flags |= AMDGPU_TILING_SET(GFX12_SWIZZLE_MODE, surf->u.gfx9.swizzle_mode);
       *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_MAX_COMPRESSED_BLOCK,
                                          surf->u.gfx9.color.dcc.max_compressed_block_size);
-      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_NUMBER_TYPE, surf->u.gfx9.color.dcc_number_type);
-      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_DATA_FORMAT, surf->u.gfx9.color.dcc_data_format);
-      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_WRITE_COMPRESS_DISABLE, surf->u.gfx9.color.dcc_write_compress_disable);
+      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_NUMBER_TYPE, surf->u.gfx9.dcc_number_type);
+      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_DATA_FORMAT, surf->u.gfx9.dcc_data_format);
+      *tiling_flags |= AMDGPU_TILING_SET(GFX12_DCC_WRITE_COMPRESS_DISABLE, surf->u.gfx9.dcc_write_compress_disable);
       *tiling_flags |= AMDGPU_TILING_SET(GFX12_SCANOUT, (surf->flags & RADEON_SURF_SCANOUT) != 0);
    } else if (info->gfx_level >= GFX9) {
       uint64_t dcc_offset = 0;

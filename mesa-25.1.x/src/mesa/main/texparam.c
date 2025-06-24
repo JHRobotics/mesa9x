@@ -852,11 +852,8 @@ set_tex_parameterf(struct gl_context *ctx,
                   0 : texObj->Sampler.Attrib.MaxAnisotropy; /* gallium sets 0 for 1 */
          return GL_TRUE;
       }
-      else {
-         static GLuint count = 0;
-         if (count++ < 10)
-            goto invalid_pname;
-      }
+      else
+         goto invalid_pname;
       return GL_FALSE;
 
    case GL_TEXTURE_LOD_BIAS:

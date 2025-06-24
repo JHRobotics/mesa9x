@@ -2222,7 +2222,12 @@ setup_renderdoc(struct zink_screen *screen)
    const char *capture_id = debug_get_option("ZINK_RENDERDOC", NULL);
    if (!capture_id)
       return;
-   void *renderdoc = dlopen("librenderdoc.so", RTLD_NOW | RTLD_NOLOAD);
+#if DETECT_OS_ANDROID
+   const char *libstr = "libVkLayer_GLES_RenderDoc.so";
+#else
+   const char *libstr = "librenderdoc.so";
+#endif
+   void *renderdoc = dlopen(libstr, RTLD_NOW | RTLD_NOLOAD);
    /* not loaded */
    if (!renderdoc)
       return;
@@ -3279,10 +3284,13 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
    if (++instance_refcount == 1) {
       instance_info.loader_version = zink_get_loader_version(screen);
       instance = zink_create_instance(screen, &instance_info);
-      if (!instance)
-         goto fail;
-   } else {
-      assert(instance);
+   }
+   if (!instance) {
+      /* We don't decrement instance_refcount here. This prevents us from trying
+       * to create another instance on subsequent calls.
+       */
+      simple_mtx_unlock(&instance_lock);
+      goto fail;
    }
    screen->instance = instance;
    screen->instance_info = &instance_info;

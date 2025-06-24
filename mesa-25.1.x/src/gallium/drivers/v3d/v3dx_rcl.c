@@ -512,7 +512,6 @@ emit_render_layer(struct v3d_job *job, uint32_t layer)
 
         cl_emit(&job->rcl, MULTICORE_RENDERING_SUPERTILE_CFG, config) {
                 uint32_t frame_w_in_supertiles, frame_h_in_supertiles;
-                const uint32_t max_supertiles = 256;
 
                 /* Size up our supertiles until we get under the limit. */
                 for (;;) {
@@ -520,8 +519,16 @@ emit_render_layer(struct v3d_job *job, uint32_t layer)
                                                              supertile_w);
                         frame_h_in_supertiles = DIV_ROUND_UP(job->tile_desc.draw_y,
                                                              supertile_h);
-                        if (frame_w_in_supertiles *
-                                frame_h_in_supertiles < max_supertiles) {
+                        uint32_t num_supertiles = frame_w_in_supertiles *
+                                                  frame_h_in_supertiles;
+                        /* While the hardware allows up to V3D_MAX_SUPERTILES,
+                         * it doesn't allow 1xV3D_MAX_SUPERTILES or
+                         * V3D_MAX_SUPERTILESx1 frame configurations; in these
+                         * cases we need to increase the supertile size.
+                         */
+                        if (frame_w_in_supertiles < V3D_MAX_SUPERTILES &&
+                            frame_h_in_supertiles < V3D_MAX_SUPERTILES &&
+                            num_supertiles <= V3D_MAX_SUPERTILES) {
                                 break;
                         }
 

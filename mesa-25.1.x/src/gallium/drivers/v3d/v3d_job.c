@@ -426,7 +426,11 @@ v3d_get_job_for_fbo(struct v3d_context *v3d)
                         struct v3d_resource *rsc = v3d_resource(cbufs[i]->texture);
                         if (!rsc->writes)
                                 job->clear_tlb |= PIPE_CLEAR_COLOR0 << i;
-                        if (rsc->invalidated) {
+                        /* Loads invalidations only applies to the first job
+                         * submitted after a framebuffer state update
+                         */
+                        if (rsc->invalidated &&
+                            !v3d->submitted_any_jobs_for_current_fbo) {
                                 job->invalidated_load |= PIPE_CLEAR_COLOR0 << i;
                                 rsc->invalidated = false;
                         }
@@ -443,11 +447,15 @@ v3d_get_job_for_fbo(struct v3d_context *v3d)
 
                 if (!rsc->writes)
                         job->clear_tlb |= PIPE_CLEAR_STENCIL;
-                if (rsc->invalidated) {
+                /* Loads invalidations only applies to the first job submitted
+                 * after a framebuffer state update
+                 */
+                if (rsc->invalidated &&
+                    !v3d->submitted_any_jobs_for_current_fbo) {
                         /* Currently gallium only applies invalidates if it
                          * affects both depth and stencil together.
                          */
-                         job->invalidated_load |=
+                        job->invalidated_load |=
                                  PIPE_CLEAR_DEPTH | PIPE_CLEAR_STENCIL;
                         rsc->invalidated = false;
                         if (rsc->separate_stencil)
@@ -740,6 +748,8 @@ v3d_job_submit(struct v3d_context *v3d, struct v3d_job *job)
         }
 
 done:
+        if (v3d->job == job)
+                v3d->submitted_any_jobs_for_current_fbo = true;
         v3d_job_free(v3d, job);
 }
 

@@ -195,7 +195,7 @@ pan_get_max_msaa(unsigned arch, unsigned max_tib_size, unsigned max_cbuf_atts,
 {
    assert(max_cbuf_atts > 0);
    assert(format_size > 0);
-   const unsigned min_tile_size = 4 * 4;
+   const unsigned min_tile_size = arch >= 5 ? 4 * 4 : 16 * 16;
    unsigned max_msaa = max_tib_size / (max_cbuf_atts * format_size *
                                        min_tile_size);
    return MIN2(max_msaa, arch >= 5 ? 16 : 8);

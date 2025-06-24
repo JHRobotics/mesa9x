@@ -46,39 +46,6 @@ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
    bifrost_precompiled_kernel_prepare_push_uniforms(push_uniforms.cpu, data,
                                                     data_size, &sysvals);
 
-   struct pan_tls_info tlsinfo = {.tls = {.size = shader->info.tls_size},
-                                  .wls = {.size = shader->info.wls_size}};
-
-   if (tlsinfo.tls.size) {
-      unsigned thread_tls_alloc =
-         panfrost_query_thread_tls_alloc(&phys_dev->kmod.props);
-      unsigned core_id_range;
-      panfrost_query_core_count(&phys_dev->kmod.props, &core_id_range);
-
-      unsigned size = panfrost_get_total_stack_size(
-         tlsinfo.tls.size, thread_tls_alloc, core_id_range);
-      tlsinfo.tls.ptr = panvk_cmd_alloc_dev_mem(cmdbuf, tls, size, 4096).gpu;
-      assert(tlsinfo.tls.ptr);
-   }
-
-   if (tlsinfo.wls.size) {
-      unsigned core_id_range;
-      panfrost_query_core_count(&phys_dev->kmod.props, &core_id_range);
-
-      struct pan_compute_dim wg_count = {.x = grid.count[0],
-                                         .y = grid.count[1],
-                                         .z = grid.count[2]};
-      tlsinfo.wls.instances = pan_wls_instances(&wg_count);
-
-      unsigned wls_total_size = pan_wls_adjust_size(tlsinfo.wls.size) *
-                                tlsinfo.wls.instances * core_id_range;
-
-      tlsinfo.wls.ptr =
-         panvk_cmd_alloc_dev_mem(cmdbuf, tls, wls_total_size, 4096).gpu;
-
-      assert(tlsinfo.wls.ptr);
-   }
-
    struct pan_compute_dim dim = {.x = grid.count[0],
                                  .y = grid.count[1],
                                  .z = grid.count[2]};

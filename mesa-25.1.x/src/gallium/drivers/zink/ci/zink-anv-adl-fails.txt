@@ -670,7 +670,6 @@ dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_mag_revers
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_min_reverse_dst_x,Fail
 spec@ext_framebuffer_multisample@interpolation 6 non-centroid-deriv-disabled,Fail
 
-glx@glx-tfp,Fail
 spec@arb_sample_shading@samplemask 4,Fail
 spec@ext_framebuffer_multisample@interpolation 6 centroid-deriv-disabled,Fail
 spec@ext_framebuffer_multisample@interpolation 8 non-centroid-deriv-disabled,Fail

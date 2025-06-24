@@ -15,20 +15,21 @@ use std::cell::RefCell;
 use std::cmp::{max, Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
+#[derive(Default)]
 struct PhiDstMap {
+    phi_ssa: HashMap<u32, SSAValue>,
     ssa_phi: HashMap<SSAValue, u32>,
 }
 
 impl PhiDstMap {
     fn new() -> PhiDstMap {
-        PhiDstMap {
-            ssa_phi: HashMap::new(),
-        }
+        Default::default()
     }
 
     fn add_phi_dst(&mut self, phi_idx: u32, dst: Dst) {
         let vec = dst.as_ssa().expect("Not an SSA destination");
         debug_assert!(vec.comps() == 1);
+        self.phi_ssa.insert(phi_idx, vec[0]);
         self.ssa_phi.insert(vec[0], phi_idx);
     }
 
@@ -45,24 +46,27 @@ impl PhiDstMap {
     fn get_phi_idx(&self, ssa: &SSAValue) -> Option<&u32> {
         self.ssa_phi.get(ssa)
     }
+
+    fn get_dst_ssa(&self, phi_idx: &u32) -> Option<&SSAValue> {
+        self.phi_ssa.get(phi_idx)
+    }
 }
 
+#[derive(Default)]
 struct PhiSrcMap {
-    phi_src: HashMap<u32, SSAValue>,
+    src_phi: HashMap<SSAValue, u32>,
 }
 
 impl PhiSrcMap {
     fn new() -> PhiSrcMap {
-        PhiSrcMap {
-            phi_src: HashMap::new(),
-        }
+        Default::default()
     }
 
     fn add_phi_src(&mut self, phi_idx: u32, src: Src) {
         debug_assert!(src.is_unmodified());
         let vec = src.src_ref.as_ssa().expect("Not an SSA source");
         debug_assert!(vec.comps() == 1);
-        self.phi_src.insert(phi_idx, vec[0]);
+        self.src_phi.insert(vec[0], phi_idx);
     }
 
     pub fn from_block(block: &BasicBlock) -> PhiSrcMap {
@@ -75,8 +79,8 @@ impl PhiSrcMap {
         map
     }
 
-    pub fn get_src_ssa(&self, phi_idx: &u32) -> &SSAValue {
-        self.phi_src.get(phi_idx).expect("Phi source missing")
+    pub fn get_phi_idx(&self, ssa: &SSAValue) -> Option<&u32> {
+        self.src_phi.get(ssa)
     }
 }
 
@@ -604,8 +608,8 @@ fn spill_values<S: Spill>(
                 let phi_src_map = &phi_src_maps[*p_idx];
 
                 for mut ssa in ssa_state_out[*p_idx].w.iter().cloned() {
-                    if let Some(phi) = phi_dst_map.get_phi_idx(&ssa) {
-                        ssa = *phi_src_map.get_src_ssa(phi);
+                    if let Some(phi) = phi_src_map.get_phi_idx(&ssa) {
+                        ssa = *phi_dst_map.get_dst_ssa(phi).unwrap();
                     }
 
                     if let Some(next_use) = bl.first_use(&ssa) {

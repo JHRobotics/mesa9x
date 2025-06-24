@@ -219,6 +219,18 @@ main()
          vk_aabb child_aabb =
             DEREF(REF(vk_ir_node)OFFSET(args.intermediate_bvh, offset)).aabb;
 
+         /* On gfx11, infinities in AABB coords can cause garbage child nodes to be
+          * returned by box intersection tests with non-default box sorting modes.
+          * Subtract 1 from the integer representation of inf/-inf to turn it into
+          * the maximum/minimum representable floating-point value as a workaround.
+          */
+         for (uint32_t i = 0; i < 3; ++i) {
+            if (isinf(child_aabb.min[i]))
+               child_aabb.min[i] = uintBitsToFloat(floatBitsToUint(child_aabb.min[i]) - 1);
+            if (isinf(child_aabb.max[i]))
+               child_aabb.max[i] = uintBitsToFloat(floatBitsToUint(child_aabb.max[i]) - 1);
+         }
+
          DEREF(dst_node).coords[i] = child_aabb;
 
          uint32_t child_id = pack_node_id(dst_offset, ir_type_to_bvh_type(type));

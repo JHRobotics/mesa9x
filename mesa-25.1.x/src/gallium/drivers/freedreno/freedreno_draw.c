@@ -596,8 +596,9 @@ fd_launch_grid(struct pipe_context *pctx,
    /* For global buffers, we don't really know if read or written, so assume
     * the worst:
     */
-   u_foreach_bit (i, ctx->global_bindings.enabled_mask)
-      resource_written(batch, ctx->global_bindings.buf[i]);
+   util_dynarray_foreach (&ctx->global_bindings, struct pipe_resource *, res) {
+      resource_written(batch, *res);
+   }
 
    if (info->indirect)
       resource_read(batch, info->indirect);

@@ -444,36 +444,39 @@ normalize_dependency(VkPipelineStageFlags2 *src_stages,
                      VkAccessFlags2 *src_access, VkAccessFlags2 *dst_access,
                      uint32_t src_qfi, uint32_t dst_qfi)
 {
-   /* queue family acquire operation */
-   switch (src_qfi) {
-   case VK_QUEUE_FAMILY_EXTERNAL:
-      /* no execution dependency and no availability operation */
-      *src_stages = VK_PIPELINE_STAGE_2_NONE;
-      *src_access = VK_ACCESS_2_NONE;
-      break;
-   case VK_QUEUE_FAMILY_FOREIGN_EXT:
-      /* treat the foreign queue as the host */
-      *src_stages = VK_PIPELINE_STAGE_2_HOST_BIT;
-      *src_access = VK_ACCESS_2_HOST_WRITE_BIT;
-      break;
-   default:
-      break;
-   }
+   /* Perform queue family ownership transfer if src and dst are unequal. */
+   if (src_qfi != dst_qfi) {
+      /* queue family acquire operation */
+      switch (src_qfi) {
+      case VK_QUEUE_FAMILY_EXTERNAL:
+         /* no execution dependency and no availability operation */
+         *src_stages = VK_PIPELINE_STAGE_2_NONE;
+         *src_access = VK_ACCESS_2_NONE;
+         break;
+      case VK_QUEUE_FAMILY_FOREIGN_EXT:
+         /* treat the foreign queue as the host */
+         *src_stages = VK_PIPELINE_STAGE_2_HOST_BIT;
+         *src_access = VK_ACCESS_2_HOST_WRITE_BIT;
+         break;
+      default:
+         break;
+      }
 
-   /* queue family release operation */
-   switch (dst_qfi) {
-   case VK_QUEUE_FAMILY_EXTERNAL:
-      /* no execution dependency and no visibility operation */
-      *dst_stages = VK_PIPELINE_STAGE_2_NONE;
-      *dst_access = VK_ACCESS_2_NONE;
-      break;
-   case VK_QUEUE_FAMILY_FOREIGN_EXT:
-      /* treat the foreign queue as the host */
-      *dst_stages = VK_PIPELINE_STAGE_2_HOST_BIT;
-      *dst_access = VK_ACCESS_2_HOST_WRITE_BIT;
-      break;
-   default:
-      break;
+      /* queue family release operation */
+      switch (dst_qfi) {
+      case VK_QUEUE_FAMILY_EXTERNAL:
+         /* no execution dependency and no visibility operation */
+         *dst_stages = VK_PIPELINE_STAGE_2_NONE;
+         *dst_access = VK_ACCESS_2_NONE;
+         break;
+      case VK_QUEUE_FAMILY_FOREIGN_EXT:
+         /* treat the foreign queue as the host */
+         *dst_stages = VK_PIPELINE_STAGE_2_HOST_BIT;
+         *dst_access = VK_ACCESS_2_HOST_WRITE_BIT;
+         break;
+      default:
+         break;
+      }
    }
 
    *src_stages = vk_expand_src_stage_flags2(*src_stages);

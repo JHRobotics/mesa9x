@@ -67,6 +67,11 @@ panfrost_clear_depth_stencil(struct pipe_context *pipe,
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
+   /* Legalize here because it could trigger a recursive blit otherwise */
+   struct panfrost_resource *rdst = pan_resource(dst->texture);
+   enum pipe_format dst_view_format = util_format_linear(dst->format);
+   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
+
    panfrost_blitter_save(
       ctx, render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE);
    util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
@@ -84,6 +89,11 @@ panfrost_clear_render_target(struct pipe_context *pipe,
 
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
+
+   /* Legalize here because it could trigger a recursive blit otherwise */
+   struct panfrost_resource *rdst = pan_resource(dst->texture);
+   enum pipe_format dst_view_format = util_format_linear(dst->format);
+   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
 
    panfrost_blitter_save(
       ctx, (render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE) | PAN_SAVE_FRAGMENT_CONSTANT);

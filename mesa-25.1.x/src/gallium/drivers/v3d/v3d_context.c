@@ -298,6 +298,10 @@ v3d_context_destroy(struct pipe_context *pctx)
 
         v3d_flush(pctx);
 
+        /* Make sure all jobs are done before destroying the context */
+        drmSyncobjWait(v3d->fd, &v3d->out_sync, 1, INT64_MAX,
+                       DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL, NULL);
+
         util_dynarray_foreach(&v3d->global_buffers, struct pipe_resource *, res) {
                 pipe_resource_reference(res, NULL);
         }

@@ -255,6 +255,10 @@ vk_pipeline_hash_shader_stage(VkPipelineCreateFlags2KHR pipeline_flags,
       _mesa_sha1_update(&ctx, &rstate->uniform_buffers, sizeof(rstate->uniform_buffers));
       _mesa_sha1_update(&ctx, &rstate->vertex_inputs, sizeof(rstate->vertex_inputs));
       _mesa_sha1_update(&ctx, &rstate->images, sizeof(rstate->images));
+      _mesa_sha1_update(&ctx, &rstate->null_uniform_buffer_descriptor,
+                        sizeof(rstate->null_uniform_buffer_descriptor));
+      _mesa_sha1_update(&ctx, &rstate->null_storage_buffer_descriptor,
+                        sizeof(rstate->null_storage_buffer_descriptor));
    }
 
    _mesa_sha1_update(&ctx, info->pName, strlen(info->pName));

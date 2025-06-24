@@ -48,6 +48,8 @@
 
 #define V3D_MAX_BUFFER_RANGE (1 << 30)
 
+#define V3D_MAX_SUPERTILES 256
+
 /* Sub-pixel precision bits in the rasterizer */
 #define V3D_COORD_SHIFT 6
 

@@ -411,6 +411,7 @@ vc4_register_allocate(struct vc4_context *vc4, struct vc4_compile *c)
                          */
                         if (c->fs_threaded) {
                                 c->failed = true;
+                                ralloc_free(g);
                                 free(temp_registers);
                                 return NULL;
                         }
@@ -441,6 +442,7 @@ vc4_register_allocate(struct vc4_context *vc4, struct vc4_compile *c)
                 }
 
                 c->failed = true;
+                ralloc_free(g);
                 free(temp_registers);
                 return NULL;
         }

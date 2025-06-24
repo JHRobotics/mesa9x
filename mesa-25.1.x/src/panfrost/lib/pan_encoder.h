@@ -76,8 +76,8 @@ unsigned panfrost_get_total_stack_size(unsigned thread_size,
 
 unsigned panfrost_padded_vertex_count(unsigned vertex_count);
 
-unsigned panfrost_compute_magic_divisor(unsigned hw_divisor, unsigned *o_shift,
-                                        unsigned *extra_flags);
+unsigned panfrost_compute_magic_divisor(unsigned hw_divisor, unsigned *divisor_r,
+                                        unsigned *divisor_e);
 
 #ifdef PAN_ARCH
 /* Records for gl_VertexID and gl_InstanceID use special encodings on Midgard */

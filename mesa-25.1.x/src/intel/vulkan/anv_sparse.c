@@ -822,7 +822,8 @@ anv_sparse_bind_trtt(struct anv_device *device,
 
    /* This is not an error, the application is simply trying to reset state
     * that was already there. */
-   if (n_l3l2_binds == 0 && n_l1_binds == 0)
+   if (n_l3l2_binds == 0 && n_l1_binds == 0 &&
+       sparse_submit->wait_count == 0 && sparse_submit->signal_count == 0)
       goto out_dynarrays;
 
    anv_genX(device->info, write_trtt_entries)(&submit->base,
@@ -1529,6 +1530,10 @@ anv_sparse_image_check_support(struct anv_physical_device *pdevice,
     * implementation extremely complicated.
     */
    if (anv_is_compressed_format_emulated(pdevice, vk_format))
+      return VK_ERROR_FORMAT_NOT_SUPPORTED;
+
+   /* Avoid emulated formats */
+   if (anv_is_storage_format_atomics_emulated(&pdevice->info, vk_format))
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 
    /* While the spec itself says linear is not supported (see above), deqp-vk

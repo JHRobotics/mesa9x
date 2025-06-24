@@ -807,7 +807,7 @@ insert_waitcnt(Program* program)
 
    for (Definition def : program->args_pending_vmem) {
       update_counters(in_ctx[0], event_vmem);
-      insert_wait_entry(in_ctx[0], def, event_vmem);
+      insert_wait_entry(in_ctx[0], def, event_vmem, vmem_nosampler);
    }
 
    for (unsigned i = 0; i < program->blocks.size();) {

@@ -251,6 +251,13 @@ struct gfx9_surf_layout {
    /* DCC or HTILE level info */
    struct gfx9_surf_meta_level meta_levels[RADEON_SURF_MAX_LEVELS];
 
+   /* Gfx12 DCC recompression settings used by kernel memory management.
+    * The driver sets these, not ac_compute_surface.
+    */
+   uint8_t dcc_number_type; /* CB_COLOR0_INFO.NUMBER_TYPE */
+   uint8_t dcc_data_format; /* [0:4]:CB_COLOR0_INFO.FORMAT, [5]:MM */
+   bool dcc_write_compress_disable;
+
    union {
       /* Color */
       struct {
@@ -264,14 +271,6 @@ struct gfx9_surf_layout {
          uint8_t dcc_block_width;
          uint8_t dcc_block_height;
          uint8_t dcc_block_depth;
-
-         /* Gfx12 DCC recompression settings used by kernel memory management.
-          * The driver sets these, not ac_compute_surface.
-          */
-         uint8_t dcc_number_type; /* CB_COLOR0_INFO.NUMBER_TYPE */
-         uint8_t dcc_data_format; /* [0:4]:CB_COLOR0_INFO.FORMAT, [5]:MM */
-         bool dcc_write_compress_disable;
-
          /* Displayable DCC. This is always rb_aligned=0 and pipe_aligned=0.
           * The 3D engine doesn't support that layout except for chips with 1 RB.
           * All other chips must set rb_aligned=1.

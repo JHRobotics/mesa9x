@@ -69,6 +69,7 @@ struct tu_shader
    struct tu_draw_state state;
    struct tu_draw_state safe_const_state;
    struct tu_draw_state binning_state;
+   struct tu_draw_state safe_const_binning_state;
 
    struct tu_const_state const_state;
    uint32_t view_mask;

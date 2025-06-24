@@ -159,9 +159,16 @@ lower_store_output_to_scalar(nir_builder *b, nir_intrinsic_instr *intr)
        * they are not a sysval output, they don't feed the next shader, and
        * they don't write xfb. Don't create such stores.
        */
-      if ((sem.no_sysval_output ||
-           !nir_slot_is_sysval_output(sem.location, MESA_SHADER_NONE)) &&
-          (sem.no_varying ||
+      bool tcs_read = b->shader->info.stage == MESA_SHADER_TESS_CTRL &&
+                (sem.location >= VARYING_SLOT_VAR0_16BIT ?
+                    b->shader->info.outputs_read_16bit &
+                    BITFIELD_BIT(sem.location - VARYING_SLOT_VAR0_16BIT) :
+                 sem.location >= VARYING_SLOT_PATCH0 ?
+                    b->shader->info.patch_outputs_read &
+                    BITFIELD_BIT(sem.location - VARYING_SLOT_PATCH0) :
+                 b->shader->info.outputs_read & BITFIELD64_BIT(sem.location));
+      if ((sem.no_sysval_output || !nir_slot_is_sysval_output(sem.location, MESA_SHADER_NONE)) &&
+          ((sem.no_varying && !tcs_read) ||
            !nir_slot_is_varying(sem.location, MESA_SHADER_NONE)) &&
           !has_xfb)
          continue;

@@ -381,11 +381,12 @@ radv_use_htile_for_image(const struct radv_device *device, const struct radv_ima
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
 
+   if (!pdev->use_hiz)
+      return false;
+
    const VkImageCompressionControlEXT *compression =
       vk_find_struct_const(pCreateInfo->pNext, IMAGE_COMPRESSION_CONTROL_EXT);
-
-   if (instance->debug_flags & RADV_DEBUG_NO_HIZ ||
-       (compression && compression->flags == VK_IMAGE_COMPRESSION_DISABLED_EXT))
+   if (compression && compression->flags == VK_IMAGE_COMPRESSION_DISABLED_EXT)
       return false;
 
    /* HTILE compression is only useful for depth/stencil attachments. */
@@ -482,9 +483,9 @@ radv_patch_surface_from_metadata(struct radv_device *device, struct radeon_surf 
    if (pdev->info.gfx_level >= GFX12) {
       surface->u.gfx9.swizzle_mode = md->u.gfx12.swizzle_mode;
       surface->u.gfx9.color.dcc.max_compressed_block_size = md->u.gfx12.dcc_max_compressed_block;
-      surface->u.gfx9.color.dcc_data_format = md->u.gfx12.dcc_data_format;
-      surface->u.gfx9.color.dcc_number_type = md->u.gfx12.dcc_number_type;
-      surface->u.gfx9.color.dcc_write_compress_disable = md->u.gfx12.dcc_write_compress_disable;
+      surface->u.gfx9.dcc_data_format = md->u.gfx12.dcc_data_format;
+      surface->u.gfx9.dcc_number_type = md->u.gfx12.dcc_number_type;
+      surface->u.gfx9.dcc_write_compress_disable = md->u.gfx12.dcc_write_compress_disable;
    } else if (pdev->info.gfx_level >= GFX9) {
       if (md->u.gfx9.swizzle_mode > 0)
          surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
@@ -781,9 +782,9 @@ radv_image_bo_set_metadata(struct radv_device *device, struct radv_image *image,
    if (pdev->info.gfx_level >= GFX12) {
       md.u.gfx12.swizzle_mode = surface->u.gfx9.swizzle_mode;
       md.u.gfx12.dcc_max_compressed_block = surface->u.gfx9.color.dcc.max_compressed_block_size;
-      md.u.gfx12.dcc_number_type = surface->u.gfx9.color.dcc_number_type;
-      md.u.gfx12.dcc_data_format = surface->u.gfx9.color.dcc_data_format;
-      md.u.gfx12.dcc_write_compress_disable = surface->u.gfx9.color.dcc_write_compress_disable;
+      md.u.gfx12.dcc_number_type = surface->u.gfx9.dcc_number_type;
+      md.u.gfx12.dcc_data_format = surface->u.gfx9.dcc_data_format;
+      md.u.gfx12.dcc_write_compress_disable = surface->u.gfx9.dcc_write_compress_disable;
       md.u.gfx12.scanout = (surface->flags & RADEON_SURF_SCANOUT) != 0;
    } else if (pdev->info.gfx_level >= GFX9) {
       const uint64_t dcc_offset = surface->display_dcc_offset ? surface->display_dcc_offset : surface->meta_offset;
@@ -1215,9 +1216,9 @@ radv_image_create_layout(struct radv_device *device, struct radv_image_create_in
          const enum pipe_format format = radv_format_to_pipe_format(image->vk.format);
 
          /* Set DCC tilings for both color and depth/stencil. */
-         image->planes[plane].surface.u.gfx9.color.dcc_number_type = ac_get_cb_number_type(format);
-         image->planes[plane].surface.u.gfx9.color.dcc_data_format = ac_get_cb_format(pdev->info.gfx_level, format);
-         image->planes[plane].surface.u.gfx9.color.dcc_write_compress_disable = false;
+         image->planes[plane].surface.u.gfx9.dcc_number_type = ac_get_cb_number_type(format);
+         image->planes[plane].surface.u.gfx9.dcc_data_format = ac_get_cb_format(pdev->info.gfx_level, format);
+         image->planes[plane].surface.u.gfx9.dcc_write_compress_disable = false;
       }
 
       if (create_info.bo_metadata && !mod_info &&
@@ -1387,6 +1388,7 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
    const struct VkVideoProfileListInfoKHR *profile_list =
       vk_find_struct_const(pCreateInfo->pNext, VIDEO_PROFILE_LIST_INFO_KHR);
+   uint64_t replay_address = 0;
    VkResult result;
 
    unsigned plane_count = radv_get_internal_plane_count(pdev, format);
@@ -1447,11 +1449,22 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
    }
 
    if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT) {
+      enum radeon_bo_flag flags = RADEON_FLAG_VIRTUAL;
+
+      if (image->vk.create_flags & VK_IMAGE_CREATE_DESCRIPTOR_BUFFER_CAPTURE_REPLAY_BIT_EXT) {
+         flags |= RADEON_FLAG_REPLAYABLE;
+
+         const VkOpaqueCaptureDescriptorDataCreateInfoEXT *opaque_info =
+            vk_find_struct_const(create_info->vk_info->pNext, OPAQUE_CAPTURE_DESCRIPTOR_DATA_CREATE_INFO_EXT);
+         if (opaque_info)
+            replay_address = *((const uint64_t *)opaque_info->opaqueCaptureDescriptorData);
+      }
+
       image->alignment = MAX2(image->alignment, 4096);
       image->size = align64(image->size, image->alignment);
 
-      result = radv_bo_create(device, &image->vk.base, image->size, image->alignment, 0, RADEON_FLAG_VIRTUAL,
-                              RADV_BO_PRIORITY_VIRTUAL, 0, true, &image->bindings[0].bo);
+      result = radv_bo_create(device, &image->vk.base, image->size, image->alignment, 0, flags,
+                              RADV_BO_PRIORITY_VIRTUAL, replay_address, true, &image->bindings[0].bo);
       if (result != VK_SUCCESS) {
          radv_destroy_image(device, alloc, image);
          return vk_error(device, result);
@@ -1914,5 +1927,15 @@ radv_GetImageDrmFormatModifierPropertiesEXT(VkDevice _device, VkImage _image,
    VK_FROM_HANDLE(radv_image, image, _image);
 
    pProperties->drmFormatModifier = image->planes[0].surface.modifier;
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+radv_GetImageOpaqueCaptureDescriptorDataEXT(VkDevice device, const VkImageCaptureDescriptorDataInfoEXT *pInfo,
+                                            void *pData)
+{
+   VK_FROM_HANDLE(radv_image, image, pInfo->image);
+
+   *(uint64_t *)pData = image->bindings[0].addr;
    return VK_SUCCESS;
 }

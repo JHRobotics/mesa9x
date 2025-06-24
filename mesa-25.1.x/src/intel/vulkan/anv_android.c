@@ -187,7 +187,8 @@ get_ahw_buffer_format_properties2(
 
    p->formatFeatures =
       anv_get_image_format_features2(device->physical, p->format, anv_format,
-                                     tiling, false /* is_sparse */, NULL);
+                                     tiling, 0 /* usage */, 0 /* flags */,
+                                     NULL);
 
    /* "Images can be created with an external format even if the Android hardware
     *  buffer has a format which has an equivalent Vulkan format to enable
@@ -217,7 +218,7 @@ get_ahw_buffer_format_properties2(
    p->samplerYcbcrConversionComponents.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
    p->suggestedYcbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601;
-   p->suggestedYcbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_FULL;
+   p->suggestedYcbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW;
 
    p->suggestedXChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;
    p->suggestedYChromaOffset = VK_CHROMA_LOCATION_MIDPOINT;

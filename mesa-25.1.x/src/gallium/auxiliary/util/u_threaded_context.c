@@ -357,9 +357,16 @@ tc_resource_batch_usage_test_busy(const struct threaded_context *tc, const struc
       return tc->last_completed >= tbuf->last_batch_usage;
 
    /* resource has been seen within one batch cycle: check for batch wrapping */
-   if (tc->last_completed >= tbuf->last_batch_usage)
+   if (tc->last_completed > tbuf->last_batch_usage)
       /* this or a subsequent pre-wrap batch was the last to definitely complete: resource is idle */
       return false;
+
+   if (tc->last_completed == tbuf->last_batch_usage)
+      /* diff==1 and last_completed==last_batch_usage usually means tc_sync was invoked,
+       * which will reuse the same batch immediately,
+       * which requires checking whether the batch generation has completed
+       */
+      return tbuf->batch_generation >= tc->last_generation_completed;
 
    /* batch execution has not definitely wrapped: resource is definitely not idle */
    if (tc->last_completed > tc->next)
@@ -508,6 +515,7 @@ tc_batch_flush(struct threaded_context *tc, bool full_copy)
       tc_batch_increment_renderpass_info(tc, next_id, full_copy);
    }
 
+   next->generation = tc->batch_generation;
    util_queue_add_job(&tc->queue, next, &next->fence, tc_batch_execute,
                       NULL, 0);
    tc->last = tc->next;
@@ -1468,7 +1476,7 @@ tc_set_framebuffer_state(struct pipe_context *_pipe,
       /* store existing zsbuf data for possible persistence */
       uint8_t zsbuf = tc->renderpass_info_recording->has_draw ?
                       0 :
-                      tc->renderpass_info_recording->data8[3];
+                      tc->renderpass_info_recording->data8[3] & BITFIELD_MASK(4);
       bool zsbuf_changed = tc->fb_resources[PIPE_MAX_COLOR_BUFS] !=
                            (fb->zsbuf ? fb->zsbuf->texture : NULL);
 
@@ -5211,6 +5219,7 @@ tc_batch_execute(void *job, UNUSED void *gdata, int thread_index)
    batch->first_set_fb = false;
    batch->max_renderpass_info_idx = 0;
    batch->tc->last_completed = batch->batch_idx;
+   batch->tc->last_generation_completed = batch->generation;
 #if !defined(NDEBUG)
    batch->closed = false;
 #endif

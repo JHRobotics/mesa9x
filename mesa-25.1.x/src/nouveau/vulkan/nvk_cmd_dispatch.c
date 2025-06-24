@@ -304,6 +304,8 @@ nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
                         uint32_t groupCountY,
                         uint32_t groupCountZ)
 {
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
    struct nvk_root_descriptor_table root = {
       .cs.group_count = {
          groupCountX,
@@ -321,6 +323,11 @@ nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
       return;
+   }
+
+   if (shader != NULL) {
+      nvk_device_ensure_slm(dev, shader->info.slm_size,
+                                 shader->info.crs_size);
    }
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 8);
