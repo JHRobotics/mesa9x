@@ -39,6 +39,9 @@ CXX = $(PREFIX)g++
 CC  = $(PREFIX)gcc
 LD  = $(PREFIX)g++
 WINDRES = $(PREFIX)windres
+DLLTOOL = $(PREFIX)dlltool
+AR  = $(PREFIX)ar
+# ^ sometimes is better to use "gcc-ar" due collision between system AR and gcc specific AR
 
 # supporting programs for mesa source files generating
 PYTHON = python
