@@ -10,4 +10,3 @@
 #include <knownfolders.h>
 
 #include <windows.h>
-

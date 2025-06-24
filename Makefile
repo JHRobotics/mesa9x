@@ -262,7 +262,7 @@ else
   LIBSUFFIX := .a
   LIBPREFIX := lib
   
-  LD_DEPS := winpthreads/libpthread.a
+  LD_DEPS := winpthreads/libpthread.a libkernel32.a
   
   DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-all-symbols,--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
   
@@ -314,20 +314,20 @@ else
     DEFS  += -DMESA9X_BUILD=$(VERSION_BUILD)
   endif
   
-    DEFS += -DMESA_MAJOR=$(MESA_MAJOR)
+  DEFS += -DMESA_MAJOR=$(MESA_MAJOR)
 
-	OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
-	SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
+  OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
+  SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
   MESA_LIBS  := winpthreads/crtfix.o -static -Lwinpthreads -lpthread -lkernel32 -luser32 -lgdi32 -lws2_32
   MESA99_LIBS := -lMesaUtilLib $(MESA_LIBS)
   MESA89_LIBS := $(MESA99_LIBS)
-  
+
   ifdef DEBUG
     DD_DEFS = -DDEBUG -DMESA_DEBUG=1
   else
     DD_DEFS = -DNDEBUG -DMESA_DEBUG=0 -DD3D8TO9NOLOG
   endif
-    
+
   ifdef GUI_ERRORS
   	TUNE += -DGUI_ERRORS
   endif
@@ -483,7 +483,7 @@ else
 
   endif
 
-  LIBSTATIC = ar rcs -o $@ 
+  LIBSTATIC = $(AR) rcs -o $@ 
 
 endif
 
@@ -821,3 +821,5 @@ clean:
 	-$(RM) $(MESA_VER).deps
 endif
 
+libkernel32.a: extra/kernel32.def
+	$(DLLTOOL) -A -C -k -d $< -l $@
