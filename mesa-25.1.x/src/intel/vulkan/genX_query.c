@@ -2065,10 +2065,17 @@ genX(CmdWriteAccelerationStructuresPropertiesKHR)(
    ANV_FROM_HANDLE(anv_query_pool, pool, queryPool);
 
 #if !ANV_SUPPORT_RT_GRL
-   anv_add_pending_pipe_bits(cmd_buffer,
-                             ANV_PIPE_END_OF_PIPE_SYNC_BIT |
-                             ANV_PIPE_DATA_CACHE_FLUSH_BIT,
-                             "read BVH data using CS");
+   /* L1/L2 caches flushes should have been dealt with by pipeline barriers.
+    * Unfortunately some platforms require L3 flush because CS (reading the
+    * dispatch parameters) is not L3 coherent.
+    */
+   if (!ANV_DEVINFO_HAS_COHERENT_L3_CS(cmd_buffer->device->info)) {
+      anv_add_pending_pipe_bits(cmd_buffer,
+                                ANV_PIPE_END_OF_PIPE_SYNC_BIT |
+                                ANV_PIPE_DATA_CACHE_FLUSH_BIT,
+                                "read BVH data using CS");
+      genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
+   }
 #endif
 
    if (append_query_clear_flush(

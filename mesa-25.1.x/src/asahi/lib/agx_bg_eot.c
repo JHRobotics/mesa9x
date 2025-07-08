@@ -262,6 +262,7 @@ agx_get_precompiled_locked(struct agx_bg_eot_cache *cache, unsigned program)
 
    /* Bake launch */
    agx_pack(&p->b.launch, CDM_LAUNCH_WORD_0, cfg) {
+      cfg.texture_state_register_count = 0;
       cfg.sampler_state_register_count = 1;
       cfg.uniform_register_count = info->push_count;
       cfg.preshader_register_count = info->nr_preamble_gprs;

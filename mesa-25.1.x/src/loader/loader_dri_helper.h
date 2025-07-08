@@ -61,10 +61,8 @@ struct loader_screen_resources {
 
 
 /**
- * These formats correspond to the similarly named MESA_FORMAT_*
- * tokens, except in the native endian of the CPU.  For example, on
- * little endian __DRI_IMAGE_FORMAT_XRGB8888 corresponds to
- * MESA_FORMAT_XRGB8888, but MESA_FORMAT_XRGB8888_REV on big endian.
+ * These formats are endian independent they result in the same layout
+ * regradless of a big or little endian cpu.
  *
  * __DRI_IMAGE_FORMAT_NONE is for images that aren't directly usable
  * by the driver (YUV planar formats) but serve as a base image for
@@ -75,19 +73,19 @@ struct loader_screen_resources {
  * createImageFromNames (NONE, see above) and fromPlane (R8 & GR88).
  */
 #define __DRI_IMAGE_FORMAT_RGB565       PIPE_FORMAT_B5G6R5_UNORM
-#define __DRI_IMAGE_FORMAT_XRGB8888     PIPE_FORMAT_BGRX8888_UNORM
-#define __DRI_IMAGE_FORMAT_ARGB8888     PIPE_FORMAT_BGRA8888_UNORM
-#define __DRI_IMAGE_FORMAT_ABGR8888     PIPE_FORMAT_RGBA8888_UNORM
-#define __DRI_IMAGE_FORMAT_XBGR8888     PIPE_FORMAT_RGBX8888_UNORM
+#define __DRI_IMAGE_FORMAT_XRGB8888     PIPE_FORMAT_B8G8R8X8_UNORM
+#define __DRI_IMAGE_FORMAT_ARGB8888     PIPE_FORMAT_B8G8R8A8_UNORM
+#define __DRI_IMAGE_FORMAT_ABGR8888     PIPE_FORMAT_R8G8B8A8_UNORM
+#define __DRI_IMAGE_FORMAT_XBGR8888     PIPE_FORMAT_R8G8B8X8_UNORM
 #define __DRI_IMAGE_FORMAT_R8           PIPE_FORMAT_R8_UNORM
-#define __DRI_IMAGE_FORMAT_GR88         PIPE_FORMAT_RG88_UNORM
+#define __DRI_IMAGE_FORMAT_GR88         PIPE_FORMAT_R8G8_UNORM
 #define __DRI_IMAGE_FORMAT_NONE         PIPE_FORMAT_NONE
 #define __DRI_IMAGE_FORMAT_XRGB2101010  PIPE_FORMAT_B10G10R10X2_UNORM
 #define __DRI_IMAGE_FORMAT_ARGB2101010  PIPE_FORMAT_B10G10R10A2_UNORM
 #define __DRI_IMAGE_FORMAT_SARGB8       PIPE_FORMAT_BGRA8888_SRGB
 #define __DRI_IMAGE_FORMAT_ARGB1555     PIPE_FORMAT_B5G5R5A1_UNORM
 #define __DRI_IMAGE_FORMAT_R16          PIPE_FORMAT_R16_UNORM
-#define __DRI_IMAGE_FORMAT_GR1616       PIPE_FORMAT_RG1616_UNORM
+#define __DRI_IMAGE_FORMAT_GR1616       PIPE_FORMAT_R16G16_UNORM
 #define __DRI_IMAGE_FORMAT_XBGR2101010  PIPE_FORMAT_R10G10B10X2_UNORM
 #define __DRI_IMAGE_FORMAT_ABGR2101010  PIPE_FORMAT_R10G10B10A2_UNORM
 #define __DRI_IMAGE_FORMAT_SABGR8       PIPE_FORMAT_RGBA8888_SRGB

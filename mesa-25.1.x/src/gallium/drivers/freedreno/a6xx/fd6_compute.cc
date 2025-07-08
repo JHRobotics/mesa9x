@@ -320,28 +320,32 @@ fd6_compute_state_delete(struct pipe_context *pctx, void *_hwcso)
 }
 
 static void
-fd6_get_compute_state_info(struct pipe_context *pctx, void *cso, struct pipe_compute_state_object_info *info)
+fd6_get_compute_state_info(struct pipe_context *pctx, void *cso, struct pipe_compute_state_object_info *cinfo)
 {
    static struct ir3_shader_key key; /* static is implicitly zeroed */
    struct fd6_compute_state *cs = (struct fd6_compute_state *)cso;
    struct ir3_shader_state *hwcso = (struct ir3_shader_state *)cs->hwcso;
    struct ir3_shader_variant *v = ir3_shader_variant(ir3_get_shader(hwcso), key, false, &pctx->debug);
-   struct fd_context *ctx = fd_context(pctx);
-   uint32_t threadsize_base = ctx->screen->info->threadsize_base;
+   const struct fd_dev_info *info = fd_context(pctx)->screen->info;
+   uint32_t threadsize_base = info->threadsize_base;
 
-   info->max_threads = threadsize_base * ctx->screen->info->max_waves;
-   info->simd_sizes = threadsize_base;
-   info->preferred_simd_size = threadsize_base;
+   cinfo->max_threads = threadsize_base * info->max_waves;
+   cinfo->simd_sizes = threadsize_base;
+   cinfo->preferred_simd_size = threadsize_base;
 
-   if (ctx->screen->info->a6xx.supports_double_threadsize &&
-       v->info.double_threadsize) {
+   if (info->a6xx.supports_double_threadsize && v->info.double_threadsize) {
 
-      info->max_threads *= 2;
-      info->simd_sizes |= (threadsize_base * 2);
-      info->preferred_simd_size *= 2;
+      cinfo->max_threads *= 2;
+      cinfo->simd_sizes |= (threadsize_base * 2);
+      cinfo->preferred_simd_size *= 2;
    }
 
-   info->private_memory = v->pvtmem_size;
+   unsigned reg_file_size_vec4 = info->a6xx.reg_size_vec4 * threadsize_base * info->wave_granularity;
+   unsigned vec4_regs_per_thread = MAX2(v->info.max_reg + 1, 1);
+
+   cinfo->max_threads = MIN2(cinfo->max_threads, reg_file_size_vec4 / vec4_regs_per_thread);
+
+   cinfo->private_memory = v->pvtmem_size;
 }
 
 template <chip CHIP>

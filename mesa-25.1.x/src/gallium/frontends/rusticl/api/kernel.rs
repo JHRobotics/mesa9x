@@ -595,7 +595,7 @@ fn enqueue_ndrange_kernel(
     let device_bits = q.device.address_bits();
     let device_max = u64::MAX >> (u64::BITS - device_bits);
 
-    let mut threads = 0;
+    let mut threads = 1;
     for i in 0..work_dim as usize {
         let lws = local_work_size[i];
         let gws = global_work_size[i];

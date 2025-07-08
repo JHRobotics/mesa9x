@@ -2176,6 +2176,8 @@
     <field name="Fragment Shader" start="26:0" size="64" type="address"/>
     <field name="Thread storage" start="28:0" size="64" type="address"/>
     <field name="Fragment FAU" start="30:0" size="64" type="FAU Pointer"/>
+
+    <value name="Mali resource table size alignment" value="4"/>
   </struct>
 
   <struct name="Primitive Size" size="2">

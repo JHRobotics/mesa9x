@@ -109,10 +109,10 @@ radv_image_from_gralloc(VkDevice device_h, const VkImageCreateInfo *base_info,
    struct radv_image *image = NULL;
    VkResult result;
 
-   if (gralloc_info->handle->numFds != 1) {
+   if (gralloc_info->handle->numFds < 1) {
       return vk_errorf(device, VK_ERROR_INVALID_EXTERNAL_HANDLE,
                        "VkNativeBufferANDROID::handle::numFds is %d, "
-                       "expected 1",
+                       "expected >= 1",
                        gralloc_info->handle->numFds);
    }
 

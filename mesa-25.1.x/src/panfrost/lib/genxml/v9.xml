@@ -1327,6 +1327,8 @@
     <field name="Shader" start="10:0" size="64" type="address"/>
     <field name="Thread storage" start="12:0" size="64" type="address"/>
     <field name="FAU" start="14:0" size="64" type="address"/>
+
+    <value name="Mali resource table size alignment" value="4"/>
   </struct>
 
   <struct name="Compute Payload" size="24">

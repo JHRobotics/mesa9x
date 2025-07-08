@@ -285,7 +285,8 @@ panfrost_emit_resources(struct panfrost_batch *batch,
 {
    struct panfrost_context *ctx = batch->ctx;
    struct panfrost_ptr T;
-   unsigned nr_tables = PAN_NUM_RESOURCE_TABLES;
+   unsigned nr_tables =
+      ALIGN_POT(PAN_NUM_RESOURCE_TABLES, MALI_RESOURCE_TABLE_SIZE_ALIGNMENT);
 
    /* Although individual resources need only 16 byte alignment, the
     * resource table as a whole must be 64-byte aligned.

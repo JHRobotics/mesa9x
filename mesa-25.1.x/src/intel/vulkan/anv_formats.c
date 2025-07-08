@@ -848,7 +848,7 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
     *
     * Remove disallowed flags if any of the plane can support that feature.
     */
-   if (usage & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT) {
+   if (create_flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT) {
       for (uint32_t p = 0; p < anv_format->n_planes; p++) {
          const struct anv_format_plane ycbcr_plane_format =
             anv_get_format_plane(physical_device, vk_format, p, vk_tiling);

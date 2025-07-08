@@ -149,6 +149,7 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
    unsigned ms_mode = NVC0_3D_MULTISAMPLE_MODE_MS1;
    unsigned nr_cbufs = fb->nr_cbufs;
    bool serialize = false;
+   bool cbuf_is_linear = false;
 
    nouveau_bufctx_reset(nvc0->bufctx_3d, NVC0_BIND_3D_FB);
 
@@ -204,7 +205,7 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
 
          nvc0_resource_fence(nvc0, res, NOUVEAU_BO_WR);
 
-         assert(!fb->zsbuf);
+         cbuf_is_linear = true;
       }
 
       if (res->status & NOUVEAU_BUFFER_STATUS_GPU_READING)
@@ -216,7 +217,7 @@ nvc0_validate_fb(struct nvc0_context *nvc0)
       BCTX_REFN(nvc0->bufctx_3d, 3D_FB, res, WR);
    }
 
-   if (fb->zsbuf) {
+   if (fb->zsbuf && !cbuf_is_linear) {
       struct nv50_miptree *mt = nv50_miptree(fb->zsbuf->texture);
       struct nv50_surface *sf = nv50_surface(fb->zsbuf);
       int unk = mt->base.base.target == PIPE_TEXTURE_2D;

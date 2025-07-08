@@ -154,8 +154,13 @@ create_dag(bi_context *ctx, bi_block *block, void *memctx)
          coverage = node;
       }
       if (I->op == BI_OPCODE_DISCARD_F32 ||
-          I->op == BI_OPCODE_MEMORY_BARRIER) {
-         /* Serialize against memory operations and barriers */
+          bi_is_scheduling_barrier(I)) {
+         /* Serialize against memory operations and barriers.
+          *
+          * TODO: This is *not* quite sufficient in the case of a scheduling
+          * barrier. We need to serialize against *all* operations with
+          * side-effects in that case.
+          */
          add_dep(node, memory_load);
          add_dep(node, memory_store);
          memory_load = node;

@@ -2119,7 +2119,7 @@ bool si_should_clear_lds(struct si_screen *sscreen, const struct nir_shader *sha
 static bool clamp_shadow_comparison_value(nir_builder *b, nir_tex_instr *tex,
                                           void *state)
 {
-   if (!tex->is_shadow)
+   if (!tex->is_shadow || tex->op == nir_texop_lod)
       return false;
 
    b->cursor = nir_before_instr(&tex->instr);

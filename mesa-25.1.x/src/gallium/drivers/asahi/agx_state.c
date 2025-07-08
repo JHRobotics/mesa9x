@@ -4888,6 +4888,40 @@ agx_legalize_feedback_loops(struct agx_context *ctx)
    }
 }
 
+/*
+ * Usually, non-attachment stores must be barriered explicitly by the app using
+ * glMemoryBarrier. Transform feedback buffers are annoyingly excluded from this
+ * requirement, so we need to handle those hazards ourselves. Transform feedback
+ * will barrier with itself so we only need to consider write-after-read
+ * hazards.
+ *
+ * The general case does require a flush. Consider binding a buffer as a UBO,
+ * drawing with a fragment shader reading that UBO, then rebinding as XFB, and
+ * drawing with XFB stores. We have to split the batch in the middle.
+ * gles-3.0-transform-feedback-uniform-buffer-object does this.
+ */
+static void
+agx_legalize_xfb(struct agx_context *ctx)
+{
+   /* If this draw isn't writing transform feedback, there's nothing to worry
+    * about.
+    */
+   if (!ctx->streamout.num_targets ||
+       !agx_last_uncompiled_vgt(ctx)->has_xfb_info)
+      return;
+
+   /* Otherwise, flush the readers of anything written by transform feedback. */
+   for (unsigned i = 0; i < ctx->streamout.num_targets; ++i) {
+      struct agx_streamout_target *tgt =
+         agx_so_target(ctx->streamout.targets[i]);
+
+      if (tgt != NULL) {
+         agx_flush_readers(ctx, agx_resource(tgt->base.buffer),
+                           "Transform feedback buffer");
+      }
+   }
+}
+
 static void
 agx_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
              unsigned drawid_offset,
@@ -4941,10 +4975,12 @@ agx_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
       return;
    }
 
-   /* We must legalize feedback loops before getting the batch, since once we
-    * have the batch we're not allowed to flush the bound render targets.
+   /* We must legalize feedback loops and transform feedback writes before
+    * getting the batch, since once we have the batch we're not allowed to flush
+    * the bound render targets.
     */
    agx_legalize_feedback_loops(ctx);
+   agx_legalize_xfb(ctx);
 
    struct agx_batch *batch = agx_get_batch(ctx);
    uint64_t ib = 0;

@@ -69,8 +69,9 @@ lower_alu_instr(nir_builder *bld, nir_alu_instr *alu, unsigned bit_size)
                      op == nir_op_bitz || op == nir_op_bitz8 || op == nir_op_bitz16 ||
                      op == nir_op_bitz32 || op == nir_op_bitnz || op == nir_op_bitnz8 ||
                      op == nir_op_bitnz16 || op == nir_op_bitnz32)) {
-         assert(util_is_power_of_two_nonzero(dst_bit_size));
-         src = nir_iand(bld, src, nir_imm_int(bld, dst_bit_size - 1));
+         unsigned src0_bit_size = alu->src[0].src.ssa->bit_size;
+         assert(util_is_power_of_two_nonzero(src0_bit_size));
+         src = nir_iand(bld, src, nir_imm_int(bld, src0_bit_size - 1));
       }
 
       srcs[i] = src;

@@ -1408,7 +1408,7 @@ vn_multisample_info_pnext_init(
    VkPipelineSampleLocationsStateCreateInfoEXT *sl =
       &fix_tmp->sl_infos[index];
 
-   VkBaseOutStructure *cur = (void *)&fix_tmp->infos[index].pMultisampleState;
+   VkBaseOutStructure *cur = (void *)fix_tmp->infos[index].pMultisampleState;
 
    vk_foreach_struct_const(src, info->pNext) {
       void *next = NULL;

@@ -191,6 +191,4 @@
     <src start="0"/>
   </ins>
 
-  <ins name="MEMORY_BARRIER" pseudo="true" unit="NONE"/>
-
 </bifrost>

@@ -2389,6 +2389,7 @@ lower_to_hw_instr(Program* program)
                      discard_exit_block = discard_block;
                   }
                   block = &program->blocks[block_idx];
+                  ctx.block = block;
 
                   /* sendmsg(dealloc_vgprs) releases scratch, so it isn't safe if there is an
                    * in-progress scratch store. */

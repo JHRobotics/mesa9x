@@ -188,6 +188,9 @@ bi_side_effects(const bi_instr *I)
    if (bi_get_opcode_props(I)->last)
       return true;
 
+   if (bi_is_scheduling_barrier(I))
+      return true;
+
    switch (I->op) {
    case BI_OPCODE_DISCARD_F32:
    case BI_OPCODE_DISCARD_B32:

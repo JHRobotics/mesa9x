@@ -447,6 +447,56 @@ void *r600_create_vertex_fetch_shader(struct pipe_context *ctx,
 			else
 				shader->width_correction[elements[i].vertex_buffer_index] = 8 - 6;
 		}
+
+		if (unlikely(rctx->b.family >= CHIP_PALM &&
+			     format == FMT_2_10_10_10 &&
+			     !num_format && format_comp &&
+			     desc->swizzle[3] >= PIPE_SWIZZLE_X &&
+			     desc->swizzle[3] <= PIPE_SWIZZLE_W)) {
+			struct r600_bytecode_alu alu;
+			const unsigned sel_main = i + 1;
+
+			bc.force_add_cf = 1;
+
+			memset(&alu, 0, sizeof(alu));
+			alu.op = ALU_OP1_MOV;
+			alu.src[0].sel = sel_main;
+			alu.src[0].chan = desc->swizzle[3];
+			alu.dst.chan = 1;
+			alu.omod = 2;
+			alu.dst.clamp = 1;
+
+			if (unlikely(r = r600_bytecode_add_alu(&bc, &alu)))
+				goto fail;
+
+			memset(&alu, 0, sizeof(alu));
+			alu.op = ALU_OP2_SETGT;
+			alu.src[0].sel = sel_main;
+			alu.src[0].chan = desc->swizzle[3];
+			alu.src[1].sel = V_SQ_ALU_SRC_LITERAL;
+			alu.src[1].value = 0x3f000000;
+			alu.dst.chan = 3;
+			alu.omod = 1;
+			alu.last = 1;
+
+			if (unlikely(r = r600_bytecode_add_alu(&bc, &alu)))
+				goto fail;
+
+			memset(&alu, 0, sizeof(alu));
+			alu.op = ALU_OP2_ADD;
+			alu.src[0].sel = V_SQ_ALU_SRC_PV;
+			alu.src[0].chan = 1;
+			alu.src[1].sel = V_SQ_ALU_SRC_PV;
+			alu.src[1].chan = 3;
+			alu.src[1].neg = 1;
+			alu.dst.sel = sel_main;
+			alu.dst.chan = desc->swizzle[3];
+			alu.dst.write = 1;
+			alu.last = 1;
+
+			if (unlikely(r = r600_bytecode_add_alu(&bc, &alu)))
+				goto fail;
+		}
 	}
 
 	r600_bytecode_add_cfinst(&bc, CF_OP_RET);

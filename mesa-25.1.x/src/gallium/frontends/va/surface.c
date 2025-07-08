@@ -188,7 +188,7 @@ _vlVaSyncSurface(VADriverContextP ctx, VASurfaceID render_target, uint64_t timeo
    }
 
    /* No outstanding operation: nothing to do. */
-   if (!surf->fence) {
+   if (!fence) {
       mtx_unlock(&drv->mutex);
       return VA_STATUS_SUCCESS;
    }

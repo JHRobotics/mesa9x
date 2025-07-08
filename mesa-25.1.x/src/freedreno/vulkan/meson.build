@@ -61,7 +61,7 @@ libtu_includes = [
 
 tu_link_with = []
 tu_deps = []
-tu_flags = []
+tu_flags = [sse2_args]
 
 tu_wsi = false
 

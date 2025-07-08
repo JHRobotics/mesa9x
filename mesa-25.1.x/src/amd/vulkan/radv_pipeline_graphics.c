@@ -2741,8 +2741,6 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
 
       radv_optimize_nir(stages[i].nir, stages[i].key.optimisations_disabled);
 
-      /* Gather info again, information such as outputs_read can be out-of-date. */
-      nir_shader_gather_info(stages[i].nir, nir_shader_get_entrypoint(stages[i].nir));
       radv_nir_lower_io(device, stages[i].nir);
 
       stages[i].feedback.duration += os_time_get_nano() - stage_start;

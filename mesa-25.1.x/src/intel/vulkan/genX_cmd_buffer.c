@@ -5420,6 +5420,7 @@ void genX(CmdBeginRendering)(
          const bool fast_clear =
             (!is_multiview || (gfx->view_mask & 1)) &&
             anv_can_fast_clear_color(cmd_buffer, iview->image,
+                                     iview->vk.aspects,
                                      iview->vk.base_mip_level,
                                      &clear_rect, att->imageLayout,
                                      iview->planes[0].isl.format,

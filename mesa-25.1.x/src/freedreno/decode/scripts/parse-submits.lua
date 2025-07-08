@@ -136,7 +136,14 @@ function finish()
 		printf("-----\n")
 	end
 
-	for base,mrt in pairs(mrts) do
+	local keys = {}
+	for base in pairs(mrts) do
+		table.insert(keys,base)
+	end
+	table.sort(keys)
+
+	for _,base in ipairs(keys) do
+		local mrt = mrts[base]
 		printf("  MRT[0x%x:0x%x]:\t%ux%u\t\t%s (%s)", base, mrt.flag, mrt.w, mrt.h, mrt.format, mrt.samples)
 		if drawmode == "RM6_BIN_RENDER_START" then
 			if cleared[mrt.gmem] then

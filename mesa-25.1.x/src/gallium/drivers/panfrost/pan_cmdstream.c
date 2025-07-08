@@ -790,6 +790,12 @@ panfrost_emit_viewport(struct panfrost_batch *batch)
 
    float minz, maxz;
    util_viewport_zmin_zmax(vp, rast->clip_halfz, &minz, &maxz);
+   /* Hardware requires a clamped depth ranges, but util_viewport_zmin_zmax
+    * may return bounds outside [0,1] when the translate/scale fields are set
+    * directly instead of through _mesa_set_depth_range. This occurs in
+    * u_blitter. */
+   minz = SATURATE(minz);
+   maxz = SATURATE(maxz);
 
    /* Scissor to the intersection of viewport and to the scissor, clamped
     * to the framebuffer */

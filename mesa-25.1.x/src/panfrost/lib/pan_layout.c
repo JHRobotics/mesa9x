@@ -653,7 +653,13 @@ pan_image_layout_init(unsigned arch, struct pan_image_layout *layout,
       /* Compute AFBC sizes if necessary */
 
       offset += slice_full_size;
-      slice->size = slice_full_size;
+
+      /* We can't use slice_full_size_B for AFBC(3D), otherwise the headers are
+       * not counted. */
+      if (afbc)
+         slice->size = slice->afbc.body_size + slice->afbc.header_size;
+      else
+         slice->size = slice_full_size;
 
       /* Add a checksum region if necessary */
       if (layout->crc) {

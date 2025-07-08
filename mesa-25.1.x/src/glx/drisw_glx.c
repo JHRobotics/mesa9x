@@ -656,17 +656,11 @@ driswCreateScreen(int screen, struct glx_display *priv, enum glx_driver glx_driv
    if (psc == NULL)
       return NULL;
    psc->kopper = !strcmp(driver, "zink");
-
-   if (!glx_screen_init(&psc->base, screen, priv)) {
-      free(psc);
-      return NULL;
-   }
-
    psc->base.driverName = strdup(driver);
 
    if (glx_driver)
       loader_extensions_local = kopper_extensions_noshm;
-   else if (!check_xshm(psc->base.dpy))
+   else if (!check_xshm(priv->dpy))
       loader_extensions_local = loader_extensions_noshm;
    else
       loader_extensions_local = loader_extensions_shm;

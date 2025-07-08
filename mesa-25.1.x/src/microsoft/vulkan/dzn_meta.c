@@ -827,16 +827,14 @@ dzn_meta_init(struct dzn_device *device)
          continue;
       if (type.draw_id && pdev->options21.ExecuteIndirectTier >= D3D12_EXECUTE_INDIRECT_TIER_1_1)
          continue;
-      VkResult result =
-         dzn_meta_indirect_draw_init(device, type);
+      result = dzn_meta_indirect_draw_init(device, type);
       if (result != VK_SUCCESS)
          goto out;
    }
 
    if (!pdev->options15.TriangleFanSupported) {
       for (uint32_t i = 0; i < ARRAY_SIZE(device->triangle_fan); i++) {
-         VkResult result =
-            dzn_meta_triangle_fan_rewrite_index_init(device, i);
+         result = dzn_meta_triangle_fan_rewrite_index_init(device, i);
          if (result != VK_SUCCESS)
             goto out;
       }

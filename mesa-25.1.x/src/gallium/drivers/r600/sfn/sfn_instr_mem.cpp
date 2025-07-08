@@ -859,7 +859,6 @@ RatInstr::emit_image_load_or_atomic(nir_intrinsic_instr *intrin, Shader& shader)
                                   R600_IMAGE_IMMED_RESOURCE_OFFSET + imageid,
                                   image_offset);
       fetch->set_mfc(3);
-      fetch->set_fetch_flag(FetchInstr::srf_mode);
       fetch->set_fetch_flag(FetchInstr::use_tc);
       fetch->set_fetch_flag(FetchInstr::vpm);
       fetch->set_fetch_flag(FetchInstr::wait_ack);

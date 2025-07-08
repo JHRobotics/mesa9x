@@ -102,9 +102,6 @@ radv_compile_cs(struct radv_device *device, struct vk_pipeline_cache *cache, str
 
    radv_optimize_nir(cs_stage->nir, cs_stage->key.optimisations_disabled);
 
-   /* Gather info again, information such as outputs_read can be out-of-date. */
-   nir_shader_gather_info(cs_stage->nir, nir_shader_get_entrypoint(cs_stage->nir));
-
    /* Run the shader info pass. */
    radv_nir_shader_info_init(cs_stage->stage, MESA_SHADER_NONE, &cs_stage->info);
    radv_nir_shader_info_pass(device, cs_stage->nir, &cs_stage->layout, &cs_stage->key, NULL, RADV_PIPELINE_COMPUTE,

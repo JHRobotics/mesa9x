@@ -589,9 +589,15 @@ cmd_emit_dcd(struct panvk_cmd_buffer *cmdbuf, struct pan_fb_info *fbinfo,
    if (key->aspects == VK_IMAGE_ASPECT_COLOR_BIT)
       fill_bds(fbinfo, key, bds.cpu);
 
-   struct panfrost_ptr res_table = panvk_cmd_alloc_desc(cmdbuf, RESOURCE);
+   /* Resource table sizes need to be multiples of 4. We use only one
+    * element here though.
+    */
+   const uint32_t res_table_size = MALI_RESOURCE_TABLE_SIZE_ALIGNMENT;
+   struct panfrost_ptr res_table =
+      panvk_cmd_alloc_desc_array(cmdbuf, res_table_size, RESOURCE);
    if (!res_table.cpu)
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+   memset(res_table.cpu, 0, pan_size(RESOURCE) * res_table_size);
 
    pan_cast_and_pack(res_table.cpu, RESOURCE, cfg) {
       cfg.address = descs.gpu;
@@ -669,12 +675,12 @@ cmd_emit_dcd(struct panvk_cmd_buffer *cmdbuf, struct pan_fb_info *fbinfo,
       cfg.flags_0.clean_fragment_write = true;
 
 #if PAN_ARCH >= 12
-      cfg.fragment_resources = res_table.gpu | 1;
+      cfg.fragment_resources = res_table.gpu | res_table_size;
       cfg.fragment_shader = panvk_priv_mem_dev_addr(shader->spd);
       cfg.thread_storage = cmdbuf->state.gfx.tsd;
 #else
       cfg.maximum_z = 1.0;
-      cfg.shader.resources = res_table.gpu | 1;
+      cfg.shader.resources = res_table.gpu | res_table_size;
       cfg.shader.shader = panvk_priv_mem_dev_addr(shader->spd);
       cfg.shader.thread_storage = cmdbuf->state.gfx.tsd;
 #endif

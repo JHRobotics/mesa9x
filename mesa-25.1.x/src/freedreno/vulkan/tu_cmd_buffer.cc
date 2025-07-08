@@ -5681,16 +5681,16 @@ tu_CmdNextSubpass2(VkCommandBuffer commandBuffer,
    const struct tu_render_pass *pass = cmd->state.pass;
    const struct tu_framebuffer *fb = cmd->state.framebuffer;
    struct tu_cs *cs = &cmd->draw_cs;
-   const struct tu_subpass *last_subpass = cmd->state.subpass;
 
    const struct tu_subpass *subpass = cmd->state.subpass++;
+   const struct tu_subpass *new_subpass = cmd->state.subpass;
 
    /* Track LRZ valid state
     *
     * TODO: Improve this tracking for keeping the state of the past depth/stencil images,
     * so if they become active again, we reuse its old state.
     */
-   if (last_subpass->depth_stencil_attachment.attachment != subpass->depth_stencil_attachment.attachment) {
+   if (new_subpass->depth_stencil_attachment.attachment != subpass->depth_stencil_attachment.attachment) {
       cmd->state.lrz.valid = false;
       cmd->state.dirty |= TU_CMD_DIRTY_LRZ;
    }

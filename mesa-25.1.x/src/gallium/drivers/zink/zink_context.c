@@ -131,6 +131,15 @@ zink_context_destroy(struct pipe_context *pctx)
 
       if (result != VK_SUCCESS)
          mesa_loge("ZINK: vkQueueWaitIdle failed (%s)", vk_Result_to_str(result));
+
+      if (screen->queue_sparse && screen->queue_sparse != screen->queue) {
+         simple_mtx_lock(&screen->queue_lock);
+         VkResult result = VKSCR(QueueWaitIdle)(screen->queue_sparse);
+         simple_mtx_unlock(&screen->queue_lock);
+
+         if (result != VK_SUCCESS)
+            mesa_loge("ZINK: vkQueueWaitIdle failed (%s)", vk_Result_to_str(result));
+      }
    }
 
    for (unsigned i = 0; i < ARRAY_SIZE(ctx->program_cache); i++) {

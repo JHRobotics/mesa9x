@@ -1133,7 +1133,8 @@ pan_preload_emit_dcd(struct pan_fb_preload_cache *cache, struct pan_pool *pool,
    }
 #else
    struct panfrost_ptr T;
-   unsigned nr_tables = PAN_BLIT_NUM_RESOURCE_TABLES;
+   unsigned nr_tables = ALIGN_POT(PAN_BLIT_NUM_RESOURCE_TABLES,
+                                  MALI_RESOURCE_TABLE_SIZE_ALIGNMENT);
 
    /* Although individual resources need only 16 byte alignment, the
     * resource table as a whole must be 64-byte aligned.

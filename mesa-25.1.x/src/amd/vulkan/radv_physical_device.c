@@ -2485,7 +2485,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
             .queueFlags = VK_QUEUE_SPARSE_BINDING_BIT,
             .queueCount = 1,
-            .timestampValidBits = 64,
+            .timestampValidBits = 0,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
          };
          idx++;

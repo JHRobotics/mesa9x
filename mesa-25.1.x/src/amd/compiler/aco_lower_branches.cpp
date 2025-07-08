@@ -553,7 +553,7 @@ lower_branches(Program* program)
       if (block.kind & block_kind_break)
          try_merge_break_with_continue(ctx, block);
 
-      if (block.linear_succs.size() == 1)
+      if (block.linear_succs.size() == 1 && block.logical_succs.size() <= 1)
          try_remove_simple_block(ctx, block);
    }
 

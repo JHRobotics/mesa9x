@@ -19,9 +19,6 @@ KHR-GLES31.core.shader_atomic_counters.advanced-usage-many-dispatches,Fail
 KHR-GLES31.core.shader_atomic_counters.advanced-usage-many-draw-calls2,Fail
 KHR-GLES31.core.shader_atomic_counters.advanced-usage-multi-stage,Fail
 
-KHR-GLES31.core.shader_image_load_store.basic-allFormats-loadStoreComputeStage,Fail
-KHR-GLES31.core.shader_image_load_store.basic-allTargets-loadStoreCS,Fail
-
 KHR-GLES31.core.shader_storage_buffer_object.advanced-readWrite-case1-cs,Fail
 
 # r600_shader.c:10547: fc_pushlevel: Assertion `ctx->bc->fc_sp < ARRAY_SIZE(ctx->bc->fc_stack)' failed.
@@ -423,18 +420,8 @@ dEQP-GLES31.functional.draw_buffers_indexed.random.max_implementation_draw_buffe
 dEQP-GLES31.functional.draw_buffers_indexed.random.max_implementation_draw_buffers.8,Fail
 dEQP-GLES31.functional.draw_buffers_indexed.random.max_implementation_draw_buffers.9,Fail
 
-dEQP-GLES31.functional.image_load_store.2d.format_reinterpret.r32f_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.2d.format_reinterpret.rgba8_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.2d_array.format_reinterpret.r32f_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.2d_array.format_reinterpret.rgba8_rgba8_snorm,Fail
 dEQP-GLES31.functional.image_load_store.2d_array.image_size.readonly_writeonly_12x34x56,Fail
-dEQP-GLES31.functional.image_load_store.3d.format_reinterpret.r32f_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.3d.format_reinterpret.rgba8_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.buffer.format_reinterpret.r32f_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.buffer.format_reinterpret.rgba8_rgba8_snorm,Fail
 dEQP-GLES31.functional.image_load_store.buffer.image_size.readonly_1,Fail
-dEQP-GLES31.functional.image_load_store.cube.format_reinterpret.r32f_rgba8_snorm,Fail
-dEQP-GLES31.functional.image_load_store.cube.format_reinterpret.rgba8_rgba8_snorm,Fail
 
 # Same gray result in each attempted image sampling.
 dEQP-GLES31.functional.layout_binding.image.image2d.fragment_binding_max_array,Fail

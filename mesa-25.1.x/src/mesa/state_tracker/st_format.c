@@ -201,6 +201,13 @@ struct format_mapping
       PIPE_FORMAT_A8B8G8R8_UNORM, \
       0
 
+#define DEFAULT_BGRA_FORMATS \
+      PIPE_FORMAT_B8G8R8A8_UNORM, \
+      PIPE_FORMAT_R8G8B8A8_UNORM, \
+      PIPE_FORMAT_A8B8G8R8_UNORM, \
+      PIPE_FORMAT_A8R8G8B8_UNORM, \
+      0
+
 #define DEFAULT_RGB_FORMATS \
       PIPE_FORMAT_R8G8B8X8_UNORM, \
       PIPE_FORMAT_B8G8R8X8_UNORM, \
@@ -257,7 +264,7 @@ static const struct format_mapping format_map[] = {
    },
    {
       { GL_BGRA, GL_BGRA8_EXT, 0 },
-      { DEFAULT_RGBA_FORMATS }
+      { DEFAULT_BGRA_FORMATS }
    },
    {
       { 3, GL_RGB, GL_RGB8, 0 },

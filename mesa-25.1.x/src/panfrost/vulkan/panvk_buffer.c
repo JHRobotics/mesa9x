@@ -86,7 +86,9 @@ panvk_BindBufferMemory2(VkDevice _device, uint32_t bindInfoCount,
             pan_kmod_bo_mmap(mem->bo, map_start, map_end - map_start,
                              PROT_WRITE, MAP_SHARED, NULL);
 
-         assert(map_addr != MAP_FAILED);
+         if (map_addr == MAP_FAILED)
+            return panvk_errorf(device, VK_ERROR_OUT_OF_HOST_MEMORY,
+                                "Failed to CPU map index buffer");
          buffer->host_ptr = map_addr + (offset & pgsize);
       }
 

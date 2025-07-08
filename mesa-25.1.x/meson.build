@@ -287,6 +287,13 @@ if freedreno_kmds.length() != 0 and freedreno_kmds != [ 'msm' ] and with_freedre
   endif
 endif
 
+with_vdrm = [
+  with_amdgpu_virtio,
+  freedreno_kmds.contains('virtio'),
+  with_gallium_asahi,
+  with_asahi_vk,
+].contains(true)
+
 with_dri = false
 if with_gallium and system_has_kms_drm
   _glx = get_option('glx')

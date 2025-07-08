@@ -116,26 +116,27 @@ mapper5_get_buffer_color_info(struct u_gralloc *gralloc,
    if (error != OK)
       return  -EINVAL;
 
+   /* default to __DRI_YUV_COLOR_SPACE_ITU_REC601 */
    Dataspace standard =
       (Dataspace)((int)dataspace & (uint32_t)Dataspace::STANDARD_MASK);
    switch (standard) {
       case Dataspace::STANDARD_BT709:
          out->yuv_color_space = __DRI_YUV_COLOR_SPACE_ITU_REC709;
          break;
-      case Dataspace::STANDARD_BT601_625:
-      case Dataspace::STANDARD_BT601_625_UNADJUSTED:
-      case Dataspace::STANDARD_BT601_525:
-      case Dataspace::STANDARD_BT601_525_UNADJUSTED:
-         out->yuv_color_space = __DRI_YUV_COLOR_SPACE_ITU_REC601;
-         break;
       case Dataspace::STANDARD_BT2020:
       case Dataspace::STANDARD_BT2020_CONSTANT_LUMINANCE:
          out->yuv_color_space = __DRI_YUV_COLOR_SPACE_ITU_REC2020;
          break;
+      case Dataspace::STANDARD_BT601_625:
+      case Dataspace::STANDARD_BT601_625_UNADJUSTED:
+      case Dataspace::STANDARD_BT601_525:
+      case Dataspace::STANDARD_BT601_525_UNADJUSTED:
       default:
+         out->yuv_color_space = __DRI_YUV_COLOR_SPACE_ITU_REC601;
          break;
       }
 
+      /* default to __DRI_YUV_NARROW_RANGE */
       Dataspace range =
          (Dataspace)((int)dataspace & (uint32_t)Dataspace::RANGE_MASK);
       switch (range) {
@@ -143,17 +144,13 @@ mapper5_get_buffer_color_info(struct u_gralloc *gralloc,
             out->sample_range = __DRI_YUV_FULL_RANGE;
             break;
          case Dataspace::RANGE_LIMITED:
-            out->sample_range = __DRI_YUV_NARROW_RANGE;
-            break;
          default:
+            out->sample_range = __DRI_YUV_NARROW_RANGE;
             break;
       }
 
+      /* default to __DRI_YUV_CHROMA_SITING_0_5 */
       switch (chroma_siting) {
-      case ChromaSiting::SITED_INTERSTITIAL:
-         out->horizontal_siting = __DRI_YUV_CHROMA_SITING_0_5;
-         out->vertical_siting = __DRI_YUV_CHROMA_SITING_0_5;
-         break;
       case ChromaSiting::COSITED_HORIZONTAL:
          out->horizontal_siting = __DRI_YUV_CHROMA_SITING_0;
          out->vertical_siting = __DRI_YUV_CHROMA_SITING_0_5;
@@ -166,7 +163,10 @@ mapper5_get_buffer_color_info(struct u_gralloc *gralloc,
          out->horizontal_siting = __DRI_YUV_CHROMA_SITING_0;
          out->vertical_siting = __DRI_YUV_CHROMA_SITING_0;
          break;
+      case ChromaSiting::SITED_INTERSTITIAL:
       default:
+         out->horizontal_siting = __DRI_YUV_CHROMA_SITING_0_5;
+         out->vertical_siting = __DRI_YUV_CHROMA_SITING_0_5;
          break;
       }
 

@@ -132,7 +132,7 @@ int main(int argc, char **argv)
    void *mem_ctx = ralloc_context(NULL);
    FILE *input_file = NULL;
    char *output_file = NULL;
-   char c;
+   int c;
    FILE *output = stdout;
    bool help = false, compact = false;
    uint64_t pci_id = 0;
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
       goto end;
    }
 
-   if (!argv[optind]) {
+   if (optind == argc) {
       fprintf(stderr, "Please specify input file\n");
       goto end;
    }

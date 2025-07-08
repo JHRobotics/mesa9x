@@ -213,6 +213,8 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
       NIR_PASS(progress, shader, nir_opt_move_discards_to_top);
 
    NIR_PASS(progress, shader, nir_opt_move, nir_move_load_ubo);
+
+   nir_shader_gather_info(shader, nir_shader_get_entrypoint(shader));
 }
 
 void

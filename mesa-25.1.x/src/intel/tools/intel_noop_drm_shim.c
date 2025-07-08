@@ -259,6 +259,7 @@ i915_ioctl_get_param(int fd, unsigned long request, void *arg)
    case I915_PARAM_HAS_EXEC_ASYNC:
    case I915_PARAM_HAS_EXEC_NO_RELOC:
    case I915_PARAM_HAS_EXEC_BATCH_FIRST:
+   case I915_PARAM_PXP_STATUS:
       *gp->value = true;
       return 0;
    case I915_PARAM_HAS_EXEC_TIMELINE_FENCES:

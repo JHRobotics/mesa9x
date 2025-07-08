@@ -26,6 +26,7 @@ libfreedreno_drm_deps = [
   dep_valgrind,
   idep_mesautil,
 ]
+libfreedreno_drm_link_with = []
 
 if with_perfetto
   libfreedreno_drm_deps += dep_perfetto
@@ -60,6 +61,7 @@ if freedreno_kmds.contains('virtio')
     inc_virtio_gpu,
     inc_virtio_vdrm,
   ]
+  libfreedreno_drm_link_with += libvdrm
 endif
 
 libfreedreno_drm = static_library(
@@ -72,8 +74,7 @@ libfreedreno_drm = static_library(
   c_args : [no_override_init_args, libfreedreno_drm_flags],
   gnu_symbol_visibility : 'hidden',
   dependencies : libfreedreno_drm_deps,
-  # TODO
-  link_with : [libvdrm],
+  link_with : libfreedreno_drm_link_with,
   build_by_default : false,
 )
 

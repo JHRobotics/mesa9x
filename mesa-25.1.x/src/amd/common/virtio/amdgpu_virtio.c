@@ -18,6 +18,7 @@
 #include "amdgpu_virtio_private.h"
 
 #include "util/log.h"
+#include "util/u_math.h"
 
 int
 amdvgpu_query_info(amdvgpu_device_handle dev, struct drm_amdgpu_info *info)
@@ -156,7 +157,7 @@ int
 amdvgpu_bo_set_metadata(amdvgpu_device_handle dev, uint32_t res_id,
                         struct amdgpu_bo_metadata *info)
 {
-   unsigned req_len = sizeof(struct amdgpu_ccmd_set_metadata_req) + info->size_metadata;
+   unsigned req_len = align(sizeof(struct amdgpu_ccmd_set_metadata_req) + info->size_metadata, 8);
    unsigned rsp_len = sizeof(struct amdgpu_ccmd_rsp);
 
    uint8_t buf[req_len];

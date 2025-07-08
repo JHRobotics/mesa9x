@@ -206,7 +206,8 @@ if with_symbols_check
   )
 endif
 
-if with_tests
+# HasVK and its tests can only run on x86
+if with_tests and host_machine.cpu_family().startswith('x86')
   libvulkan_intel_hasvk_test = static_library(
     'vulkan_intel_hasvk_test',
     [files('anv_gem_stubs.c'), anv_hasvk_entrypoints[0]],

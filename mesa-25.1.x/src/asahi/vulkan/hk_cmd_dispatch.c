@@ -75,6 +75,7 @@ hk_dispatch_with_usc(struct hk_device *dev, struct hk_cs *cs,
 {
    struct agx_cdm_launch_word_0_packed launch;
    agx_pack(&launch, CDM_LAUNCH_WORD_0, cfg) {
+      cfg.texture_state_register_count = 0;
       cfg.sampler_state_register_count = 1;
       cfg.uniform_register_count = info->push_count;
       cfg.preshader_register_count = info->nr_preamble_gprs;

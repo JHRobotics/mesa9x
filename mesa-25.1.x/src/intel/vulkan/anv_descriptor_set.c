@@ -1036,13 +1036,11 @@ sha1_update_immutable_sampler(struct mesa_sha1 *ctx,
                               bool embedded_sampler,
                               const struct anv_sampler *sampler)
 {
-   if (!sampler->vk.ycbcr_conversion)
-      return;
-
-   /* Hash the conversion if any as this affect placement of descriptors in
-    * the set due to the number of planes.
+   /* Hash the conversion if any as this affect shader compilation due to NIR
+    * lowering.
     */
-   SHA1_UPDATE_VALUE(ctx, sampler->vk.ycbcr_conversion->state);
+   if (sampler->vk.ycbcr_conversion)
+      SHA1_UPDATE_VALUE(ctx, sampler->vk.ycbcr_conversion->state);
 
    /* For embedded samplers, we need to hash the sampler parameters as the
     * sampler handle is baked into the shader and this ultimately is part of

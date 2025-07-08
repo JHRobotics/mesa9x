@@ -1547,6 +1547,7 @@ hk_fast_link(struct hk_device *dev, bool fragment, struct hk_shader *main,
          cfg.cf_binding_count = s->b.cf.nr_bindings;
          cfg.uniform_register_count = main->b.info.push_count;
          cfg.preshader_register_count = main->b.info.nr_preamble_gprs;
+         cfg.texture_state_register_count = 0;
          cfg.sampler_state_register_count =
             agx_translate_sampler_state_count(s->b.uses_txf ? 1 : 0, false);
       }

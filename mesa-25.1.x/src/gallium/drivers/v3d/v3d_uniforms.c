@@ -141,12 +141,13 @@ write_tmu_p0(struct v3d_job *job,
          * This can be interpreted as allowing any result to come back, but
          * not terminate the program (and some tests interpret that).
          *
-         * FIXME: just return is not a full valid solution, as it could still
-         * try to get a wrong address for the shader state address. Perhaps we
-         * would need to set up a BO with a "default texture state"
+         * We write the texture state base address to 0 (NULL) so the default
+         * texture state is used.
          */
-        if (sview == NULL)
+        if (sview == NULL) {
+                cl_aligned_u32(uniforms, v3d_unit_data_get_offset(data) & 0xf);
                 return;
+        }
 
         struct v3d_resource *rsc = v3d_resource(sview->texture);
 

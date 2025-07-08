@@ -379,7 +379,7 @@ TEST(AFBCLayout, Linear3D)
    EXPECT_EQ(l.slices[0].afbc.body_size, 32768);
    EXPECT_EQ(l.slices[0].afbc.surface_stride, 64);
    EXPECT_EQ(l.slices[0].surface_stride, 2048); /* XXX: Not meaningful? */
-   EXPECT_EQ(l.slices[0].size, 32768); /* XXX: Not used by anything and wrong */
+   EXPECT_EQ(l.slices[0].size, 33792); /* XXX: Not used by anything */
 }
 
 TEST(AFBCLayout, Tiled16x16)
