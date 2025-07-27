@@ -977,10 +977,8 @@ dest_3src(FILE *file, const struct intel_device_info *devinfo,
    if (devinfo->ver < 10 && is_align1)
       return 0;
 
-   if (devinfo->ver >= 12)
+   if (devinfo->ver >= 12 || is_align1)
       reg_file = brw_eu_inst_3src_a1_dst_reg_file(devinfo, inst);
-   else if (is_align1 && brw_eu_inst_3src_a1_dst_reg_file(devinfo, inst))
-      reg_file = ARF;
    else
       reg_file = FIXED_GRF;
 

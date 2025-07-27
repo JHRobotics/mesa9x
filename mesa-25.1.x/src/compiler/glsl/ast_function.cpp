@@ -2439,7 +2439,7 @@ ast_function_expression::hir(exec_list *instructions,
             ir_dereference *lhs = new(ctx) ir_dereference_variable(var);
             ir_instruction *assignment = new(ctx) ir_assignment(lhs, result);
             instructions->push_tail(assignment);
-            result = lhs;
+            result = new(ctx) ir_dereference_variable(var);
          }
 
          /* Attempt to convert the parameter to a constant valued expression.

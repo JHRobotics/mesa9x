@@ -72,12 +72,10 @@ libvn_files = files(
   'vn_ring.c',
   'vn_renderer_internal.c',
   'vn_renderer_util.c',
-  'vn_renderer_virtgpu.c',
   'vn_renderer_vtest.c',
 )
 
 vn_deps = [
-  dep_libdrm,
   dep_thread,
   idep_mesautil,
   idep_vulkan_util,
@@ -93,6 +91,11 @@ vn_flags = [
 ])
 
 vn_libs = []
+
+if system_has_kms_drm
+  libvn_files += files('vn_renderer_virtgpu.c')
+  vn_deps += dep_libdrm
+endif
 
 if with_platform_wayland or with_platform_x11 or \
    (system_has_kms_drm and not with_platform_android)

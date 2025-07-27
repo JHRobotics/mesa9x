@@ -73,10 +73,8 @@ _nak_bindings_rs = rust.bindgen(
     pre_args,
   ],
   args : [
+    bindgen_output_args,
     compiler_rs_bindgen_blocklist,
-    '--raw-line', '#![allow(non_camel_case_types)]',
-    '--raw-line', '#![allow(non_snake_case)]',
-    '--raw-line', '#![allow(non_upper_case_globals)]',
     '--raw-line', 'use compiler::bindings::*;',
     '--allowlist-type', 'drm.*',
     '--allowlist-type', 'nak_.*',

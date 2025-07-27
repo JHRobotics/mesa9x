@@ -1864,11 +1864,6 @@ radv_emit_rbplus_state(struct radv_cmd_buffer *cmd_buffer)
          has_alpha = false;
       }
 
-      /* The HW doesn't quite blend correctly with rgb9e5 if we disable the alpha
-       * optimization, even though it has no alpha. */
-      if (has_rgb && format == V_028C70_COLOR_5_9_9_9)
-         has_alpha = true;
-
       /* Disable value checking for disabled channels. */
       if (!has_rgb)
          sx_blend_opt_control |= S_02875C_MRT0_COLOR_OPT_DISABLE(1) << (i * 4);
@@ -1942,8 +1937,20 @@ radv_emit_rbplus_state(struct radv_cmd_buffer *cmd_buffer)
          }
          break;
       case V_028C70_COLOR_5_9_9_9:
-         if (spi_format == V_028714_SPI_SHADER_FP16_ABGR)
-            sx_ps_downconvert |= V_028754_SX_RT_EXPORT_9_9_9_E5 << (i * 4);
+         if (spi_format == V_028714_SPI_SHADER_FP16_ABGR) {
+            if (pdev->info.gfx_level >= GFX12) {
+               sx_ps_downconvert |= V_028754_SX_RT_EXPORT_9_9_9_E5 << (i * 4);
+            } else if (pdev->info.gfx_level >= GFX10_3) {
+               if (colormask == 0xf) {
+                  sx_ps_downconvert |= V_028754_SX_RT_EXPORT_9_9_9_E5 << (i * 4);
+               } else {
+                  /* On GFX10_3+, RB+ with E5B9G9R9 seems broken in the hardware when not all
+                   * channels are written. Disable RB+ to workaround it.
+                   */
+                  sx_ps_downconvert |= V_028754_SX_RT_EXPORT_NO_CONVERSION << (i * 4);
+               }
+            }
+         }
          break;
       }
    }
@@ -8777,9 +8784,17 @@ radv_CmdSetRenderingAttachmentLocations(VkCommandBuffer commandBuffer,
 
    assume(pLocationInfo->colorAttachmentCount <= MESA_VK_MAX_COLOR_ATTACHMENTS);
    for (uint32_t i = 0; i < pLocationInfo->colorAttachmentCount; i++) {
-      state->dynamic.vk.cal.color_map[i] = pLocationInfo->pColorAttachmentLocations[i] == VK_ATTACHMENT_UNUSED
-                                              ? MESA_VK_ATTACHMENT_UNUSED
-                                              : pLocationInfo->pColorAttachmentLocations[i];
+      uint8_t val;
+
+      if (!pLocationInfo->pColorAttachmentLocations) {
+         val = i;
+      } else if (pLocationInfo->pColorAttachmentLocations[i] == VK_ATTACHMENT_UNUSED) {
+         val = MESA_VK_ATTACHMENT_UNUSED;
+      } else {
+         val = pLocationInfo->pColorAttachmentLocations[i];
+      }
+
+      state->dynamic.vk.cal.color_map[i] = val;
    }
 
    state->dirty_dynamic |= RADV_DYNAMIC_COLOR_ATTACHMENT_MAP;

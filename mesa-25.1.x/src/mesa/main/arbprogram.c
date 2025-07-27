@@ -379,6 +379,14 @@ set_program_string(struct gl_program *prog, GLenum target, GLenum format, GLsize
       return;
    }
 
+   /* clear info */
+   shader_info new_info = { 0 };
+   new_info.name = prog->info.name;
+   new_info.label = prog->info.label;
+   new_info.stage = prog->info.stage;
+   new_info.use_legacy_math_rules = prog->info.use_legacy_math_rules;
+   prog->info = new_info;
+
 #ifdef ENABLE_SHADER_CACHE
    GLcharARB *replacement;
 

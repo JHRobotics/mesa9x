@@ -2264,29 +2264,20 @@ add_embedded_sampler_entry(struct apply_pipeline_layout_state *state,
 {
    state->set[set].binding[binding].embedded_sampler_index =
       map->embedded_sampler_count;
-   struct anv_pipeline_embedded_sampler_binding *sampler =
+   struct anv_pipeline_embedded_sampler_binding *sampler_bind =
       &map->embedded_sampler_to_binding[map->embedded_sampler_count++];
    const struct anv_descriptor_set_layout *set_layout =
       state->layout->set[set].layout;
    const struct anv_descriptor_set_binding_layout *bind_layout =
       &set_layout->binding[binding];
+   const struct anv_descriptor_set_layout_sampler *sampler =
+      &bind_layout->samplers[0];
 
-   *sampler = (struct anv_pipeline_embedded_sampler_binding) {
+   *sampler_bind = (struct anv_pipeline_embedded_sampler_binding) {
       .set = set,
       .binding = binding,
+      .key = sampler->embedded_key,
    };
-
-   assert(sizeof(sampler->key.sampler) ==
-          sizeof(bind_layout->immutable_samplers[0]->state_no_bc[0]));
-   memcpy(sampler->key.sampler,
-          bind_layout->immutable_samplers[0]->state_no_bc[0],
-          sizeof(sampler->key.sampler));
-
-   assert(sizeof(sampler->key.color) ==
-          sizeof(bind_layout->immutable_samplers[0]->vk.border_color_value.uint32));
-   memcpy(sampler->key.color,
-          bind_layout->immutable_samplers[0]->vk.border_color_value.uint32,
-          sizeof(sampler->key.color));
 }
 
 static bool
@@ -2481,12 +2472,16 @@ build_packed_binding_table(struct apply_pipeline_layout_state *state,
          } else {
             state->set[set].binding[b].surface_offset = map->surface_count;
             if (binding->dynamic_offset_index < 0) {
-               struct anv_sampler **samplers = binding->immutable_samplers;
-               uint8_t max_planes = bti_multiplier(state, set, b);
+               const uint8_t max_planes = bti_multiplier(state, set, b);
                for (unsigned i = 0; i < binding->array_size; i++) {
-                  uint8_t planes = samplers ? samplers[i]->n_planes : 1;
+                  const uint8_t max_sampler_planes =
+                     (binding->samplers &&
+                      binding->samplers[i].has_ycbcr_conversion) ?
+                     vk_format_get_plane_count(
+                        binding->samplers[i].ycbcr_conversion_state.format) :
+                     1;
                   for (uint8_t p = 0; p < max_planes; p++) {
-                     if (p < planes) {
+                     if (p < max_sampler_planes) {
                         add_bti_entry(map, set, b, i, p, binding);
                      } else {
                         add_null_bti_entry(map);

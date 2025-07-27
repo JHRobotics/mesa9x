@@ -338,7 +338,7 @@ generate_compute(struct llvmpipe_context *lp,
    bool is_mesh = nir->info.stage == MESA_SHADER_MESH;
    unsigned i;
 
-   bool use_coro = nir->info.uses_memory_barrier || is_mesh;
+   bool use_coro = nir->info.uses_control_barrier || is_mesh;
 
    LLVMValueRef output_array = NULL;
 

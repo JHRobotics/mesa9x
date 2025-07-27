@@ -1817,7 +1817,7 @@
     <value name="Mali resource table size alignment" value="4"/>
   </struct>
 
-  <struct name="Compute size workgroup" size="4">
+  <struct name="Compute size workgroup" size="1">
     <field name="Workgroup size X" start="0" size="10" type="uint" modifier="minus(1)"/>
     <field name="Workgroup size Y" start="10" size="10" type="uint" modifier="minus(1)"/>
     <field name="Workgroup size Z" start="20" size="10" type="uint" modifier="minus(1)"/>

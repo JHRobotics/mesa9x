@@ -5,8 +5,8 @@
 
 #if MESA_MAJOR == 25
 # define MESA9X_MAJOR 25
-# define MESA9X_MINOR 0
-# define MESA9X_PATCH 3
+# define MESA9X_MINOR 1
+# define MESA9X_PATCH 6
 #elif MESA_MAJOR == 24
 # define MESA9X_MAJOR 24
 # define MESA9X_MINOR 1
@@ -18,7 +18,7 @@
 #elif MESA_MAJOR == 21
 # define MESA9X_MAJOR 21
 # define MESA9X_MINOR 3
-# define MESA9X_PATCH 8
+# define MESA9X_PATCH 9
 #else
 # define MESA9X_MAJOR 17
 # define MESA9X_MINOR 3

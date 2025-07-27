@@ -638,11 +638,22 @@ get_device_properties(const struct panvk_instance *instance,
       .deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
 
       /* Vulkan 1.0 limits */
-      /* Maximum texture dimension is 2^16. */
+      /* Maximum texture dimension is 2^16, but we're limited by the
+       * size/surface-stride fields. The size/surface_stride field is 32-bit
+       * on v10-, so let's take that as a reference for now.
+       * The following limits are chosen so we don't overflow these
+       * size/surface_stride fields. We choose them so they are a power-of-two,
+       * except for 2D/Cube dimensions where taking a power-of-two would be
+       * too limiting, so we pick power-of-two-minus-one, which makes things
+       * fit exactly in our 32-bit budget.
+       *
+       * TODO: increase the limit on v11+ once we have all the necessary bits
+       * patched to handle the size/stride field extension.
+       */
       .maxImageDimension1D = (1 << 16),
-      .maxImageDimension2D = (1 << 16),
-      .maxImageDimension3D = (1 << 16),
-      .maxImageDimensionCube = (1 << 16),
+      .maxImageDimension2D = (1 << 14) - 1,
+      .maxImageDimension3D = (1 << 9),
+      .maxImageDimensionCube = (1 << 14) - 1,
       .maxImageArrayLayers = (1 << 16),
       /* Currently limited by the 1D texture size, which is 2^16.
        * TODO: If we expose buffer views as 2D textures, we can increase the
@@ -1388,6 +1399,9 @@ get_image_plane_format_features(struct panvk_physical_device *physical_device,
          features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
 
       features |= VK_FORMAT_FEATURE_2_BLIT_SRC_BIT;
+
+      if (vk_format_has_depth(format))
+         features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_DEPTH_COMPARISON_BIT;
    }
 
    if (fmt.bind & PAN_BIND_RENDER_TARGET) {
@@ -1404,19 +1418,16 @@ get_image_plane_format_features(struct panvk_physical_device *physical_device,
       }
    }
 
-   if (fmt.bind & PAN_BIND_STORAGE_IMAGE)
+   if (fmt.bind & PAN_BIND_STORAGE_IMAGE) {
       features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT |
                   VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT |
                   VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT;
-
-   if (pfmt == PIPE_FORMAT_R32_UINT || pfmt == PIPE_FORMAT_R32_SINT)
-      features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT;
+      if (pfmt == PIPE_FORMAT_R32_UINT || pfmt == PIPE_FORMAT_R32_SINT)
+         features |= VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT;
+   }
 
    if (fmt.bind & PAN_BIND_DEPTH_STENCIL)
       features |= VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-   if (vk_format_has_depth(format))
-      features |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_DEPTH_COMPARISON_BIT;
 
    return features;
 }
@@ -1583,6 +1594,52 @@ panvk_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
    }
 }
 
+#define MAX_IMAGE_SIZE_PX (1 << 16)
+
+static VkExtent3D
+get_max_2d_image_size(struct panvk_physical_device *phys_dev, VkFormat format)
+{
+   const uint32_t max_img_size_B = UINT32_MAX;
+   const enum pipe_format pfmt = vk_format_to_pipe_format(format);
+   const uint32_t fmt_blksize = util_format_get_blocksize(pfmt);
+   /* Evenly split blocks across all axis. */
+   const uint32_t max_size_el = floor(sqrt(max_img_size_B / fmt_blksize));
+   const VkExtent3D ret = {
+      .width = MIN2(max_size_el * util_format_get_blockwidth(pfmt),
+                    MAX_IMAGE_SIZE_PX),
+      .height = MIN2(max_size_el * util_format_get_blockheight(pfmt),
+                     MAX_IMAGE_SIZE_PX),
+      .depth = 1,
+   };
+
+   assert(ret.width >= phys_dev->vk.properties.maxImageDimension2D);
+   assert(ret.height >= phys_dev->vk.properties.maxImageDimension2D);
+   return ret;
+}
+
+static VkExtent3D
+get_max_3d_image_size(struct panvk_physical_device *phys_dev, VkFormat format)
+{
+   const uint32_t max_img_size_B = UINT32_MAX;
+   enum pipe_format pfmt = vk_format_to_pipe_format(format);
+   uint32_t fmt_blksize = util_format_get_blocksize(pfmt);
+   /* Evenly split blocks across each axis. */
+   const uint32_t max_size_el = floor(cbrt(max_img_size_B / fmt_blksize));
+   const VkExtent3D ret = {
+      .width = MIN2(max_size_el * util_format_get_blockwidth(pfmt),
+                    MAX_IMAGE_SIZE_PX),
+      .height = MIN2(max_size_el * util_format_get_blockheight(pfmt),
+                     MAX_IMAGE_SIZE_PX),
+      .depth = MIN2(max_size_el * util_format_get_blockdepth(pfmt),
+                    MAX_IMAGE_SIZE_PX),
+   };
+
+   assert(ret.width >= phys_dev->vk.properties.maxImageDimension3D);
+   assert(ret.height >= phys_dev->vk.properties.maxImageDimension3D);
+   assert(ret.depth >= phys_dev->vk.properties.maxImageDimension3D);
+   return ret;
+}
+
 static VkResult
 get_image_format_properties(struct panvk_physical_device *physical_device,
                             const VkPhysicalDeviceImageFormatInfo2 *info,
@@ -1662,17 +1719,13 @@ get_image_format_properties(struct panvk_physical_device *physical_device,
       maxArraySize = 1 << 16;
       break;
    case VK_IMAGE_TYPE_2D:
-      maxExtent.width = 1 << 16;
-      maxExtent.height = 1 << 16;
-      maxExtent.depth = 1;
-      maxMipLevels = 17; /* log2(maxWidth) + 1 */
+      maxExtent = get_max_2d_image_size(physical_device, info->format);
+      maxMipLevels = util_logbase2(maxExtent.width) + 1;
       maxArraySize = 1 << 16;
       break;
    case VK_IMAGE_TYPE_3D:
-      maxExtent.width = 1 << 16;
-      maxExtent.height = 1 << 16;
-      maxExtent.depth = 1 << 16;
-      maxMipLevels = 17; /* log2(maxWidth) + 1 */
+      maxExtent = get_max_3d_image_size(physical_device, info->format);
+      maxMipLevels = util_logbase2(maxExtent.width) + 1;
       maxArraySize = 1;
       break;
    }

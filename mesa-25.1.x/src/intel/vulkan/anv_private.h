@@ -158,8 +158,14 @@ struct intel_perf_query_result;
 
 #define BINDING_TABLE_POOL_BLOCK_SIZE (65536)
 
-/* 3DSTATE_VERTEX_BUFFER supports 33 VBs, we use 2 for base & drawid SGVs */
-#define MAX_VBS         (33 - 2)
+#define HW_MAX_VBS 33
+
+/* 3DSTATE_VERTEX_BUFFER supports 33 VBs, but before Gen11 we used 2
+ * for base & drawid SGVs */
+static inline int
+get_max_vbs(const struct intel_device_info *devinfo) {
+   return devinfo->ver >= 11 ? HW_MAX_VBS : (HW_MAX_VBS - 2);
+}
 
 /* 3DSTATE_VERTEX_ELEMENTS supports up to 34 VEs, but our backend compiler
  * only supports the push model of VS inputs, and we only have 128 GRFs,
@@ -210,8 +216,11 @@ struct intel_perf_query_result;
  */
 #define MAX_BINDING_TABLE_SIZE 240
 
-#define ANV_SVGS_VB_INDEX    MAX_VBS
-#define ANV_DRAWID_VB_INDEX (MAX_VBS + 1)
+ /* 3DSTATE_VERTEX_BUFFER supports 33 VBs, but these limits are applied on Gen9
+  * graphics, where 2 VBs are reserved for base & drawid SGVs.
+  */
+#define ANV_SVGS_VB_INDEX   (HW_MAX_VBS - 2)
+#define ANV_DRAWID_VB_INDEX (ANV_SVGS_VB_INDEX + 1)
 
 /* We reserve this MI ALU register for the purpose of handling predication.
  * Other code which uses the MI ALU should leave it alone.
@@ -2852,6 +2861,36 @@ enum anv_descriptor_data {
    ANV_DESCRIPTOR_SURFACE_SAMPLER         = BITFIELD_BIT(9),
 };
 
+struct anv_embedded_sampler_key {
+   /** No need to track binding elements for embedded samplers as :
+    *
+    *    VUID-VkDescriptorSetLayoutBinding-flags-08006:
+    *
+    *       "If VkDescriptorSetLayoutCreateInfo:flags contains
+    *        VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT,
+    *        descriptorCount must: less than or equal to 1"
+    *
+    * The following struct can be safely hash as it doesn't include in
+    * address/offset.
+    */
+   uint32_t sampler[4];
+   uint32_t color[4];
+};
+
+struct anv_descriptor_set_layout_sampler {
+   /* Immutable sampler used to populate descriptor sets on allocation */
+   struct anv_sampler *immutable_sampler;
+
+   /* Hashing key for embedded samplers */
+   struct anv_embedded_sampler_key embedded_key;
+
+   /* Whether ycbcr_conversion_state hold any data */
+   bool has_ycbcr_conversion;
+
+   /* YCbCr conversion state (only valid if has_ycbcr_conversion is true) */
+   struct vk_ycbcr_conversion_state ycbcr_conversion_state;
+};
+
 struct anv_descriptor_set_binding_layout {
    /* The type of the descriptors in this binding */
    VkDescriptorType type;
@@ -2903,8 +2942,8 @@ struct anv_descriptor_set_binding_layout {
     */
    uint16_t descriptor_sampler_stride;
 
-   /* Immutable samplers (or NULL if no immutable samplers) */
-   struct anv_sampler **immutable_samplers;
+   /* Sampler data (or NULL if no embedded/immutable samplers) */
+   struct anv_descriptor_set_layout_sampler *samplers;
 };
 
 enum anv_descriptor_set_layout_type {
@@ -3289,22 +3328,6 @@ struct anv_pipeline_binding {
        */
       uint8_t dynamic_offset_index;
    };
-};
-
-struct anv_embedded_sampler_key {
-   /** No need to track binding elements for embedded samplers as :
-    *
-    *    VUID-VkDescriptorSetLayoutBinding-flags-08006:
-    *
-    *       "If VkDescriptorSetLayoutCreateInfo:flags contains
-    *        VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT,
-    *        descriptorCount must: less than or equal to 1"
-    *
-    * The following struct can be safely hash as it doesn't include in
-    * address/offset.
-    */
-   uint32_t sampler[4];
-   uint32_t color[4];
 };
 
 struct anv_pipeline_embedded_sampler_binding {
@@ -4017,8 +4040,8 @@ struct anv_cmd_graphics_state {
 
    struct anv_vb_cache_range ib_bound_range;
    struct anv_vb_cache_range ib_dirty_range;
-   struct anv_vb_cache_range vb_bound_ranges[33];
-   struct anv_vb_cache_range vb_dirty_ranges[33];
+   struct anv_vb_cache_range vb_bound_ranges[HW_MAX_VBS];
+   struct anv_vb_cache_range vb_dirty_ranges[HW_MAX_VBS];
 
    uint32_t restart_index;
 
@@ -4178,7 +4201,12 @@ struct anv_cmd_state {
       uint64_t                                  address[MAX_SETS];
    }                                            descriptor_buffers;
 
-   struct anv_vertex_binding                    vertex_bindings[MAX_VBS];
+   /* For Gen 9, this allocation is 2 greater than the maximum allowed
+    * number of vertex buffers; see comment on get_max_vbs definition.
+    * Specializing this allocation seems needlessly complicated when we can
+    * enforce the VB limit elsewhere.
+    */
+   struct anv_vertex_binding                    vertex_bindings[HW_MAX_VBS];
    bool                                         xfb_enabled;
    struct anv_xfb_binding                       xfb_bindings[MAX_XFB_BUFFERS];
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
@@ -6313,13 +6341,13 @@ struct gfx8_border_color {
    uint32_t _pad[12];
 };
 
+extern const struct gfx8_border_color anv_default_border_colors[];
+
 struct anv_sampler {
    struct vk_sampler            vk;
 
-   /* Hash of the sampler state + border color, useful for embedded samplers
-    * and included in the descriptor layout hash.
-    */
-   unsigned char                sha1[20];
+   /* Hashing key for embedded samplers */
+   struct anv_embedded_sampler_key embedded_key;
 
    uint32_t                     state[3][4];
    /* Packed SAMPLER_STATE without the border color pointer. */
@@ -6331,7 +6359,7 @@ struct anv_sampler {
     */
    struct anv_state             bindless_state;
 
-   struct anv_state             custom_border_color;
+   struct anv_state             custom_border_color_state;
 };
 
 

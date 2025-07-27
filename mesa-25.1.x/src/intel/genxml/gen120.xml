@@ -806,6 +806,46 @@
       </group>
     </group>
   </instruction>
+  <instruction name="3DSTATE_TE" bias="2" length="5" engine="render">
+    <field name="DWord Length" start="0" end="7" type="uint" default="3" />
+    <field name="3D Command Sub Opcode" start="16" end="23" type="uint" default="28" />
+    <field name="3D Command Opcode" start="24" end="26" type="uint" default="0" />
+    <field name="Command SubType" start="27" end="28" type="uint" default="3" />
+    <field name="Command Type" start="29" end="31" type="uint" default="3" />
+    <field name="TE Enable" start="32" end="32" type="bool" />
+    <field name="TE Mode" start="33" end="34" type="uint">
+      <value name="HW_TESS" value="0" />
+    </field>
+    <field name="TE Domain" start="36" end="37" type="uint">
+      <value name="QUAD" value="0" />
+      <value name="TRI" value="1" />
+      <value name="ISOLINE" value="2" />
+    </field>
+    <field name="Output Topology" start="40" end="41" type="uint" prefix="OUTPUT">
+      <value name="POINT" value="0" />
+      <value name="LINE" value="1" />
+      <value name="TRI_CW" value="2" />
+      <value name="TRI_CCW" value="3" />
+    </field>
+    <field name="Partitioning" start="44" end="45" type="uint">
+      <value name="INTEGER" value="0" />
+      <value name="ODD_FRACTIONAL" value="1" />
+      <value name="EVEN_FRACTIONAL" value="2" />
+    </field>
+    <field name="Tessellation Scale Factor Enable" start="51" end="51" type="bool" />
+    <field name="Tessellation Factor Format" start="52" end="52" type="uint">
+      <value name="FLOAT32" value="0" />
+      <value name="FLOAT16" value="1" />
+    </field>
+    <field name="Patch Header Layout" start="54" end="55" type="uint">
+      <value name="LEGACY" value="0" />
+      <value name="REVERSED" value="2" />
+      <value name="REVERSED_TRI_INSIDE_SEPARATE" value="3" />
+    </field>
+    <field name="Maximum Tessellation Factor Odd" start="64" end="95" type="float" />
+    <field name="Maximum Tessellation Factor Not Odd" start="96" end="127" type="float" />
+    <field name="Tessellation Scale Factor" start="128" end="159" type="float" />
+  </instruction>
   <instruction name="3DSTATE_URB_ALLOC_DS" bias="2" length="3" engine="render">
     <field name="DWord Length" start="0" end="7" type="uint" default="1" />
     <field name="3D Command Sub Opcode" start="16" end="23" type="uint" default="90" />

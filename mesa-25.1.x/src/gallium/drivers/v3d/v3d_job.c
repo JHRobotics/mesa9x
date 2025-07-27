@@ -426,7 +426,7 @@ v3d_get_job_for_fbo(struct v3d_context *v3d)
                         struct v3d_resource *rsc = v3d_resource(cbufs[i]->texture);
                         if (!rsc->writes)
                                 job->clear_tlb |= PIPE_CLEAR_COLOR0 << i;
-                        /* Loads invalidations only applies to the first job
+                        /* Load invalidation only applies to the first job
                          * submitted after a framebuffer state update
                          */
                         if (rsc->invalidated &&
@@ -439,13 +439,12 @@ v3d_get_job_for_fbo(struct v3d_context *v3d)
 
         if (zsbuf) {
                 struct v3d_resource *rsc = v3d_resource(zsbuf->texture);
-                if (!rsc->writes)
+                if (!rsc->writes) {
                         job->clear_tlb |= PIPE_CLEAR_DEPTH;
-
-                if (rsc->separate_stencil)
-                        rsc = rsc->separate_stencil;
-
-                if (!rsc->writes)
+                        if (!rsc->separate_stencil)
+                                job->clear_tlb |= PIPE_CLEAR_STENCIL;
+                }
+                if (rsc->separate_stencil && !rsc->separate_stencil->writes)
                         job->clear_tlb |= PIPE_CLEAR_STENCIL;
                 /* Loads invalidations only applies to the first job submitted
                  * after a framebuffer state update

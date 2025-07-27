@@ -809,6 +809,20 @@ if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv')
           'If your distribution does not ship a recent enough version, ' +
           'you can install the latest version for your user with `cargo install bindgen-cli`.')
   endif
+
+  bindgen_output_args = [
+    # can't do anything about it anyway
+    '--raw-line', '#![allow(clippy::all)]',
+    '--raw-line', '#![allow(improper_ctypes)]',
+    # Some bindgen versions assume `unsafe_op_in_unsafe_fn`
+    '--raw-line', '#![allow(unused_unsafe)]',
+    '--raw-line', '#![allow(non_camel_case_types)]',
+    '--raw-line', '#![allow(non_snake_case)]',
+    '--raw-line', '#![allow(non_upper_case_globals)]',
+  ]
+  if rustc.version().version_compare('>= 1.88')
+    bindgen_output_args += ['--raw-line', '#![allow(unnecessary_transmutes)]']
+  endif
 endif
 
 if get_option('precomp-compiler') != 'system'
@@ -2277,7 +2291,7 @@ if host_machine.system() == 'windows'
   endif
 else
   prog_nm = find_program('nm')
-  with_symbols_check = with_tests
+  with_symbols_check = prog_nm.found() and with_tests
   symbols_check_args = ['--nm', prog_nm.full_path()]
 endif
 

@@ -5094,7 +5094,7 @@ pub struct OpSuLd {
     pub mem_order: MemOrder,
     pub mem_eviction_priority: MemEvictionPriority,
 
-    #[src_type(GPR)]
+    #[src_type(SSA)]
     pub handle: Src,
 
     #[src_type(SSA)]
@@ -5125,7 +5125,7 @@ pub struct OpSuSt {
     pub mem_order: MemOrder,
     pub mem_eviction_priority: MemEvictionPriority,
 
-    #[src_type(GPR)]
+    #[src_type(SSA)]
     pub handle: Src,
 
     #[src_type(SSA)]
@@ -5166,7 +5166,7 @@ pub struct OpSuAtom {
     pub mem_order: MemOrder,
     pub mem_eviction_priority: MemEvictionPriority,
 
-    #[src_type(GPR)]
+    #[src_type(SSA)]
     pub handle: Src,
 
     #[src_type(SSA)]

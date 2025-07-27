@@ -1280,21 +1280,21 @@ VkResult genX(CreateSampler)(
                                  OPAQUE_CAPTURE_DESCRIPTOR_DATA_CREATE_INFO_EXT);
          if (opaque_info) {
             uint32_t alloc_idx = *((const uint32_t *)opaque_info->opaqueCaptureDescriptorData);
-            sampler->custom_border_color =
+            sampler->custom_border_color_state =
                anv_state_reserved_array_pool_alloc_index(&device->custom_border_colors, alloc_idx);
          } else {
-            sampler->custom_border_color =
+            sampler->custom_border_color_state =
                anv_state_reserved_array_pool_alloc(&device->custom_border_colors, true);
          }
       } else {
-         sampler->custom_border_color =
+         sampler->custom_border_color_state =
             anv_state_reserved_array_pool_alloc(&device->custom_border_colors, false);
       }
-      if (sampler->custom_border_color.alloc_size == 0)
+      if (sampler->custom_border_color_state.alloc_size == 0)
          return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
 
-      border_color_offset = sampler->custom_border_color.offset;
-      border_color_ptr = sampler->custom_border_color.map;
+      border_color_offset = sampler->custom_border_color_state.offset;
+      border_color_ptr = sampler->custom_border_color_state.map;
 
       union isl_color_value color = { .u32 = {
          sampler->vk.border_color_value.uint32[0],
@@ -1320,9 +1320,6 @@ VkResult genX(CreateSampler)(
 
    const bool seamless_cube =
       !(pCreateInfo->flags & VK_SAMPLER_CREATE_NON_SEAMLESS_CUBE_MAP_BIT_EXT);
-
-   struct mesa_sha1 ctx;
-   _mesa_sha1_init(&ctx);
 
    for (unsigned p = 0; p < sampler->n_planes; p++) {
       const bool plane_has_chroma =
@@ -1406,7 +1403,6 @@ VkResult genX(CreateSampler)(
        * use it to store into the shader cache and also for hashing.
        */
       GENX(SAMPLER_STATE_pack)(NULL, sampler->state_no_bc[p], &sampler_state);
-      _mesa_sha1_update(&ctx, sampler->state_no_bc[p], sizeof(sampler->state_no_bc[p]));
 
       /* Put border color after the hashing, we don't want the allocation
        * order of border colors to influence the hash. We just need th
@@ -1415,6 +1411,13 @@ VkResult genX(CreateSampler)(
       sampler_state.BorderColorPointer = border_color_offset;
       GENX(SAMPLER_STATE_pack)(NULL, sampler->state[p], &sampler_state);
    }
+
+   memcpy(sampler->embedded_key.sampler,
+          sampler->state_no_bc[0],
+          sizeof(sampler->embedded_key.sampler));
+   memcpy(sampler->embedded_key.color,
+          sampler->vk.border_color_value.uint32,
+          sizeof(sampler->embedded_key.color));
 
    /* If we have bindless, allocate enough samplers.  We allocate 32 bytes
     * for each sampler instead of 16 bytes because we want all bindless
@@ -1428,12 +1431,6 @@ VkResult genX(CreateSampler)(
       memcpy(sampler->bindless_state.map, sampler->state,
              sampler->n_planes * GENX(SAMPLER_STATE_length) * 4);
    }
-
-   /* Hash the border color */
-   _mesa_sha1_update(&ctx, border_color_ptr,
-                     sizeof(union isl_color_value));
-
-   _mesa_sha1_final(&ctx, sampler->sha1);
 
    *pSampler = anv_sampler_to_handle(sampler);
 

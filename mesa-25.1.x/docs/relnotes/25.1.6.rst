@@ -1,0 +1,238 @@
+Mesa 25.1.6 Release Notes / 2025-07-16
+======================================
+
+Mesa 25.1.6 is a bug fix release which fixes bugs found since the 25.1.5 release.
+
+Mesa 25.1.6 implements the OpenGL 4.6 API, but the version reported by
+glGetString(GL_VERSION) or glGetIntegerv(GL_MAJOR_VERSION) /
+glGetIntegerv(GL_MINOR_VERSION) depends on the particular driver being used.
+Some drivers don't support all the features required in OpenGL 4.6. OpenGL
+4.6 is **only** available if requested at context creation.
+Compatibility contexts may report a lower version depending on each driver.
+
+Mesa 25.1.6 implements the Vulkan 1.4 API, but the version reported by
+the apiVersion property of the VkPhysicalDeviceProperties struct
+depends on the particular driver being used.
+
+SHA checksums
+-------------
+
+::
+
+    TBD.
+
+
+New features
+------------
+
+- None
+
+
+Bug fixes
+---------
+
+- v3dv: regression in vkAllocateMemory importing gbm bo
+- Vulkan WSI (and zink) use threads on X11 even when the X connection isn't thread-safe
+- sddm-greeter-qt segfault when using nvk+zink
+- [regression][bisected] [FirePro W4100]: crashing/rebooting
+- Descriptor set layout with binding flags fails due to indices not matching bindings
+- piglit bindless texture tests crash
+- [radeonsi] Artifacts in Team Fortress 2 (bisected)
+- eglgears_wayland segfault on zink+nvk with PRIME
+- vn_renderer_virtgpu.c:13:10: fatal error: 'xf86drm.h' file not found
+- brw: mad instruction printing broken on Gfx11
+- radv: RGB9E5 rendering does not ignore alpha write mask
+- Confidential issue #13431
+
+
+Changes
+-------
+
+Autumn Ashton (1):
+
+- radv: Fix handling of NULL pColorAttachmentLocations in vkCmdSetRenderingAttachmentLocations
+
+Boris Brezillon (1):
+
+- panvk: Lower maxImageDimension{2D,3D,Cube} to match the HW caps
+
+Caio Oliveira (1):
+
+- brw: Use the right width in brw_nir_apply_key for BS shaders
+
+Calder Young (3):
+
+- iris: Fix issue with conditional dispatching
+- anv: Fix tiling for H.265 and VP9 video surfaces on GFX 12.5+
+- isl: Set tiling requirements for video surfaces
+
+Caleb Callaway (3):
+
+- iris: re-emit push constants at compute batch start
+- iris: ISP invalidate at end of compute batches
+- anv: Increase max VBs to 33 on Gen11+
+
+Charlotte Pabst (1):
+
+- mesa: clear program info when updating program string
+
+Daniel Stone (1):
+
+- vulkan: Remove build-system remnants of wl_drm support
+
+David Rosca (3):
+
+- frontends/va: Fix leaking fences in GetImage/PutImage
+- radeonsi/video: Set correct minimum size for VP9 decode
+- radv/video: Set correct H264/5 decode minCodedExtent
+
+Eric Engestrom (18):
+
+- docs: add sha sum for 25.1.5
+- .pick_status.json: Update to 5ee3c10d1edf4663980e8ea759a58dcc054efb71
+- .pick_status.json: Mark abe23e1cd051f4f021098ba58f1fc3d79bedfd90 as denominated
+- .pick_status.json: Mark 85e4a19ed13cd56cc31ca85599acd70ff4f6221a as denominated
+- .pick_status.json: Mark 6ad0b59cc8241d2dceecd7c9c6b8edb3ca18c942 as denominated
+- .pick_status.json: Mark 2f5ff9788a61fdbed43a510ce082940194aa2c8d as denominated
+- .pick_status.json: Mark 94f42bb201a95dded207d9d3ad3618c018cd0e02 as denominated
+- .pick_status.json: Mark 0a581e7408a91eec1be7764b945e74668d84f9be as denominated
+- .pick_status.json: Mark 485b520cf29818768a755077adecdeee734e32b4 as denominated
+- virtio: move inc_virtio up one folder
+- meson: split subdir for virtio/vdrm and virtio/vulkan
+- bin/symbols-check: fix fields length condition before accessing fields
+- bin/symbols-check: ignore \`nm` lines that don't have a symbol name
+- bin/symbols-check: ignore version of platform symbols
+- bin/symbols-check: sort platform symbols
+- bin/symbols-check: document new platform symbols exported since symbols-check was broken
+- meson: only run symbols-check if \`nm` is available
+- freedreno/ci: fix a750-piglit-cl rules
+
+Erik Faye-Lund (2):
+
+- st/pbo: use sized nir-types for download-path
+- panfrost: limit sample_shading to bifrost and later
+
+Faith Ekstrand (6):
+
+- nak: Surface handles are not allowed to be rZ
+- zink: Clean up file descriptor closing in export_dmabuf_semaphore()
+- zink/kopper: Don't recycle unused acquire semaphores
+- loader: Report DRI_PRIME errors earlier
+- egl/wayland: Refuse to initialize Zink+DRM
+- vulkan/wsi/x11: Refuse to connect to thread-unsafe Displays
+
+Gorazd Sumkovski (1):
+
+- panfrost: Fix incorrect condition in assert
+
+Jordan Justen (2):
+
+- anv: Set Xe3 as supported
+- intel/dev: Enable PTL PCI IDs (without INTEL_FORCE_PROBE)
+
+Jose Maria Casanova Crespo (2):
+
+- v3d: Fix depth resource invalidation with separate_stencil
+- v3dv: Do not increase TFU READAHEAD for imported buffers size
+
+José Roberto de Souza (3):
+
+- anv: Read the correct register for aux table invalidation when in GPGPU mode in render engine
+- anv: Flush before invalidate aux map in copy and video engines
+- anv: Do not emit batch_emit_fast_color_dummy_blit() for video engine
+
+Konstantin Seurer (1):
+
+- llvmpipe: Use the correct field to decide if coroutines are used
+
+LingMan (1):
+
+- meson: Streamline silencing of warnings in bindgen generated code
+
+Lionel Landwerlin (3):
+
+- anv: rework embedded sampler hashing
+- anv: do not rely on sampler objects for pipeline compilation
+- genxml: fix 3DSTATE_TE definition on Gfx12.[05]
+
+Marek Olšák (1):
+
+- glsl: fix a possible crash in gl_nir_lower_xfb_varying
+
+Mary Guillemard (4):
+
+- pan/genxml: Fix wrong size for compute size workgroup
+- pan/bi: Do not allow passthrough for instructions disallowing temps
+- pan/bi: Disallow FAU for CLPER in bi_check_fau_src
+- panvk: Fix wrong reporting of subgroup size for executable properties
+
+Mel Henning (3):
+
+- meson: Allow unnecessary_transmutes for bindgen
+- egl: Clear modifiers if we clear use_flags
+- nouveau/headers: Stop running rustfmt
+
+Mike Blumenkrantz (9):
+
+- aux/trace: always finish dumping draw/dispatch calls before triggering them
+- zink: don't modify the u_foreach_bit64 bit inside the loop in loop_io_var_mask()
+- zink: fix acquire semaphore sync
+- zink: fix submit_count disambiguation for bo usage checks
+- zink: always insert current batch sparse semaphore into sparse wait chain
+- lavapipe: fix advertised depth resolve modes
+- zink: double-check descriptor layout creation before adding to cache
+- zink: always create gfx shader objects with 5 descriptor layouts
+- zink: lock harder around memory mappings
+
+Olivia Lee (4):
+
+- pan/shared: fix typo in pan_tiling doc comments
+- panvk: add error checking for dump/trace mmap call
+- pan/kmod: fix propagation of MAP_FAILED in pan_kmod_bo_mmap
+- panvk: don't report features for image formats that are only usable as vertex buffers
+
+Patrick Lerda (3):
+
+- r600: fix emit_ssbo_store() wrmask compatibility
+- r600: set never as the depth compare function when depth compare is disabled
+- r600: fix rv770 border color
+
+Qiang Yu (1):
+
+- radeonsi: fix gfx11 ngg shader emit
+
+Rhys Perry (1):
+
+- aco/ra: fix repeated compact_linear_vgprs() in get_reg()
+
+Samuel Pitoiset (7):
+
+- radv: stop disabling the alpha optimization with E5B9G9R9 and RB+
+- radv: disable RB+ with E5B9G9R9 to workaround failures on GFX10.3-GFX11.5
+- ac/surface: use align with NPOT for estimating surface size
+- ac/surface: select a different swizzle mode for ASTC formats on GFX12
+- radv: fix indexing with variable descriptor count
+- radv: fix the maximum variable descriptor count with inline uniform blocks
+- radv/sdma: fix unaligned 96-bits copies on GFX9
+
+Sviatoslav Peleshko (1):
+
+- brw/disasm: Fix Gfx11 3src-instructions dst register disassembly
+
+Timothy Arceri (2):
+
+- util: add workaround for legacy OpenGL tf2
+- glsl: fix reuse of deref
+
+Vitaliy Triang3l Kuzmin (1):
+
+- r600: Fix rectangle coordinate limits on R6xx/R7xx
+
+Yiwei Zhang (6):
+
+- meson: drop vdrm from virgl and venus
+- anv: avoid leaking private binding for aliased wsi image
+- vulkan/android: fix to not append GRALLOC_USAGE_HW_COMPOSER bit
+- anv: fix ANB gralloc usage query to not append display usage bits
+- venus: allow to build vtest-only on non-DRM/KMS systems
+- hasvk: avoid leaking private binding for aliased wsi image

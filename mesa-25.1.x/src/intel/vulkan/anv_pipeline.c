@@ -774,16 +774,16 @@ lookup_ycbcr_conversion(const void *_sets_layout, uint32_t set,
    const struct anv_descriptor_set_binding_layout *bind_layout =
       &sets_layout->set[set].layout->binding[binding];
 
-   if (bind_layout->immutable_samplers == NULL)
+   if (bind_layout->samplers == NULL)
       return NULL;
 
    array_index = MIN2(array_index, bind_layout->array_size - 1);
 
-   const struct anv_sampler *sampler =
-      bind_layout->immutable_samplers[array_index];
+   const struct anv_descriptor_set_layout_sampler *sampler =
+      &bind_layout->samplers[array_index];
 
-   return sampler && sampler->vk.ycbcr_conversion ?
-          &sampler->vk.ycbcr_conversion->state : NULL;
+   return sampler->has_ycbcr_conversion ?
+          &sampler->ycbcr_conversion_state : NULL;
 }
 
 static void

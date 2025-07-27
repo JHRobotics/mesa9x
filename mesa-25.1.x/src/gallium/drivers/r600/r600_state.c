@@ -601,7 +601,7 @@ static void *r600_create_sampler_state(struct pipe_context *ctx,
 		S_03C000_XY_MIN_FILTER(r600_tex_filter(state->min_img_filter, max_aniso)) |
 		S_03C000_MIP_FILTER(r600_tex_mipfilter(state->min_mip_filter)) |
 		S_03C000_MAX_ANISO_RATIO(max_aniso_ratio) |
-		S_03C000_DEPTH_COMPARE_FUNCTION(r600_tex_compare(state->compare_func)) |
+		S_03C000_DEPTH_COMPARE_FUNCTION(r600_tex_compare(state->compare_mode, state->compare_func)) |
 		S_03C000_BORDER_COLOR_TYPE(ss->border_color_use ? V_03C000_SQ_TEX_BORDER_COLOR_REGISTER : 0);
 	/* R_03C004_SQ_TEX_SAMPLER_WORD1_0 */
 	ss->tex_sampler_words[1] =
@@ -1861,12 +1861,18 @@ static void r600_emit_sampler_states(struct r600_context *rctx,
 		radeon_emit_array(cs, rstate->tex_sampler_words, 3);
 
 		if (rstate->border_color_use) {
+			union pipe_color_union border_color = {{0,0,0,1}};
 			unsigned offset;
+
+			/* The rv770 border color is fully compatible with
+			 * evergreen. */
+			evergreen_convert_border_color(&rstate->border_color,
+						       &border_color, &rview->base);
 
 			offset = border_color_reg;
 			offset += i * 16;
 			radeon_set_config_reg_seq(cs, offset, 4);
-			radeon_emit_array(cs, rstate->border_color.ui, 4);
+			radeon_emit_array(cs, border_color.ui, 4);
 		}
 	}
 	texinfo->states.dirty_mask = 0;

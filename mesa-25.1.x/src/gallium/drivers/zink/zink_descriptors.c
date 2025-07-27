@@ -147,7 +147,16 @@ descriptor_util_layout_get(struct zink_screen *screen, enum zink_descriptor_type
    struct zink_descriptor_layout *layout = create_layout(screen, type, bindings, num_bindings, layout_key);
    if (layout && type != ZINK_DESCRIPTOR_TYPE_UNIFORMS) {
       simple_mtx_lock(&screen->desc_set_layouts_lock);
-      _mesa_hash_table_insert_pre_hashed(&screen->desc_set_layouts[type], hash, *layout_key, layout);
+      struct hash_entry *he = _mesa_hash_table_search_pre_hashed(&screen->desc_set_layouts[type], hash, &key);
+      if (he) {
+         VKSCR(DestroyDescriptorSetLayout)(screen->dev, layout->layout, NULL);
+         ralloc_free(layout);
+         *layout_key = (void*)he->key;
+         simple_mtx_unlock(&screen->desc_set_layouts_lock);
+         return he->data;
+      } else {
+         _mesa_hash_table_insert_pre_hashed(&screen->desc_set_layouts[type], hash, *layout_key, layout);
+      }
       simple_mtx_unlock(&screen->desc_set_layouts_lock);
    }
    return layout;

@@ -607,8 +607,8 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
    pCapabilities->flags = 0;
    pCapabilities->pictureAccessGranularity.width = VK_VIDEO_H264_MACROBLOCK_WIDTH;
    pCapabilities->pictureAccessGranularity.height = VK_VIDEO_H264_MACROBLOCK_HEIGHT;
-   pCapabilities->minCodedExtent.width = VK_VIDEO_H264_MACROBLOCK_WIDTH;
-   pCapabilities->minCodedExtent.height = VK_VIDEO_H264_MACROBLOCK_HEIGHT;
+   pCapabilities->minCodedExtent.width = 64;
+   pCapabilities->minCodedExtent.height = 64;
 
    struct VkVideoDecodeCapabilitiesKHR *dec_caps = NULL;
    struct VkVideoEncodeCapabilitiesKHR *enc_caps = NULL;
@@ -731,6 +731,8 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
       ext->maxLevel = STD_VIDEO_AV1_LEVEL_6_1; /* For VCN3/4, the only h/w currently with AV1 decode support */
       strcpy(pCapabilities->stdHeaderVersion.extensionName, VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_EXTENSION_NAME);
       pCapabilities->stdHeaderVersion.specVersion = VK_STD_VULKAN_VIDEO_CODEC_AV1_DECODE_SPEC_VERSION;
+      pCapabilities->minCodedExtent.width = 16;
+      pCapabilities->minCodedExtent.height = 16;
       break;
    }
    case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR: {

@@ -13,6 +13,7 @@ inc_gallium = include_directories('gallium/include')
 inc_gallium_aux = include_directories('gallium/auxiliary')
 inc_amd_common = include_directories('amd/common', 'amd/common/nir')
 inc_tool = include_directories('tool')
+inc_virtio = include_directories('virtio')
 inc_virtio_gpu = include_directories('virtio/virtio-gpu')
 inc_frontends = include_directories('gallium/frontends')
 pps_datasources = []
@@ -69,8 +70,11 @@ endif
 if with_any_intel
   subdir('intel')
 endif
-if with_vdrm or with_gallium_virgl or with_virtio_vk
-  subdir('virtio')
+if with_virtio_vk
+  subdir('virtio/vulkan')
+endif
+if with_vdrm
+  subdir('virtio/vdrm')
 endif
 if with_gallium_radeonsi or with_amd_vk or with_gallium_r300 or with_gallium_r600
   subdir('amd')

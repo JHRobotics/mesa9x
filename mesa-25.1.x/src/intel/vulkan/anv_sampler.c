@@ -12,11 +12,11 @@ VkResult anv_GetSamplerOpaqueCaptureDescriptorDataEXT(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_sampler, sampler, pInfo->sampler);
 
-   if (sampler->custom_border_color.alloc_size != 0) {
+   if (sampler->custom_border_color_state.alloc_size != 0) {
       *((uint32_t *)pData) =
          anv_state_reserved_array_pool_state_index(
             &device->custom_border_colors,
-            sampler->custom_border_color);
+            sampler->custom_border_color_state);
    } else {
       *((uint32_t *)pData) = 0;
    }
@@ -40,9 +40,10 @@ void anv_DestroySampler(
                           sampler->bindless_state);
    }
 
-   if (sampler->custom_border_color.map) {
-      anv_state_reserved_array_pool_free(&device->custom_border_colors,
-                                         sampler->custom_border_color);
+   if (sampler->custom_border_color_state.map) {
+      anv_state_reserved_array_pool_free(
+         &device->custom_border_colors,
+         sampler->custom_border_color_state);
    }
 
    vk_sampler_destroy(&device->vk, pAllocator, &sampler->vk);

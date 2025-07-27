@@ -73,7 +73,6 @@ endif
 
 if with_platform_wayland
   v3dv_deps += dep_wayland_client
-  libv3dv_files += [wayland_drm_client_protocol_h, wayland_drm_protocol_c]
 endif
 
 if with_platform_android

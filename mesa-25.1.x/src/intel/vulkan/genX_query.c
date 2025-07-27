@@ -1579,7 +1579,8 @@ void genX(CmdWriteTimestamp2)(
       if (anv_cmd_buffer_is_blitter_queue(cmd_buffer) ||
           anv_cmd_buffer_is_video_queue(cmd_buffer)) {
          /* Wa_16018063123 - emit fast color dummy blit before MI_FLUSH_DW. */
-         if (intel_needs_workaround(cmd_buffer->device->info, 16018063123)) {
+         if (intel_needs_workaround(cmd_buffer->device->info, 16018063123) &&
+             anv_cmd_buffer_is_blitter_queue(cmd_buffer)) {
             genX(batch_emit_fast_color_dummy_blit)(&cmd_buffer->batch,
                                                    cmd_buffer->device);
          }

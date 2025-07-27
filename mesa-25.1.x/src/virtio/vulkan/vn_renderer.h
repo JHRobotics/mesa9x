@@ -218,10 +218,12 @@ struct vn_renderer {
    struct vn_renderer_sync_ops sync_ops;
 };
 
+#ifdef HAVE_LIBDRM
 VkResult
 vn_renderer_create_virtgpu(struct vn_instance *instance,
                            const VkAllocationCallbacks *alloc,
                            struct vn_renderer **renderer);
+#endif
 
 VkResult
 vn_renderer_create_vtest(struct vn_instance *instance,
@@ -233,6 +235,7 @@ vn_renderer_create(struct vn_instance *instance,
                    const VkAllocationCallbacks *alloc,
                    struct vn_renderer **renderer)
 {
+#ifdef HAVE_LIBDRM
    if (VN_DEBUG(VTEST)) {
       VkResult result = vn_renderer_create_vtest(instance, alloc, renderer);
       if (result == VK_SUCCESS)
@@ -240,6 +243,9 @@ vn_renderer_create(struct vn_instance *instance,
    }
 
    return vn_renderer_create_virtgpu(instance, alloc, renderer);
+#else
+   return vn_renderer_create_vtest(instance, alloc, renderer);
+#endif
 }
 
 static inline void

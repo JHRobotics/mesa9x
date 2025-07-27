@@ -254,6 +254,9 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
       buf.DecodedPictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, buf.DecodedPictureAddress.bo, 0),
+#if GFX_VERx10 >= 125
+         .TiledResourceMode = TRMODE_TILEF,
+#endif
       };
 
       buf.DeblockingFilterLineBufferAddress = (struct anv_address) {
@@ -360,6 +363,9 @@ anv_h265_decode_video(struct anv_cmd_buffer *cmd_buffer,
 
       buf.ReferencePictureMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {
          .MOCS = anv_mocs(cmd_buffer->device, NULL, 0),
+#if GFX_VERx10 >= 125
+         .TiledResourceMode = TRMODE_TILEF,
+#endif
       };
 
       buf.OriginalUncompressedPictureSourceMemoryAddressAttributes = (struct GENX(MEMORYADDRESSATTRIBUTES)) {

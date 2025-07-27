@@ -101,6 +101,7 @@ if with_tools.contains('etnaviv')
     output : 'isa_bindings.rs',
     include_directories : [inc_src],
     args : [
+      bindgen_output_args,
       '--disable-header-comment',
       '--ignore-functions',
       '--allowlist-type', 'etna_asm_result',
@@ -116,10 +117,6 @@ if with_tools.contains('etnaviv')
     isa_bindings_rs,
     gnu_symbol_visibility : 'hidden',
     rust_abi : 'rust',
-    rust_args: [
-      '-Anon_camel_case_types',
-      '-Anon_snake_case',
-    ],
   )
 
   dep_indexmap = dependency('indexmap',

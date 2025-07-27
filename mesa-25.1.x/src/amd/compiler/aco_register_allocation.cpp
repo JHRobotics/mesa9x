@@ -1833,11 +1833,13 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
        compact_linear_vgprs(ctx, reg_file, pc)) {
       parallelcopies.insert(parallelcopies.end(), pc.begin(), pc.end());
 
-      /* We don't need to fill the copy definitions in because we don't care about the linear VGPR
-       * space here. */
       RegisterFile tmp_file(reg_file);
       for (parallelcopy& copy : pc)
          tmp_file.clear(copy.op);
+
+      /* Block these registers in case we try compacting linear VGPRs in the recursive get_reg(). */
+      for (parallelcopy& copy : pc)
+         tmp_file.block(copy.def.physReg(), copy.def.regClass());
 
       return get_reg(ctx, tmp_file, temp, parallelcopies, instr, operand_index);
    }

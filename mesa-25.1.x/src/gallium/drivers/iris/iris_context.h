@@ -1102,7 +1102,7 @@ struct iris_context {
        * Query BO with a MI_PREDICATE_RESULT snapshot calculated on the
        * render context that needs to be uploaded to the compute context.
        */
-      struct iris_bo *compute_predicate;
+      struct iris_address compute_predicate;
 
       /** Is a PIPE_QUERY_PRIMITIVES_GENERATED query active? */
       bool prims_generated_query_active;

@@ -173,7 +173,6 @@ endif
 
 if with_platform_wayland
   panvk_deps += dep_wayland_client
-  libpanvk_files += [wayland_drm_client_protocol_h, wayland_drm_protocol_c]
 endif
 
 if with_platform_android

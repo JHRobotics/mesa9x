@@ -987,7 +987,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .maxDescriptorSetUpdateAfterBindStorageImages = MAX_DESCRIPTORS,
       .maxDescriptorSetUpdateAfterBindInputAttachments = MAX_DESCRIPTORS,
 
-      .supportedDepthResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT | VK_RESOLVE_MODE_AVERAGE_BIT,
+      .supportedDepthResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
       .supportedStencilResolveModes = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
       .independentResolveNone = false,
       .independentResolve = false,

@@ -54,6 +54,7 @@ THE SOFTWARE.
 #define OP_FBHDA_GAMMA_GET    0x1117 /* VXD, DRV, ESCAPE_DRV_NT */
 
 #define OP_FBHDA_PAGE_MOD     0x1118 /* VXD */
+#define OP_FBHDA_MODE_QUERY   0x1119 /* VXD */
 
 #define OP_SVGA_VALID         0x2000  /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_SVGA_SETMODE       0x2001  /* DRV */
@@ -82,6 +83,7 @@ THE SOFTWARE.
 #define OP_VESA_VALID         0x4000 /* VXD, DRV, ESCAPE_DRV_NT */
 #define OP_VESA_SETMODE       0x4001 /* DRV */
 #define OP_VESA_VALIDMODE     0x4002 /* DRV */
+#define OP_VESA_HIRES         0x4003 /* DRV */
 
 #define OP_MOUSE_BUFFER       0x1F00 /* DRV */
 #define OP_MOUSE_LOAD         0x1F01 /* DRV */         
@@ -167,6 +169,15 @@ typedef struct FBHDA
 	         DWORD res3;
 } FBHDA_t;
 
+typedef struct FBHDA_mode
+{
+	         DWORD cb;
+	         DWORD width;
+	         DWORD height;
+	         DWORD bpp;
+	         DWORD refresh;
+} FBHDA_mode_t;
+
 #define FB_VRAM_HEAP_GRANULARITY (4*32)
 /* minimum of vram allocation (32px at 32bpp, or 64px at 16bpp) */
 
@@ -182,6 +193,10 @@ typedef struct FBHDA
 #define FB_ACCEL_VMSVGA10_ST  512 /* not used */
 #define FB_BUG_VMWARE_UPDATE 1024
 #define FB_ACCEL_GPUMEM      2048
+#define FB_VESA_MODES        8192
+#define FB_SUPPORT_VSYNC    16384
+#define FB_SUPPORT_CLOCK    32768
+#define FB_SUPPORT_TRIPLE   65536
 
 /* for internal use in RING-0 by VXD only */
 BOOL FBHDA_init_hw(); 
@@ -201,10 +216,15 @@ void FBHDA_free();
 #define FBHDA_ACCESS_MOUSE_MOVE 2
 #define FBHDA_ACCESS_SURFACE_DIRTY 4
 
+#define FBHDA_SWAP_NOWAIT     1
+#define FBHDA_SWAP_WAIT       2
+#define FBHDA_SWAP_SCHEDULE   4
+
 void FBHDA_access_begin(DWORD flags);
 void FBHDA_access_end(DWORD flags);
 void FBHDA_access_rect(DWORD left, DWORD top, DWORD right, DWORD bottom);
 BOOL FBHDA_swap(DWORD offset);
+BOOL FBHDA_swap_ex(DWORD offset, DWORD flags);
 void FBHDA_clean();
 void  FBHDA_palette_set(unsigned char index, DWORD rgb);
 DWORD FBHDA_palette_get(unsigned char index);
@@ -238,6 +258,9 @@ void mouse_erase();
 
 /* helper for some hacks */
 BOOL FBHDA_page_modify(DWORD flat_address, DWORD size, const BYTE *new_data);
+
+/* query resulutions + refresh rate (need FB_VESA_MODES flag set) */
+BOOL FBHDA_mode_query(DWORD index, FBHDA_mode_t *mode);
 
 /*
  * VMWare SVGA-II API
@@ -420,11 +443,11 @@ BOOL VBE_setmode(DWORD w, DWORD h, DWORD bpp);
 
 BOOL VESA_init_hw(); /* internal for VXD only */
 
-void VESA_HW_enable();
-void VESA_HW_disable();
+void VESA_HIRES_enable();
+void VESA_HIRES_disable();
 BOOL VESA_valid();
 BOOL VESA_validmode(DWORD w, DWORD h, DWORD bpp);
-BOOL VESA_setmode(DWORD w, DWORD h, DWORD bpp);
+BOOL VESA_setmode(DWORD w, DWORD h, DWORD bpp, DWORD rr_min, DWORD rr_max);
 
 #endif
 
@@ -440,6 +463,7 @@ typedef void (__cdecl *FBHDA_access_rect_t)(DWORD left, DWORD top, DWORD right, 
 typedef BOOL (__cdecl *FBHDA_swap_t)(DWORD offset);
 typedef BOOL (__cdecl *FBHDA_page_modify_t)(DWORD flat_address, DWORD size, const BYTE *new_data);
 typedef void (__cdecl *FBHDA_clean_t)(void);
+typedef BOOL (__cdecl *FBHDA_mode_query_t)(DWORD index, FBHDA_mode_t *mode);
 
 typedef struct _fbhda_lib_t
 {
@@ -452,6 +476,7 @@ typedef struct _fbhda_lib_t
 	FBHDA_swap_t pFBHDA_swap;
 	FBHDA_page_modify_t pFBHDA_page_modify;
 	FBHDA_clean_t pFBHDA_clean;
+	FBHDA_mode_query_t pFBHDA_mode_query;
 } fbhda_lib_t;
 
 #endif /* __3D_ACCEL_H__ */

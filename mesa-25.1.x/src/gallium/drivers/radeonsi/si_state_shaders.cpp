@@ -1293,10 +1293,10 @@ static void gfx11_dgpu_emit_shader_ngg(struct si_context *sctx, unsigned index)
    if (sctx->screen->info.has_set_sh_pairs_packed) {
       gfx11_opt_push_gfx_sh_reg(R_00B21C_SPI_SHADER_PGM_RSRC3_GS,
                                 SI_TRACKED_SPI_SHADER_PGM_RSRC3_GS,
-                                shader->gs.spi_shader_pgm_rsrc3_gs);
+                                shader->ngg.spi_shader_pgm_rsrc3_gs);
       gfx11_opt_push_gfx_sh_reg(R_00B204_SPI_SHADER_PGM_RSRC4_GS,
                                 SI_TRACKED_SPI_SHADER_PGM_RSRC4_GS,
-                                shader->gs.spi_shader_pgm_rsrc4_gs);
+                                shader->ngg.spi_shader_pgm_rsrc4_gs);
    } else {
       if (sctx->screen->info.uses_kernel_cu_mask) {
          radeon_opt_set_sh_reg_idx(R_00B21C_SPI_SHADER_PGM_RSRC3_GS,

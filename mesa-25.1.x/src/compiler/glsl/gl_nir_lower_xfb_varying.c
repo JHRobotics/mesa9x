@@ -182,7 +182,7 @@ gl_nir_lower_xfb_varying(nir_shader *shader, const char *old_var_name,
             b.cursor = nir_before_instr(nir_block_last_instr(block));
             copy_to_new_var(&b, deref, new_var_deref, type);
          } else if (block == nir_impl_last_block(impl)) {
-            b.cursor = nir_after_instr(nir_block_last_instr(block));
+            b.cursor = nir_after_block(block);
             copy_to_new_var(&b, deref, new_var_deref, type);
          }
       } else {

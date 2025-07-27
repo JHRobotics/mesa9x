@@ -290,8 +290,8 @@ radv_CreateDescriptorSetLayout(VkDevice _device, const VkDescriptorSetLayoutCrea
          set_layout->binding[b].buffer_offset = buffer_count;
          set_layout->binding[b].dynamic_offset_offset = dynamic_offset_count;
 
-         if (variable_flags && binding->binding < variable_flags->bindingCount &&
-             (variable_flags->pBindingFlags[binding->binding] & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
+         if (variable_flags && j < variable_flags->bindingCount &&
+             (variable_flags->pBindingFlags[j] & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
             assert(!binding->pImmutableSamplers); /* Terribly ill defined  how many samplers are valid */
             assert(binding->binding == num_bindings - 1);
 
@@ -440,15 +440,15 @@ radv_GetDescriptorSetLayoutSupport(VkDevice device, const VkDescriptorSetLayoutC
 
          uint64_t max_count = INT32_MAX;
          if (binding->descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
-            max_count = INT32_MAX - size;
+            max_count = MAX_INLINE_UNIFORM_BLOCK_SIZE - size;
          else if (descriptor_size)
             max_count = (INT32_MAX - size) / descriptor_size;
 
          if (max_count < descriptor_count) {
             supported = false;
          }
-         if (variable_flags && binding->binding < variable_flags->bindingCount && variable_count &&
-             (variable_flags->pBindingFlags[binding->binding] & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
+         if (variable_flags && i < variable_flags->bindingCount && variable_count &&
+             (variable_flags->pBindingFlags[i] & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
             variable_count->maxVariableDescriptorCount = MIN2(UINT32_MAX, max_count);
          }
          size += descriptor_count * descriptor_size;

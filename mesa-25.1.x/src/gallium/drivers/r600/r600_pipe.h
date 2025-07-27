@@ -715,6 +715,10 @@ bool evergreen_adjust_gprs(struct r600_context *rctx);
 void evergreen_setup_scratch_buffers(struct r600_context *rctx);
 uint32_t evergreen_construct_rat_mask(struct r600_context *rctx, struct r600_cb_misc_state *a,
 				      unsigned nr_cbufs);
+void evergreen_convert_border_color(const union pipe_color_union *in,
+				    union pipe_color_union *out,
+				    const struct pipe_sampler_view *view);
+
 /* r600_blit.c */
 void r600_init_blit_functions(struct r600_context *rctx);
 void r600_decompress_depth_textures(struct r600_context *rctx,
@@ -838,7 +842,8 @@ uint32_t r600_translate_stencil_op(int s_op);
 uint32_t r600_translate_fill(uint32_t func);
 unsigned r600_tex_wrap(unsigned wrap);
 unsigned r600_tex_mipfilter(unsigned filter);
-unsigned r600_tex_compare(unsigned compare);
+unsigned r600_tex_compare(const unsigned mode,
+			  const unsigned compare);
 bool sampler_state_needs_border_color(const struct pipe_sampler_state *state);
 unsigned r600_get_swizzle_combined(const unsigned char *swizzle_format,
 				   const unsigned char *swizzle_view,

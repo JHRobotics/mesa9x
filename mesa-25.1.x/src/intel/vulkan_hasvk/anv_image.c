@@ -1162,14 +1162,6 @@ alloc_private_binding(struct anv_device *device,
    if (binding->memory_range.size == 0)
       return VK_SUCCESS;
 
-   const VkImageSwapchainCreateInfoKHR *swapchain_info =
-      vk_find_struct_const(create_info->pNext, IMAGE_SWAPCHAIN_CREATE_INFO_KHR);
-
-   if (swapchain_info && swapchain_info->swapchain != VK_NULL_HANDLE) {
-      /* The image will be bound to swapchain memory. */
-      return VK_SUCCESS;
-   }
-
    return anv_device_alloc_bo(device, "image-binding-private",
                               binding->memory_range.size, 0, 0,
                               &binding->address.bo);
@@ -1670,6 +1662,19 @@ VkResult anv_BindImageMemory2(
             assert(image->vk.aspects == swapchain_image->vk.aspects);
             assert(mem == NULL);
 
+            /* Remove the internally allocated private binding since we're going
+             * to replace everything with BOs from the WSI image, we don't want
+             * to leak the current BO.
+             */
+            struct anv_bo *private_bo =
+               image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address.bo;
+            if (private_bo) {
+               assert(image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].memory_range.size);
+
+               anv_device_release_bo(device, private_bo);
+               image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address.bo = NULL;
+            }
+
             for (int j = 0; j < ARRAY_SIZE(image->bindings); ++j) {
                assert(memory_ranges_equal(image->bindings[j].memory_range,
                                           swapchain_image->bindings[j].memory_range));
@@ -1679,8 +1684,7 @@ VkResult anv_BindImageMemory2(
             /* We must bump the private binding's bo's refcount because, unlike the other
              * bindings, its lifetime is not application-managed.
              */
-            struct anv_bo *private_bo =
-               image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address.bo;
+            private_bo = image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].address.bo;
             if (private_bo)
                anv_bo_ref(private_bo);
 

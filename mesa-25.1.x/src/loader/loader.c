@@ -583,20 +583,17 @@ bool loader_get_user_preferred_fd(int *fd_render_gpu, int *original_fd)
       log_(debug ? _LOADER_WARNING : _LOADER_INFO,
            "selected (%s)\n", devices[i]->nodes[DRM_NODE_RENDER]);
       fd = loader_open_device(devices[i]->nodes[DRM_NODE_RENDER]);
+      if (fd < 0) {
+         log_(debug ? _LOADER_WARNING : _LOADER_INFO,
+              "DRI_PRIME: failed to open '%s'\n",
+              devices[i]->nodes[DRM_NODE_RENDER]);
+      }
       break;
    }
    drmFreeDevices(devices, num_devices);
 
-   if (i == num_devices)
+   if (i == num_devices || fd < 0)
       goto err;
-
-   if (fd < 0) {
-      log_(debug ? _LOADER_WARNING : _LOADER_INFO,
-           "DRI_PRIME: failed to open '%s'\n",
-           devices[i]->nodes[DRM_NODE_RENDER]);
-
-      goto err;
-   }
 
    bool is_render_and_display_gpu_diff = !!strcmp(default_tag, prime.str);
    if (original_fd) {

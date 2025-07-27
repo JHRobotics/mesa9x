@@ -2657,8 +2657,12 @@ unsigned r600_tex_mipfilter(unsigned filter)
 	}
 }
 
-unsigned r600_tex_compare(unsigned compare)
+unsigned r600_tex_compare(const unsigned mode,
+			  const unsigned compare)
 {
+	if (unlikely(mode == PIPE_TEX_COMPARE_NONE))
+		return V_03C000_SQ_TEX_DEPTH_COMPARE_NEVER;
+
 	switch (compare) {
 	default:
 	case PIPE_FUNC_NEVER:

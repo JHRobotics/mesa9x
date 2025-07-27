@@ -69,7 +69,6 @@
 
 #ifdef VK_USE_PLATFORM_WAYLAND_KHR
 #include <wayland-client.h>
-#include "wayland-drm-client-protocol.h"
 #endif
 
 #define V3DV_API_VERSION VK_MAKE_VERSION(1, 3, VK_HEADER_VERSION)
@@ -2274,7 +2273,7 @@ v3dv_AllocateMemory(VkDevice _device,
       assert(fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT ||
              fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
       result = device_import_bo(device, pAllocator,
-                                fd_info->fd, alloc_size, &mem->bo);
+                                fd_info->fd, pAllocateInfo->allocationSize, &mem->bo);
       if (result == VK_SUCCESS)
          close(fd_info->fd);
    } else if (mem->vk.ahardware_buffer) {

@@ -363,6 +363,15 @@ isl_gfx6_filter_tiling(const struct isl_device *dev,
         (dev->info->platform == INTEL_PLATFORM_SKL && dev->info->gt != 4))) {
           *flags &= ISL_TILING_LINEAR_BIT;
    }
+
+   /* From HSW PRMs, Volume 2b: Command Reference: Instructions,
+    * MFX_SURFACE_STATE,
+    *
+    *    "For optimizing memory efficiency based on access patterns, only
+    *     TileY is supported."
+    */
+   if (info->usage & ISL_SURF_USAGE_VIDEO_DECODE_BIT)
+      *flags &= ISL_TILING_Y0_BIT;
 }
 
 void

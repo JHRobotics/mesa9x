@@ -2067,7 +2067,7 @@
     <field name="Pointer" start="6" size="58" type="address" modifier="shr(6)"/>
   </struct>
 
-  <struct name="Compute size workgroup" size="4">
+  <struct name="Compute size workgroup" size="1">
     <field name="Workgroup size X" start="0" size="10" type="uint" modifier="minus(1)"/>
     <field name="Workgroup size Y" start="10" size="10" type="uint" modifier="minus(1)"/>
     <field name="Workgroup size Z" start="20" size="10" type="uint" modifier="minus(1)"/>

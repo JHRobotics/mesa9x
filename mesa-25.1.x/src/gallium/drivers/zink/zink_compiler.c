@@ -3359,7 +3359,7 @@ zink_shader_spirv_compile(struct zink_screen *screen, struct zink_shader *zs, st
       sci.setLayoutCount = pg->num_dsl;
       sci.pSetLayouts = pg->dsl;
    } else {
-      sci.setLayoutCount = zs->info.stage + 1;
+      sci.setLayoutCount = zs->info.stage == MESA_SHADER_COMPUTE ? 1 : ZINK_GFX_SHADER_COUNT;
       dsl[zs->info.stage] = zs->precompile.dsl;;
       sci.pSetLayouts = dsl;
    }
@@ -5427,16 +5427,17 @@ loop_io_var_mask(nir_shader *nir, nir_variable_mode mode, bool indirect, bool pa
 {
    ASSERTED bool is_vertex_input = nir->info.stage == MESA_SHADER_VERTEX && mode == nir_var_shader_in;
    u_foreach_bit64(slot, mask) {
+      unsigned location = slot;
       if (patch)
-         slot += VARYING_SLOT_PATCH0;
+         location += VARYING_SLOT_PATCH0;
 
       /* this should've been handled explicitly */
-      assert(is_vertex_input || !is_clipcull_dist(slot));
+      assert(is_vertex_input || !is_clipcull_dist(location));
 
       unsigned remaining = 0;
       do {
          /* scan the slot for usage */
-         struct rework_io_state ris = scan_io_var_slot(nir, mode, slot, indirect);
+         struct rework_io_state ris = scan_io_var_slot(nir, mode, location, indirect);
          /* one of these must be true or things have gone very wrong */
          assert(indirect || ris.component_mask || find_rework_var(nir, &ris) || remaining);
          /* release builds only */

@@ -150,9 +150,14 @@ destroy_swapchain(struct zink_screen *screen, struct kopper_swapchain *cswap)
       return;
    util_queue_fence_destroy(&cswap->present_fence);
    for (unsigned i = 0; i < cswap->num_images; i++) {
-      simple_mtx_lock(&screen->semaphores_lock);
-      util_dynarray_append(&screen->semaphores, VkSemaphore, cswap->images[i].acquire);
-      simple_mtx_unlock(&screen->semaphores_lock);
+      /* Destroy the acquire semaphore directly, if any.  If acquire != NULL
+       * then we've called vkAcquireNextImage() with the given semaphore but
+       * not submitted anything which waits on it.  This means the semaphore
+       * has a pending signal operation and is not safe to recycle.
+       */
+      if (cswap->images[i].acquire != VK_NULL_HANDLE)
+         VKSCR(DestroySemaphore)(screen->dev, cswap->images[i].acquire, NULL);
+
       pipe_resource_reference(&cswap->images[i].readback, NULL);
    }
    free(cswap->images);
@@ -616,6 +621,14 @@ kopper_acquire(struct zink_screen *screen, struct zink_resource *res, uint64_t t
       res->layout = VK_IMAGE_LAYOUT_UNDEFINED;
       cdt->swapchain->images[res->obj->dt_idx].init = true;
    }
+   res->obj->unordered_read = true;
+   res->obj->unordered_write = true;
+   res->obj->access = 0;
+   res->obj->unordered_access = 0;
+   /* this is the stage used by the acquire semaphore */
+   res->obj->unordered_access_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+   res->obj->access_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+   res->obj->ordered_access_is_copied = true;
    if (timeout == UINT64_MAX) {
       res->obj->indefinite_acquire = true;
       p_atomic_inc(&cdt->swapchain->num_acquires);

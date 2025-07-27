@@ -21,6 +21,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <X11/Xlibint.h>
 #include <X11/Xlib-xcb.h>
 #include <X11/xshmfence.h>
 #define XK_MISCELLANY
@@ -609,16 +610,40 @@ wsi_GetPhysicalDeviceXcbPresentationSupportKHR(VkPhysicalDevice physicalDevice,
    return true;
 }
 
+static bool
+xlib_display_is_thread_safe(Display *dpy)
+{
+   /* 'lock_fns' is the XLockDisplay function pointer of the X11 display 'dpy'.
+    * It will be NULL if XInitThreads wasn't called.
+    */
+   return dpy->lock_fns != NULL;
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL
 wsi_GetPhysicalDeviceXlibPresentationSupportKHR(VkPhysicalDevice physicalDevice,
                                                 uint32_t queueFamilyIndex,
                                                 Display *dpy,
                                                 VisualID visualID)
 {
+   /* Our WSI implementation for X11 relies on threads.  Check Xlib is running
+    * in thread safe mode before advertising support.
+    */
+   if (!xlib_display_is_thread_safe(dpy))
+      return false;
+
    return wsi_GetPhysicalDeviceXcbPresentationSupportKHR(physicalDevice,
                                                          queueFamilyIndex,
                                                          XGetXCBConnection(dpy),
                                                          visualID);
+}
+
+static bool
+x11_surface_is_thread_safe(VkIcdSurfaceBase *icd_surface)
+{
+   if (icd_surface->platform == VK_ICD_WSI_PLATFORM_XLIB)
+      return xlib_display_is_thread_safe(((VkIcdSurfaceXlib *)icd_surface)->dpy);
+   else
+      return true;
 }
 
 static xcb_connection_t*
@@ -645,6 +670,11 @@ x11_surface_get_support(VkIcdSurfaceBase *icd_surface,
                         uint32_t queueFamilyIndex,
                         VkBool32* pSupported)
 {
+   if (!x11_surface_is_thread_safe(icd_surface)) {
+      *pSupported = false;
+      return VK_SUCCESS;
+   }
+
    xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
    xcb_window_t window = x11_surface_get_window(icd_surface);
 
@@ -2540,6 +2570,15 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    VkPresentModeKHR present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
+
+   /* We really shouldn't get here as we return no WSI support for XLib when
+    * it's not threadsafe.  However, one final check doesn't cost much.
+    */
+   if (!x11_surface_is_thread_safe(icd_surface)) {
+      fprintf(stderr, "vulkan: xlib Display is not thread-safe.  Call "
+                      "XInitThreads() in your app\n");
+      return VK_ERROR_UNKNOWN;
+   }
 
    /* Get xcb connection from the icd_surface and from that our internal struct
     * representing it.

@@ -566,7 +566,11 @@ struct zink_batch_descriptor_data {
  */
 struct zink_batch_usage {
    uint32_t usage;
-    /* this is a monotonic int used to disambiguate internal fences from their tc fence references */
+    /* this is a monotonic int used to disambiguate internal fences from their tc fence references AND
+     * to disambiguate zink_bo usage when batches are reused
+     *
+     * it increments on batch submit and batch reset, meaning that a diff<=1 means matching usage
+     */
    uint32_t submit_count;
    cnd_t flush;
    mtx_t mtx;

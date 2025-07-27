@@ -664,7 +664,7 @@ iris_finish_batch(struct iris_batch *batch)
 {
    const struct intel_device_info *devinfo = batch->screen->devinfo;
 
-   if (devinfo->ver == 12 && batch->name == IRIS_BATCH_RENDER) {
+   if (devinfo->ver == 12) {
       /* We re-emit constants at the beginning of every batch as a hardware
        * bug workaround, so invalidate indirect state pointers in order to
        * save ourselves the overhead of restoring constants redundantly when

@@ -1280,8 +1280,8 @@
     <field name="Tile Box Check" start="98" end="98" type="uint" />
     <field name="TBIMR Batch Size" start="99" end="101" type="uint" />
   </instruction>
-  <instruction name="3DSTATE_TE" bias="2" length="4" engine="render">
-    <field name="DWord Length" start="0" end="7" type="uint" default="2" />
+  <instruction name="3DSTATE_TE" bias="2" length="5" engine="render">
+    <field name="DWord Length" start="0" end="7" type="uint" default="3" />
     <field name="3D Command Sub Opcode" start="16" end="23" type="uint" default="28" />
     <field name="3D Command Opcode" start="24" end="26" type="uint" default="0" />
     <field name="Command SubType" start="27" end="28" type="uint" default="3" />
@@ -1313,6 +1313,16 @@
     </field>
     <field name="Tessellation Distribution Level" start="49" end="50" type="uint">
       <value name="TEDLEVEL_PATCH" value="0" />
+    </field>
+    <field name="Tessellation Scale Factor Enable" start="51" end="51" type="bool" />
+    <field name="Tessellation Factor Format" start="52" end="52" type="uint">
+      <value name="FLOAT32" value="0" />
+      <value name="FLOAT16" value="1" />
+    </field>
+    <field name="Patch Header Layout" start="54" end="55" type="uint">
+      <value name="LEGACY" value="0" />
+      <value name="REVERSED" value="2" />
+      <value name="REVERSED_TRI_INSIDE_SEPARATE" value="3" />
     </field>
     <field name="Small Patch Threshold" start="56" end="57" type="uint">
       <value name="SPT_8_TRIANGLES" value="0" />
@@ -1346,6 +1356,7 @@
     </field>
     <field name="Maximum Tessellation Factor Odd" start="64" end="95" type="float" />
     <field name="Maximum Tessellation Factor Not Odd" start="96" end="127" type="float" />
+    <field name="Tessellation Scale Factor" start="128" end="159" type="float" />
   </instruction>
   <instruction name="3DSTATE_URB_ALLOC_MESH" bias="2" length="3" engine="render">
     <field name="DWord Length" start="0" end="7" type="uint" default="1" />

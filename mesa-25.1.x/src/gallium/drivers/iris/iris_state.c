@@ -9250,6 +9250,7 @@ iris_upload_gpgpu_walker(struct iris_context *ice,
 
    /* TODO: Combine subgroup-id with cbuf0 so we can push regular uniforms */
    if ((stage_dirty & IRIS_STAGE_DIRTY_CS) ||
+       (GFX_VER == 12 && !batch->contains_draw) ||
        cs_data->local_size[0] == 0 /* Variable local group size */) {
       uint32_t curbe_data_offset = 0;
       assert(cs_data->push.cross_thread.dwords == 0 &&

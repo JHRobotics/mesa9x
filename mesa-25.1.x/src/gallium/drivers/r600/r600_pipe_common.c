@@ -123,9 +123,13 @@ void r600_draw_rectangle(struct blitter_context *blitter,
 	unsigned offset = 0;
 	float *vb;
 
-	if (unlikely(MAX2(abs(x1), abs(x2)) > INT16_MAX ||
-		     MAX2(abs(y1), abs(y2)) > INT16_MAX)) {
-		/* Fallback when coordinates can't fit in int16. */
+	int rasterizer_screen_extent =
+		rctx->gfx_level >= EVERGREEN ? 1 << 15 : 1 << 14;
+	if (unlikely(MAX4(x1, x2, y1, y2) >= rasterizer_screen_extent ||
+	             MIN4(x1, x2, y1, y2) < -rasterizer_screen_extent)) {
+		/* Fallback when coordinates can't fit in the rasterizer
+		 * fixed-point coordinate space.
+		 */
 		util_blitter_save_vertex_elements(cctx->blitter,
 						  cctx->vertex_fetch_shader.cso);
 		util_blitter_draw_rectangle(blitter, vertex_elements_cso, get_vs,

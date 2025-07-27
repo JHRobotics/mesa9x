@@ -489,6 +489,8 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_ALLOCATION_FAILED;
       }
+      if (tmp_surf.pipe_fence)
+         drv->pipe->screen->fence_reference(drv->pipe->screen, &tmp_surf.pipe_fence, NULL);
       VARectangle src_rect = {
          .x = x,
          .y = y,
@@ -656,6 +658,8 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
          mtx_unlock(&drv->mutex);
          return VA_STATUS_ERROR_ALLOCATION_FAILED;
       }
+      if (tmp_surf.pipe_fence)
+         drv->pipe->screen->fence_reference(drv->pipe->screen, &tmp_surf.pipe_fence, NULL);
       vlVaUploadImage(drv, &tmp_surf, img_buf, vaimage);
       VARectangle src_rect = {
          .x = src_x,

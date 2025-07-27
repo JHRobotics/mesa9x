@@ -1276,7 +1276,7 @@ get_properties(const struct anv_physical_device *pdevice,
       .maxDescriptorSetStorageImages            = desc_limits.max_images,
       .maxDescriptorSetInputAttachments         = MAX_DESCRIPTOR_SET_INPUT_ATTACHMENTS,
       .maxVertexInputAttributes                 = MAX_VES,
-      .maxVertexInputBindings                   = MAX_VBS,
+      .maxVertexInputBindings                   = get_max_vbs(devinfo),
       /* Broadwell PRMs: Volume 2d: Command Reference: Structures:
        *
        * VERTEX_ELEMENT_STATE::Source Element Offset: [0,2047]
@@ -2514,7 +2514,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       /* If INTEL_FORCE_PROBE was used, then the user has opted-in for
        * unsupported device support. No need to print a warning message.
        */
-   } else if (devinfo.ver > 20) {
+   } else if (devinfo.ver > 30) {
       result = vk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
                          "Vulkan not yet supported on %s", devinfo.name);
       goto fail_fd;

@@ -1082,7 +1082,7 @@ void anv_CmdBindVertexBuffers2(
    /* We have to defer setting up vertex buffer since we need the buffer
     * stride from the pipeline. */
 
-   assert(firstBinding + bindingCount <= MAX_VBS);
+   assert(firstBinding + bindingCount <= get_max_vbs(cmd_buffer->device->info));
    for (uint32_t i = 0; i < bindingCount; i++) {
       ANV_FROM_HANDLE(anv_buffer, buffer, pBuffers[i]);
 

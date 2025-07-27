@@ -131,8 +131,6 @@ setup_gralloc0_usage(struct vk_device *device, VkFormat format,
                        imageUsage);
    }
 
-   *grallocUsage |= GRALLOC_USAGE_HW_COMPOSER;
-
    if (*grallocUsage == 0)
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 

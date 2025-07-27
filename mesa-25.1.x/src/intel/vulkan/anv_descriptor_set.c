@@ -668,7 +668,7 @@ VkResult anv_CreateDescriptorSetLayout(
    VK_MULTIALLOC_DECL(&ma, struct anv_descriptor_set_layout, set_layout, 1);
    VK_MULTIALLOC_DECL(&ma, struct anv_descriptor_set_binding_layout,
                            bindings, num_bindings);
-   VK_MULTIALLOC_DECL(&ma, struct anv_sampler *, samplers,
+   VK_MULTIALLOC_DECL(&ma, struct anv_descriptor_set_layout_sampler, samplers,
                            immutable_sampler_count);
 
    if (!vk_object_multizalloc(&device->vk, &ma, NULL,
@@ -689,7 +689,7 @@ VkResult anv_CreateDescriptorSetLayout(
       set_layout->binding[b].data = 0;
       set_layout->binding[b].max_plane_count = 0;
       set_layout->binding[b].array_size = 0;
-      set_layout->binding[b].immutable_samplers = NULL;
+      set_layout->binding[b].samplers = NULL;
    }
 
    /* Initialize all samplers to 0 */
@@ -711,7 +711,7 @@ VkResult anv_CreateDescriptorSetLayout(
        * immutable_samplers pointer.  This provides us with a quick-and-dirty
        * way to sort the bindings by binding number.
        */
-      set_layout->binding[b].immutable_samplers = (void *)(uintptr_t)(j + 1);
+      set_layout->binding[b].samplers = (void *)(uintptr_t)(j + 1);
    }
 
    const VkDescriptorSetLayoutBindingFlagsCreateInfo *binding_flags_info =
@@ -722,16 +722,20 @@ VkResult anv_CreateDescriptorSetLayout(
       vk_find_struct_const(pCreateInfo->pNext,
                            MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT);
 
+   const bool has_embedded_samplers =
+      pCreateInfo->flags &
+      VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT;
+
    for (uint32_t b = 0; b < num_bindings; b++) {
       /* We stashed the pCreateInfo->pBindings[] index (plus one) in the
        * immutable_samplers pointer.  Check for NULL (empty binding) and then
        * reset it and compute the index.
        */
-      if (set_layout->binding[b].immutable_samplers == NULL)
+      if (set_layout->binding[b].samplers == NULL)
          continue;
       const uint32_t info_idx =
-         (uintptr_t)(void *)set_layout->binding[b].immutable_samplers - 1;
-      set_layout->binding[b].immutable_samplers = NULL;
+         (uintptr_t)(void *)set_layout->binding[b].samplers - 1;
+      set_layout->binding[b].samplers = NULL;
 
       const VkDescriptorSetLayoutBinding *binding =
          &pCreateInfo->pBindings[info_idx];
@@ -790,14 +794,27 @@ VkResult anv_CreateDescriptorSetLayout(
       case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
       case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
          if (binding->pImmutableSamplers) {
-            set_layout->binding[b].immutable_samplers = samplers;
+            set_layout->binding[b].samplers = samplers;
             samplers += binding->descriptorCount;
 
             for (uint32_t i = 0; i < binding->descriptorCount; i++) {
                ANV_FROM_HANDLE(anv_sampler, sampler,
                                binding->pImmutableSamplers[i]);
 
-               set_layout->binding[b].immutable_samplers[i] = sampler;
+               set_layout->binding[b].samplers[i] =
+                  (struct anv_descriptor_set_layout_sampler) {
+                  .immutable_sampler = sampler,
+               };
+               if (has_embedded_samplers) {
+                  set_layout->binding[b].samplers[i].embedded_key =
+                     sampler->embedded_key;
+               }
+               if (sampler->vk.ycbcr_conversion) {
+                  set_layout->binding[b].samplers[i].has_ycbcr_conversion = true;
+                  set_layout->binding[b].samplers[i].ycbcr_conversion_state =
+                     sampler->vk.ycbcr_conversion->state;
+               }
+
                if (set_layout->binding[b].max_plane_count < sampler->n_planes)
                   set_layout->binding[b].max_plane_count = sampler->n_planes;
             }
@@ -886,8 +903,7 @@ VkResult anv_CreateDescriptorSetLayout(
    set_layout->descriptor_buffer_surface_size = descriptor_buffer_surface_size;
    set_layout->descriptor_buffer_sampler_size = descriptor_buffer_sampler_size;
 
-   if (pCreateInfo->flags &
-       VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT) {
+   if (has_embedded_samplers) {
       assert(set_layout->descriptor_buffer_surface_size == 0);
       assert(set_layout->descriptor_buffer_sampler_size == 0);
       set_layout->embedded_sampler_count = sampler_count;
@@ -1032,26 +1048,6 @@ anv_descriptor_set_layout_print(const struct anv_descriptor_set_layout *layout)
 #define SHA1_UPDATE_VALUE(ctx, x) _mesa_sha1_update(ctx, &(x), sizeof(x));
 
 static void
-sha1_update_immutable_sampler(struct mesa_sha1 *ctx,
-                              bool embedded_sampler,
-                              const struct anv_sampler *sampler)
-{
-   /* Hash the conversion if any as this affect shader compilation due to NIR
-    * lowering.
-    */
-   if (sampler->vk.ycbcr_conversion)
-      SHA1_UPDATE_VALUE(ctx, sampler->vk.ycbcr_conversion->state);
-
-   /* For embedded samplers, we need to hash the sampler parameters as the
-    * sampler handle is baked into the shader and this ultimately is part of
-    * the shader hash key. We can only consider 2 shaders identical if all
-    * their embedded samplers parameters are identical.
-    */
-   if (embedded_sampler)
-      SHA1_UPDATE_VALUE(ctx, sampler->sha1);
-}
-
-static void
 sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
                                           bool embedded_samplers,
                                           const struct anv_descriptor_set_binding_layout *layout)
@@ -1066,10 +1062,21 @@ sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
    SHA1_UPDATE_VALUE(ctx, layout->descriptor_surface_offset);
    SHA1_UPDATE_VALUE(ctx, layout->descriptor_sampler_offset);
 
-   if (layout->immutable_samplers) {
+   if (layout->samplers) {
       for (uint16_t i = 0; i < layout->array_size; i++) {
-         sha1_update_immutable_sampler(ctx, embedded_samplers,
-                                       layout->immutable_samplers[i]);
+         /* For embedded samplers, we need to hash the sampler parameters as
+          * the sampler handle is baked into the shader and this ultimately is
+          * part of the shader hash key. We can only consider 2 shaders
+          * identical if all their embedded samplers parameters are identical.
+          */
+         if (embedded_samplers)
+            SHA1_UPDATE_VALUE(ctx, layout->samplers[i].embedded_key);
+
+         /* Hash the conversion if any as this affect shader compilation due
+          * to NIR lowering.
+          */
+         if (layout->samplers[i].has_ycbcr_conversion)
+            SHA1_UPDATE_VALUE(ctx, layout->samplers[i].ycbcr_conversion_state);
       }
    }
 }
@@ -1087,7 +1094,7 @@ sha1_update_descriptor_set_layout(struct mesa_sha1 *ctx,
    SHA1_UPDATE_VALUE(ctx, layout->descriptor_buffer_surface_size);
    SHA1_UPDATE_VALUE(ctx, layout->descriptor_buffer_sampler_size);
 
-   bool embedded_samplers =
+   const bool embedded_samplers =
       layout->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT;
 
    for (uint16_t i = 0; i < layout->binding_count; i++) {
@@ -1819,7 +1826,7 @@ anv_descriptor_set_create(struct anv_device *device,
 
    /* Go through and fill out immutable samplers if we have any */
    for (uint32_t b = 0; b < layout->binding_count; b++) {
-      if (layout->binding[b].immutable_samplers) {
+      if (layout->binding[b].samplers) {
          for (uint32_t i = 0; i < layout->binding[b].array_size; i++) {
             /* The type will get changed to COMBINED_IMAGE_SAMPLER in
              * UpdateDescriptorSets if needed.  However, if the descriptor
@@ -2189,15 +2196,15 @@ anv_descriptor_set_write_image_view(struct anv_device *device,
 
    switch (type) {
    case VK_DESCRIPTOR_TYPE_SAMPLER:
-      sampler = bind_layout->immutable_samplers ?
-                bind_layout->immutable_samplers[element] :
+      sampler = bind_layout->samplers ?
+                bind_layout->samplers[element].immutable_sampler :
                 anv_sampler_from_handle(info->sampler);
       break;
 
    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
       image_view = anv_image_view_from_handle(info->imageView);
-      sampler = bind_layout->immutable_samplers ?
-                bind_layout->immutable_samplers[element] :
+      sampler = bind_layout->samplers ?
+                bind_layout->samplers[element].immutable_sampler :
                 anv_sampler_from_handle(info->sampler);
       break;
 

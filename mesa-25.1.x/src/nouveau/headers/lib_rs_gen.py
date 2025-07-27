@@ -119,10 +119,6 @@ def main():
         print(exceptions.text_error_template().render(), file=sys.stderr)
         sys.exit(1)
 
-    try:
-        subprocess.run(['rustfmt', args.out_rs], check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
-        pass
 
 if __name__ == '__main__':
     main()

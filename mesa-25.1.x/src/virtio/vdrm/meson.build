@@ -1,6 +1,8 @@
 # Copyright 2023 Google LLC
 # SPDX-License-Identifier: MIT
 
+inc_virtio_vdrm = include_directories('.')
+
 libvdrm = static_library(
   'libvdrm',
   [

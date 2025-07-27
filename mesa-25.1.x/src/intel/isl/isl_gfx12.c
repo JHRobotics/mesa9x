@@ -135,6 +135,18 @@ isl_gfx125_filter_tiling(const struct isl_device *dev,
     */
    if (info->usage & ISL_SURF_USAGE_CPB_BIT)
       *flags &= ISL_TILING_4_BIT | ISL_TILING_64_BIT;
+
+   /* From ATS-M PRMs, Volume 2a: Command Reference: Instructions,
+    * MFX_SURFACE_STATE,
+    *
+    *    "For optimizing memory efficiency based on access patterns, only
+    *     TileY is supported."
+    *
+    * The other media engines have similar limitations, TileY is the only
+    * well-supported tiling mode that can easily be used on all of them.
+    */
+   if (info->usage & ISL_SURF_USAGE_VIDEO_DECODE_BIT)
+      *flags &= ISL_TILING_4_BIT;
 }
 
 void

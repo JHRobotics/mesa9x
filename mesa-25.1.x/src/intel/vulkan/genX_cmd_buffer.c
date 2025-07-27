@@ -1597,12 +1597,6 @@ genX(invalidate_aux_map)(struct anv_batch *batch,
          lri.DataDWord = 1;
       }
 
-      /* Wa_16018063123 - emit fast color dummy blit before MI_FLUSH_DW. */
-      if (intel_needs_workaround(device->info, 16018063123) &&
-          engine_class == INTEL_ENGINE_CLASS_COPY) {
-         genX(batch_emit_fast_color_dummy_blit)(batch, device);
-      }
-
       /* HSD 22012751911: SW Programming sequence when issuing aux invalidation:
        *
        *    "Poll Aux Invalidation bit once the invalidation is set
@@ -1836,10 +1830,7 @@ genX(emit_apply_pipe_flushes)(struct anv_batch *batch,
       genx_batch_emit_pipe_control_write(batch, device->info, current_pipeline,
                                          sync_op, addr, 0, bits);
 
-      enum intel_engine_class engine_class =
-         current_pipeline == GPGPU ? INTEL_ENGINE_CLASS_COMPUTE :
-                                     INTEL_ENGINE_CLASS_RENDER;
-      genX(invalidate_aux_map)(batch, device, engine_class, bits);
+      genX(invalidate_aux_map)(batch, device, batch->engine_class, bits);
 
       bits &= ~ANV_PIPE_INVALIDATE_BITS;
    }
@@ -1879,8 +1870,19 @@ genX(cmd_buffer_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer)
    if (anv_cmd_buffer_is_blitter_queue(cmd_buffer) ||
        anv_cmd_buffer_is_video_queue(cmd_buffer)) {
       if (bits & ANV_PIPE_INVALIDATE_BITS) {
-         genX(invalidate_aux_map)(&cmd_buffer->batch, cmd_buffer->device,
-                                  cmd_buffer->queue_family->engine_class, bits);
+         if (bits & ANV_PIPE_AUX_TABLE_INVALIDATE_BIT) {
+            if (anv_cmd_buffer_is_video_queue(cmd_buffer) || GFX_VERx10 == 125) {
+               /* Wa_16018063123 - emit fast color dummy blit before MI_FLUSH_DW. */
+               if (intel_needs_workaround(cmd_buffer->device->info, 16018063123) &&
+                   anv_cmd_buffer_is_blitter_queue(cmd_buffer))
+                  genX(batch_emit_fast_color_dummy_blit)(&cmd_buffer->batch, cmd_buffer->device);
+
+               anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), mi_flush);
+            }
+
+            genX(invalidate_aux_map)(&cmd_buffer->batch, cmd_buffer->device,
+                                     cmd_buffer->queue_family->engine_class, bits);
+         }
          bits &= ~ANV_PIPE_INVALIDATE_BITS;
       }
       cmd_buffer->state.pending_pipe_bits = bits;
@@ -6281,7 +6283,8 @@ void genX(cmd_emit_timestamp)(struct anv_batch *batch,
       if ((batch->engine_class == INTEL_ENGINE_CLASS_COPY) ||
           (batch->engine_class == INTEL_ENGINE_CLASS_VIDEO)) {
          /* Wa_16018063123 - emit fast color dummy blit before MI_FLUSH_DW. */
-         if (intel_needs_workaround(device->info, 16018063123))
+         if (intel_needs_workaround(device->info, 16018063123) &&
+             (batch->engine_class == INTEL_ENGINE_CLASS_COPY))
             genX(batch_emit_fast_color_dummy_blit)(batch, device);
          anv_batch_emit(batch, GENX(MI_FLUSH_DW), fd) {
             fd.PostSyncOperation = WriteTimestamp;

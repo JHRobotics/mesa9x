@@ -454,7 +454,7 @@ a750-piglit-cl:
     - .valve-freedreno-manual-rules
   rules:
     - !reference [.valve-freedreno-manual-rules, rules]
-    - !reference [.rusticl-rules, rules]
+    - !reference [.rusticl-manual-rules, rules]
   variables:
     DEQP_SUITE: freedreno-a750-piglit-cl
     HWCI_START_WESTON: 1

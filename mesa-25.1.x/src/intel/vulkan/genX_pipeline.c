@@ -220,7 +220,7 @@ emit_ves_vf_instancing(struct anv_batch *batch,
       assume(format < ISL_NUM_FORMATS);
 
       uint32_t binding = vi->attributes[a].binding;
-      assert(binding < MAX_VBS);
+      assert(binding < get_max_vbs(device->info));
 
       if ((elements & (1 << a)) == 0)
          continue; /* Binding unused */

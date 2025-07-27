@@ -2022,7 +2022,7 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
          break;
 
       case SCOPE_WORKGROUP:
-         assert(b->shader->stage == MESA_SHADER_COMPUTE);
+         assert(gl_shader_stage_is_compute(b->shader->stage));
          bi_barrier(b);
          /*
           * Blob doesn't seem to do anything for memory barriers, so no need to

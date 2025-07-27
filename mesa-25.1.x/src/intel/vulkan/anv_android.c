@@ -567,26 +567,6 @@ setup_gralloc0_usage(struct anv_device *device, VkFormat format,
                        "swapchain", imageUsage);
    }
 
-   /* The below formats support GRALLOC_USAGE_HW_FB (that is, display
-    * scanout). This short list of formats is univserally supported on Intel
-    * but is incomplete.  The full set of supported formats is dependent on
-    * kernel and hardware.
-    *
-    * FINISHME: Advertise all display-supported formats.
-    */
-   switch (format) {
-      case VK_FORMAT_B8G8R8A8_UNORM:
-      case VK_FORMAT_R5G6B5_UNORM_PACK16:
-      case VK_FORMAT_R8G8B8A8_UNORM:
-      case VK_FORMAT_R8G8B8A8_SRGB:
-         *grallocUsage |= GRALLOC_USAGE_HW_FB |
-                          GRALLOC_USAGE_HW_COMPOSER |
-                          GRALLOC_USAGE_EXTERNAL_DISP;
-         break;
-      default:
-         mesa_logw("%s: unsupported format=%d", __func__, format);
-   }
-
    if (*grallocUsage == 0)
       return VK_ERROR_FORMAT_NOT_SUPPORTED;
 

@@ -59,9 +59,7 @@ _nil_bindings_rs = rust.bindgen(
   ],
   include_directories : [inc_include, inc_src, include_directories('.')],
   args: [
-    '--raw-line', '#![allow(non_camel_case_types)]',
-    '--raw-line', '#![allow(non_snake_case)]',
-    '--raw-line', '#![allow(non_upper_case_globals)]',
+    bindgen_output_args,
     '--allowlist-function', 'util_format_description',
     '--allowlist-function', 'util_format_get_blocksize',
     '--allowlist-function', 'util_format_is_compressed',

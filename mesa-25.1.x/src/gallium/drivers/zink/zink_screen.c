@@ -2316,7 +2316,8 @@ zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_reso
       fd_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
       fd_info.memory = zink_bo_get_mem(res->obj->bo);
       fd_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
-      VKSCR(GetMemoryFdKHR)(screen->dev, &fd_info, &fd);
+      if (VKSCR(GetMemoryFdKHR)(screen->dev, &fd_info, &fd) != VK_SUCCESS)
+         fd = -1;
    }
 
    if (unlikely(fd < 0)) {
@@ -2325,6 +2326,7 @@ zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_reso
    }
 
    int ret = drmIoctl(fd, DMA_BUF_IOCTL_EXPORT_SYNC_FILE, &export);
+   close(fd);
    if (ret) {
       if (errno == ENOTTY || errno == EBADF || errno == ENOSYS) {
          assert(!"how did this fail?");
@@ -2345,8 +2347,8 @@ zink_screen_export_dmabuf_semaphore(struct zink_screen *screen, struct zink_reso
       .fd = export.fd,
    };
    bool success = VKSCR(ImportSemaphoreFdKHR)(screen->dev, &sdi) == VK_SUCCESS;
-   close(fd);
    if (!success) {
+      close(export.fd);
       VKSCR(DestroySemaphore)(screen->dev, sem, NULL);
       return VK_NULL_HANDLE;
    }
