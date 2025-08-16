@@ -22,6 +22,7 @@ include config.mk
 
 MESA_VER ?= mesa-25.1.x
 DEPS = config.mk Makefile $(MESA_VER).deps
+#DEPS = $(MESA_VER).deps
 
 ifeq ($(MESA_VER),mesa-17.3.9)
   MESA_MAJOR := 17
@@ -79,6 +80,7 @@ BASE_mesa3d.w95.dll     := 0x69500000
 BASE_mesa3d.w98me.dll   := 0x69500000
 
 BASE_vmwsgl32.dll       := 0x69500000
+BASE_virgl32.dll        := 0x69500000
 BASE_svgagl32.dll   := 0x69500000
 BASE_mesa99.dll         := 0x03860000
 BASE_mesa89.dll         := 0x00A30000
@@ -106,8 +108,7 @@ ifdef LLVM
   endif
 endif
 
-$(MESA_VER).target: $(DEPS) $(TARGETS)
-	echo $(MESA_VER) > $@
+$(MESA_VER).target:
 
 .PHONY: generator all clean distclean
 
@@ -115,6 +116,13 @@ all: $(MESA_VER).target
 
 include $(MESA_VER).mk
 include generator/$(MESA_VER)-gen.mk
+
+ifdef MesaGdiLibVirGL_SRC
+  TARGETS += virgl32.dll
+endif
+
+$(MESA_VER).target: $(DEPS) $(TARGETS)
+	echo $(MESA_VER) > $@
 
 PACKAGE_VERSION := 9x $(MESA_DIST_VERSION).$(VERSION_BUILD)
 
@@ -277,7 +285,8 @@ else
     -I$(MESA_VER)/src/gallium/drivers/svga -I$(MESA_VER)/src/gallium/drivers/svga/include -I$(MESA_VER)/src/gallium/winsys -I$(MESA_VER)/src/gallium/winsys/sw  -I$(MESA_VER)/src/gallium/drivers \
     -I$(MESA_VER)/src/gallium/winsys/svga/drm \
     -I$(MESA_VER)/src/util/format -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 -I$(MESA_VER)/src/gallium/frontends -I$(MESA_VER)/src/gallium/frontends/wgl -I$(MESA_VER)/include/D3D9 \
-    -I$(MESA_VER)/src/gallium/frontends/nine -I$(MESA_VER)/include/winddk -Iinclude/winddk -Iwin9x
+    -I$(MESA_VER)/src/gallium/frontends/nine -I$(MESA_VER)/include/winddk -Iinclude/winddk -Iwin9x \
+    -I$(MESA_VER)/src/virtio -I$(MESA_VER)/src/gallium/winsys/virgl/common
 
   DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
@@ -588,6 +597,12 @@ $(LIBPREFIX)MesaSVGALibSimd$(LIBSUFFIX): $(MesaSVGALibSimd_OBJS)
 	-$(RM) $@
 	$(LIBSTATIC) $(MesaSVGALibSimd_OBJS)
 
+MesaVirGLLib_OBJS := $(MesaVirGLLib_SRC:.c=.c_gen$(OBJ))
+MesaVirGLLib_OBJS := $(MesaVirGLLib_OBJS:.cpp=.cpp_gen$(OBJ))
+$(LIBPREFIX)MesaVirGL$(LIBSUFFIX): $(MesaVirGL_OBJS)
+	-$(RM) $@
+	$(LIBSTATIC) $(MesaVirGLLib_OBJS)
+
 MesaGdiLib_OBJS := $(MesaGdiLib_SRC:.c=.c_gen$(OBJ))
 MesaGdiLib_OBJS := $(MesaGdiLib_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaGdiLibSimd_OBJS := $(MesaGdiLib_SRC:.c=.c_simd$(OBJ))
@@ -635,6 +650,9 @@ MesaGdiLibVMW_OBJS := $(MesaGdiLibVMW_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMW_SRC:.c=.c_simd$(OBJ))
 MesaGdiLibVMWSimd_OBJS := $(MesaGdiLibVMWSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
+MesaGdiLibVirGL_OBJS := $(MesaGdiLibVirGL_SRC:.c=.c_gen$(OBJ))
+MesaGdiLibVirGL_OBJS := $(MesaGdiLibVirGL_OBJS:.cpp=.cpp_gen$(OBJ))
+
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_SRC:.c=.c_gen$(OBJ))
 MesaSVGAWinsysLib_OBJS := $(MesaSVGAWinsysLib_OBJS:.cpp=.cpp_gen$(OBJ))
 
@@ -673,12 +691,16 @@ mesa3d.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOS_OBJS) mesa3d.res $(LD_DEPS)
 mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(MesaOSSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
 
-# accelerated ICD driver
+# accelerated ICD driver (SVGA3D)
 vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
-	
+
 svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+
+# accelerated ICD driver (VirGL)
+virgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) vmwsgl32.res $(LD_DEPS)
+	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
 
 mesa99.dll: mesa3d.w95.dll $(DEPS) $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA99_LIBS) $(DLLFLAGS) $(MESA99_DEF)
@@ -744,6 +766,7 @@ clean:
 	-$(RM) $(MesaGalliumAuxLibSimd_OBJS)
 	-$(RM) $(MesaGalliumLLVMPipe_OBJS)
 	-$(RM) $(MesaSVGALib_OBJS)
+	-$(RM) $(MesaVirGLLib_OBJS)
 	-$(RM) $(MesaGdiLibGL_OBJS)
 	-$(RM) $(MesaGdiLibGLSimd_OBJS)
 	-$(RM) $(MesaGdiLibICD_OBJS)
@@ -753,7 +776,7 @@ clean:
 	-$(RM) $(MesaWglLib_OBJS)
 	-$(RM) $(glchecked_OBJS)
 	-$(RM) $(MesaGdiLibVMW_OBJS)
-	-$(RM) $(MesaSVGALib_OBJS)
+	-$(RM) $(MesaGdiLibVirGL_OBJS)
 	-$(RM) $(MesaSVGAWinsysLib_OBJS)
 	-$(RM) $(MesaNineLib_OBJS)
 	-$(RM) $(MesaD3D10Lib_OBJS)

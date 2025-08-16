@@ -89,14 +89,18 @@ FBHDA_t *FBHDA_setup()
 	return hda;
 }
 
-BOOL FBHDA_swap(DWORD offset)
+BOOL FBHDA_swap(DWORD offset, DWORD flags)
 {
 	DWORD result = 0;
-	
+	DWORD input[2];
+
+	input[0] = offset;
+	input[1] = flags;
+
 	if(hda_vxd == INVALID_HANDLE_VALUE) return FALSE;
 	
 	if(DeviceIoControl(hda_vxd, OP_FBHDA_SWAP,
-		&offset, sizeof(DWORD), &result, sizeof(DWORD),
+		&input, sizeof(input), &result, sizeof(DWORD),
 		NULL, NULL))
 	{
 		return result == 0 ? FALSE : TRUE;
@@ -294,7 +298,7 @@ BOOL FBHDA_flip(FBHDA_t *info, DWORD offset)
 {
 	if(info->flags & FB_SUPPORT_FLIPING)
 	{
-		return FBHDA_swap(offset);
+		return FBHDA_swap(offset, 0);
 	}
 	
 	return FALSE;

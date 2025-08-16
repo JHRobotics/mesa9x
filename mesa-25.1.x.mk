@@ -1131,3 +1131,25 @@ MesaOS_SRC = \
   $(MESA_VER)/src/gallium/targets/osmesa/osmesa_target.c \
   $(MESA_VER)/src/gallium/frontends/osmesa/osmesa.c \
   $(MESA_VER)/src/gallium/winsys/sw/null/null_sw_winsys.c
+
+MesaVirGLLib_SRC = \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_buffer.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_context.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_encode.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_query.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_resource.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_screen.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_staging_mgr.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_streamout.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_texture.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_tgsi.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_transfer_queue.c \
+  $(MESA_VER)/src/gallium/drivers/virgl/virgl_video.c \
+  $(MESA_VER)/src/gallium/auxiliary/vl/vl_video_buffer.c \
+  $(MESA_VER)/src/gallium/winsys/virgl/common/virgl_resource_cache.c
+
+MesaGdiLibVirGL_SRC = \
+  $(MesaGdiLib_SRC) \
+  win9x/libgl_virgl.c \
+  win9x/wgl/wglpipe.c \
+  win9x/winsys/virgl_winsys.c

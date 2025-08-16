@@ -78,11 +78,11 @@ void FBHDA_access_end(DWORD flags)
 	}
 }
 
-BOOL FBHDA_swap(DWORD offset)
+BOOL FBHDA_swap(DWORD offset, DWORD flags)
 {
 	if(FBHFA_load_lib())
 	{
-		return fbhda_lib.pFBHDA_swap(offset);
+		return fbhda_lib.pFBHDA_swap(offset, flags);
 	}
 	return FALSE;
 }

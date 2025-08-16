@@ -124,14 +124,18 @@ void FBHDA_access_rect(DWORD left, DWORD top, DWORD right, DWORD bottom)
 	DeviceIoControl(hda_vxd, OP_FBHDA_ACCESS_RECT, &rect, sizeof(rect), NULL, 0, NULL, NULL);
 }
 
-BOOL FBHDA_swap(DWORD offset)
+BOOL FBHDA_swap(DWORD offset, DWORD flags)
 {
 	DWORD result = 0;
-	
+	DWORD input[2];
+
+	input[0] = offset;
+	input[1] = flags;
+
 	if(!FBHDA_valid()) return FALSE;
 	
 	if(DeviceIoControl(hda_vxd, OP_FBHDA_SWAP,
-		&offset, sizeof(DWORD), &result, sizeof(DWORD),
+		&input, sizeof(input), &result, sizeof(DWORD),
 		NULL, NULL))
 	{
 		return result == 0 ? FALSE : TRUE;

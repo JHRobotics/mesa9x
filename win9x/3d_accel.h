@@ -33,7 +33,7 @@ THE SOFTWARE.
 #endif
 #endif
 
-#define API_3DACCEL_VER 20250702
+#define API_3DACCEL_VER 20250801
 
 #define ESCAPE_DRV_NT         0x1103 /* (4355) */
 
@@ -134,14 +134,19 @@ typedef struct FBHDA
 	volatile DWORD pitch;
 	volatile DWORD surface;
 	volatile DWORD stride;
+	volatile DWORD onflip;
 #ifndef FBHDA_SIXTEEN
-	         void *vram_pm32;
-	         DWORD vram_pm16;
+	         void *vram_pm32; /* frame buffer address */
+	         DWORD vram_pm16; 
+	         void *vram_phylin; /* frame buffer mapped phy address */
 #else
            DWORD       vram_pm32;
            void __far *vram_pm16;
+           DWORD       vram_phylin;
 #endif
 	         DWORD vram_size; /* real r/w memory size */
+	         DWORD vram_size_bar; /* PCI region size, may be larger then vram_size */
+	         DWORD vram_size_virt; /* virtual memory size (inc. textures) to reported to apps */
 	         char vxdname[16]; /* file name or "NT" */
 	         DWORD overlay;
 	         FBHDA_overlay_t overlays[FBHDA_OVERLAYS_MAX];
@@ -164,7 +169,8 @@ typedef struct FBHDA
 #endif
 	         DWORD heap_count; /* number of blocks = heap_size_in_bytes / FB_VRAM_HEAP_GRANULARITY */
 	         DWORD heap_length; /* maximum usable block with current framebuffer */
-	         DWORD vram_bar_size; /* PCI region size, may be larger then vram_size */
+	         DWORD res0;
+	         DWORD res1;
 	         DWORD res2;
 	         DWORD res3;
 } FBHDA_t;
@@ -197,6 +203,7 @@ typedef struct FBHDA_mode
 #define FB_SUPPORT_VSYNC    16384
 #define FB_SUPPORT_CLOCK    32768
 #define FB_SUPPORT_TRIPLE   65536
+#define FB_ACCEL_VIRGL     131072
 
 /* for internal use in RING-0 by VXD only */
 BOOL FBHDA_init_hw(); 
@@ -216,15 +223,17 @@ void FBHDA_free();
 #define FBHDA_ACCESS_MOUSE_MOVE 2
 #define FBHDA_ACCESS_SURFACE_DIRTY 4
 
+#define FBHDA_ACCESS_EXCLUSIVE_BEGIN 8
+#define FBHDA_ACCESS_EXCLUSIVE_END   16
+
 #define FBHDA_SWAP_NOWAIT     1
-#define FBHDA_SWAP_WAIT       2
-#define FBHDA_SWAP_SCHEDULE   4
+#define FBHDA_SWAP_VTRACE     2
+#define FBHDA_SWAP_QUERY      4
 
 void FBHDA_access_begin(DWORD flags);
 void FBHDA_access_end(DWORD flags);
 void FBHDA_access_rect(DWORD left, DWORD top, DWORD right, DWORD bottom);
-BOOL FBHDA_swap(DWORD offset);
-BOOL FBHDA_swap_ex(DWORD offset, DWORD flags);
+BOOL FBHDA_swap(DWORD offset, DWORD flags);
 void FBHDA_clean();
 void  FBHDA_palette_set(unsigned char index, DWORD rgb);
 DWORD FBHDA_palette_get(unsigned char index);
@@ -460,7 +469,7 @@ typedef FBHDA_t *(__cdecl *FBHDA_setup_t)();
 typedef void (__cdecl *FBHDA_access_begin_t)(DWORD flags);
 typedef void (__cdecl *FBHDA_access_end_t)(DWORD flags);
 typedef void (__cdecl *FBHDA_access_rect_t)(DWORD left, DWORD top, DWORD right, DWORD bottom);
-typedef BOOL (__cdecl *FBHDA_swap_t)(DWORD offset);
+typedef BOOL (__cdecl *FBHDA_swap_t)(DWORD offset, DWORD flags);
 typedef BOOL (__cdecl *FBHDA_page_modify_t)(DWORD flat_address, DWORD size, const BYTE *new_data);
 typedef void (__cdecl *FBHDA_clean_t)(void);
 typedef BOOL (__cdecl *FBHDA_mode_query_t)(DWORD index, FBHDA_mode_t *mode);
