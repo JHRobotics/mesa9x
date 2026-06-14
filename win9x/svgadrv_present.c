@@ -22,7 +22,6 @@
 
 /* FRAMERATE_LIMIT - limits number of frames per second */
 DEBUG_GET_ONCE_NUM_OPTION(framerate_limit, "FRAMERATE_LIMIT", 0)
-DEBUG_GET_ONCE_BOOL_OPTION(mesa_sw_gamma, "MESA_SW_GAMMA_ENABLED", FALSE);
 DEBUG_GET_ONCE_BOOL_OPTION(svga_dma_fb, "SVGA_DMA_TO_FB", FALSE);
 
 //DEBUG_GET_ONCE_BOOL_OPTION(blit_surf_to_screen_enabled, "SVGA_BLIT_SURF_TO_SCREEN", FALSE);
@@ -570,9 +569,7 @@ static BOOL SVGAPresentDirect(svga_inst_t *svga, uint32_t source_sid, RenderRect
 }
 #endif
 
-static DWORD present_last_gamma = -1;
-
-static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid, RenderRect *rr, BOOL gamma)
+static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid, RenderRect *rr)
 {
 	cmd_surfacedma_t command_dma = CMD_SURFACEDMA_INIT;
 	cmd_readback_gb_surface_t command_dx = CMD_READBACK_GB_SURFACE_INIT;
@@ -632,15 +629,6 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 	
 	if(gmr == NULL) return;
 
-	if(gamma)
-	{
-		if(svga->hda->gamma_update != present_last_gamma)
-		{
-			vramcpy_gamma_load(hDC);
-			present_last_gamma = svga->hda->gamma_update;
-		}
-	}
-
 #if 1
 	vrect.dst_pitch   = svga->hda->pitch;
 	vrect.dst_bpp     = svga->hda->bpp;
@@ -659,14 +647,7 @@ static void SVGAPresentCopy(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t s
 
 #if 1
 	FBHDA_access_rect(rr->x, rr->y, rr->x+rr->w, rr->y+rr->h);
-	if(gamma)
-	{
-		vramcpy_gamma(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
-	}
-	else
-	{
-		vramcpy(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
-	}
+	vramcpy(((BYTE*)svga->hda->vram_pm32)+svga->hda->surface, gmr, &vrect);
 	FBHDA_access_end(0);
 #else
 	FBHDA_access_begin(FBHDA_ACCESS_RAW_BUFFERING);
@@ -704,13 +685,10 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 		return;
   }
 
-	if(!vramcpy_direct_rendering(hDC))
+	if(!vramcpy_top_window(hwnd))
 	{
-		if(!vramcpy_top_window(hwnd))
-		{
-			SVGAPresentWindow(svga, hDC, cid, sid);
-			return;
-		}
+		SVGAPresentWindow(svga, hDC, cid, sid);
+		return;
 	}
 
 	/* get wwindows coordinates on screen */
@@ -735,16 +713,9 @@ void SVGAPresent(svga_inst_t *svga, HDC hDC, uint32_t cid, uint32_t sid)
 	
 	if(svga->hda->overlay == 0)
 	{
-		if(!debug_get_option_mesa_sw_gamma())
+		if(!SVGAPresentDirect(svga, sid, &rr))
 		{
-			if(!SVGAPresentDirect(svga, sid, &rr))
-			{
-				SVGAPresentCopy(svga, hDC, cid, sid, &rr, FALSE);
-			}
-		}
-		else
-		{
-			SVGAPresentCopy(svga, hDC, cid, sid, &rr, TRUE);
+			SVGAPresentCopy(svga, hDC, cid, sid, &rr);
 		}
 		return;
 	}

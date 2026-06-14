@@ -1132,6 +1132,11 @@ MesaOS_SRC = \
   $(MESA_VER)/src/gallium/frontends/osmesa/osmesa.c \
   $(MESA_VER)/src/gallium/winsys/sw/null/null_sw_winsys.c
 
+MesaSVGAOS_SRC = \
+  $(MESA_VER)/src/gallium/frontends/osmesa/osmesa.c \
+  $(MESA_VER)/src/gallium/winsys/sw/null/null_sw_winsys.c \
+  win9x/ossvga_target.c
+
 MesaVirGLLib_SRC = \
   $(MESA_VER)/src/gallium/drivers/virgl/virgl_buffer.c \
   $(MESA_VER)/src/gallium/drivers/virgl/virgl_context.c \

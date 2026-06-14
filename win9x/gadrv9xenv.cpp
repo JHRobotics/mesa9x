@@ -256,6 +256,8 @@ static void vboxVxdContextDestroy(void *pvEnv, uint32_t u32Cid)
 {
 	SVGA_ENV;
 	
+	debug_printf("vboxVxdContextDestroy: %d\n", u32Cid);
+	
 	if(svga->dx)
 	{
 		SVGAContextCotableDestroy(svga, u32Cid);

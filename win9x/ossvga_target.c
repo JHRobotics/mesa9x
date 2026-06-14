@@ -1,7 +1,5 @@
 /*
- * Mesa 3-D graphics library
- *
- * Copyright (C) 2010 LunarG Inc.
+ * Copyright (c) 2013  Brian Paul   All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,41 +18,41 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors:
- *    Chia-I Wu <olv@lunarg.com>
  */
-
-#ifndef STW_ST_H
-#define STW_ST_H
-
 #include <windows.h>
 
-#include "frontend/api.h"
+#include "target-helpers/inline_sw_helper.h"
+#include "target-helpers/inline_debug_helper.h"
 
-struct st_context;
-struct stw_framebuffer;
-struct stw_framebuffer_mutex;
+#include "sw/null/null_sw_winsys.h"
 
-bool
-stw_own_mutex(struct stw_framebuffer_mutex *mutex);
+#include "svga/svga_public.h"
 
-struct pipe_frontend_drawable *
-stw_st_create_framebuffer(struct stw_framebuffer *fb, struct pipe_frontend_screen *fscreen);
+struct pipe_screen *svga9x_screen_create(HDC hDC);
 
-void
-stw_st_destroy_framebuffer_locked(struct pipe_frontend_drawable *drawable);
+struct pipe_screen *
+osmesa_create_screen(void);
 
-void
-stw_st_flush(struct st_context *st, struct pipe_frontend_drawable *drawable,
-             unsigned flags);
+struct pipe_screen *
+osmesa_create_screen(void)
+{
+   struct sw_winsys *winsys;
+   struct pipe_screen *screen;
 
-bool
-stw_st_swap_framebuffer_locked(HDC hdc, struct st_context *st,
-                               struct pipe_frontend_drawable *drawable);
+   /* We use a null software winsys since we always just render to ordinary
+    * driver resources.
+    */
+   winsys = null_sw_create();
+   if (!winsys)
+      return NULL;
 
-struct pipe_resource *
-stw_get_framebuffer_resource(struct pipe_frontend_drawable *drawable,
-                             enum st_attachment_type att);
+   /* Create llvmpipe or softpipe screen */
+   screen = svga9x_screen_create(NULL);
+   if (!screen) {
+      winsys->destroy(winsys);
+      return NULL;
+   }
 
-#endif /* STW_ST_H */
+   /* Inject optional trace, debug, etc. wrappers */
+   return debug_screen_wrap(screen);
+}

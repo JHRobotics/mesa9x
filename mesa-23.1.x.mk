@@ -65,10 +65,13 @@ MesaUtilLib_SRC  = \
 	$(MESA_VER)/src/util/mesa_cache_db.c \
 	$(MESA_VER)/src/util/mesa_cache_db_multipart.c \
 	$(MESA_VER)/src/util/format_srgb.c \
-	$(MESA_VER)/src/c11/impl/threads_posix.c \
 	$(MESA_VER)/src/c11/impl/time.c \
-	$(MESA_VER)/src/util/streaming-load-memcpy.c
+	$(MESA_VER)/src/util/streaming-load-memcpy.c \
+	$(MESA_VER)/src/c11/impl/threads_posix.c
+
+#	$(MESA_VER)/src/c11/impl/threads_win32.c
 #	$(MESA_VER)/src/util/xmlconfig.c
+# $(MESA_VER)/src/c11/impl/threads_posix.c
 
 MesaUtilLib_SRC += \
   $(MESA_VER)/src/util/format/u_format.c \

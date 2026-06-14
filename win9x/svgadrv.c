@@ -791,10 +791,13 @@ void SVGAContextDestroy(svga_inst_t *svga, uint32_t cid)
 	
 	if(svga->dx)
 	{
-		uint32_t mobid = SVGAContextIDInfo(svga, cid)->gmrId;
-		if(mobid != SVGA3D_INVALID_ID)
+		if(SVGAContextIDInfo(svga, cid) != NULL)
 		{
-			SVGARegionDestroy(svga, mobid);
+			uint32_t mobid = SVGAContextIDInfo(svga, cid)->gmrId;
+			if(mobid != SVGA3D_INVALID_ID)
+			{
+				SVGARegionDestroy(svga, mobid);
+			}
 		}
 	}
 
@@ -1013,6 +1016,11 @@ void SVGAContextCotableDestroy(svga_inst_t *svga, uint32_t cid)
 		SVGA3dCmdDXSetCOTable entry;
 	} cmd_cotable; // SVGA_3D_CMD_DX_SET_COTABLE
 #pragma pack(pop)
+
+	if(SVGAContextIDInfo(svga, cid) == NULL)
+	{
+		return;
+	}
 
 	svga_cotable_t *cotable = SVGAContextIDInfo(svga, cid)->cotable;
 

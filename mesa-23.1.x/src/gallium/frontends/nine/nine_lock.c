@@ -48,7 +48,11 @@
 #include "util/u_thread.h"
 
 /* Global mutex as described by MSDN */
+#if defined(WIN9X) && !defined(HAVE_PTHREAD)
+static mtx_t d3dlock_global = {0};
+#else
 static mtx_t d3dlock_global = _MTX_INITIALIZER_NP;
+#endif
 
 void
 NineLockGlobalMutex()

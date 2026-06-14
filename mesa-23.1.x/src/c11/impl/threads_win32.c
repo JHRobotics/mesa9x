@@ -47,12 +47,13 @@ Configuration macro:
 
 #define EMULATED_THREADS_TSS_DTOR_SLOTNUM 64  // see TLS_MINIMUM_AVAILABLE
 
-
+#ifndef WIN9X
 static_assert(sizeof(cnd_t) == sizeof(CONDITION_VARIABLE), "The size of cnd_t must equal to CONDITION_VARIABLE");
 static_assert(sizeof(thrd_t) == sizeof(HANDLE), "The size of thrd_t must equal to HANDLE");
 static_assert(sizeof(tss_t) == sizeof(DWORD), "The size of tss_t must equal to DWORD");
 static_assert(sizeof(mtx_t) == sizeof(CRITICAL_SECTION), "The size of mtx_t must equal to CRITICAL_SECTION");
 static_assert(sizeof(once_flag) == sizeof(INIT_ONCE), "The size of once_flag must equal to INIT_ONCE");
+#endif
 
 /*
 Implementation limits:

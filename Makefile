@@ -270,7 +270,8 @@ else
   LIBSUFFIX := .a
   LIBPREFIX := lib
   
-  LD_DEPS := winpthreads/libpthread.a libkernel32.a
+  LD_DEPS := winpthreads/libpthread.a
+  # libkernel32.a
   
   DLLFLAGS = -o $@ -shared -Wl,--dll,--out-implib,lib$(@:dll=a),--exclude-all-symbols,--exclude-libs=pthread,--image-base,$(BASE_$@)$(TUNE_LD)
   
@@ -279,6 +280,7 @@ else
   MESA99_DEF = mesa99.mingw.def
   MESA89_DEF = mesa89.mingw.def
   D3D10_DEF  = d3d10_sw.def
+  SVGA_DEF   = svga.mingw.def
 
   INCLUDE = -Iinclude -Iwinpthreads/include -I$(MESA_VER)/include -I$(MESA_VER)/include/GL -I$(MESA_VER)/src/mapi -I$(MESA_VER)/src/util -I$(MESA_VER)/src -I$(MESA_VER)/src/mesa -I$(MESA_VER)/src/mesa/main \
     -I$(MESA_VER)/src/compiler -I$(MESA_VER)/src/compiler/nir -I$(MESA_VER)/src/gallium/state_trackers/wgl -I$(MESA_VER)/src/gallium/auxiliary -I$(MESA_VER)/src/gallium/auxiliary/util -I$(MESA_VER)/src/gallium/include \
@@ -288,14 +290,15 @@ else
     -I$(MESA_VER)/src/gallium/frontends/nine -I$(MESA_VER)/include/winddk -Iinclude/winddk -Iwin9x \
     -I$(MESA_VER)/src/virtio -I$(MESA_VER)/src/gallium/winsys/virgl/common
 
-  DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 -DHAVE_PTHREAD \
+  DEFS =  -D__i386__ -D_X86_ -D_WIN32 -DWIN32 -DWIN9X -DWINVER=0x0400 \
     -DBUILD_GL32 -D_GDI32_ -DGL_API=GLAPI -DGL_APIENTRY=GLAPIENTRY \
     -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE \
     -DMAPI_MODE_UTIL -D_GLAPI_NO_EXPORTS -DCOBJMACROS -DINC_OLE2 \
     -DPACKAGE_VERSION="\"$(PACKAGE_VERSION)\"" -DPACKAGE_BUGREPORT="\"$(PACKAGE_VERSION)\"" -DMALLOC_IS_ALIGNED -DHAVE_CRTEX \
     -DHAVE_OPENGL=1 -DHAVE_OPENGL_ES_2=1 -DHAVE_OPENGL_ES_1=1 -DWINDOWS_NO_FUTEX -DGALLIUM_SOFTPIPE \
     -DGLX_USE_WINDOWSGL -DTHREAD_SANITIZER=0 -DNO_REGEX -DWITH_XMLCONFIG=0 \
-    -DBLAKE3_NO_SSE2 -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512
+    -DBLAKE3_NO_SSE2 -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512 \
+    -DHAVE_PTHREAD
 
   ifdef USE_ASM
     DEFS += -DUSE_X86_ASM -DGLX_X86_READONLY_TEXT
@@ -324,6 +327,7 @@ else
   endif
   
   DEFS += -DMESA_MAJOR=$(MESA_MAJOR)
+  DEFS += -DWIN9XSMP
 
   OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
   SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
@@ -677,6 +681,11 @@ MesaOS_OBJS := $(MesaOS_OBJS:.cpp=.cpp_gen$(OBJ))
 MesaOSSimd_OBJS := $(MesaOS_SRC:.c=.c_simd$(OBJ))
 MesaOSSimd_OBJS := $(MesaOSSimd_OBJS:.cpp=.cpp_simd$(OBJ))
 
+ifdef MesaSVGAOS_SRC
+MesaSVGAOS_OBJS := $(MesaSVGAOS_SRC:.c=.c_gen$(OBJ))
+MesaSVGAOS_OBJS := $(MesaSVGAOS_OBJS:.cpp=.cpp_gen$(OBJ))
+endif
+
 # software opengl32 replacement
 opengl32.w95.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
@@ -692,8 +701,8 @@ mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DE
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(MesaOSSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
 
 # accelerated ICD driver (SVGA3D)
-vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) vmwsgl32.res $(LD_DEPS)
-	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) vmwsgl32.res $(LD_DEPS)
+	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(SVGA_DEF)
 
 svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)

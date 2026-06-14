@@ -33,6 +33,7 @@
  * @author Jose Fonseca <jfonseca@vmware.com>
  */
 
+#define NO_FBHDA
 
 #include <windows.h>
 
@@ -215,10 +216,10 @@ wgl_present(struct pipe_screen *screen,
    if (use_llvmpipe) {
       winsys = llvmpipe_screen(screen)->winsys;
       dt = llvmpipe_resource(res)->dt;
-# ifndef WIN9X
-      gdi_sw_display(winsys, dt, hDC);
-# else
+# if defined(WIN9X) && !defined(NO_FBHDA)
       vramcpy_display(winsys, dt, hDC);
+# else
+      gdi_sw_display(winsys, dt, hDC);
 # endif
       return;
    }
@@ -241,10 +242,10 @@ wgl_present(struct pipe_screen *screen,
 #ifdef GALLIUM_SOFTPIPE
    winsys = softpipe_screen(screen)->winsys;
    dt = softpipe_resource(res)->dt;
-# ifndef WIN9X
-   gdi_sw_display(winsys, dt, hDC);
-# else
+# if defined(WIN9X) && !defined(NO_FBHDA)
    vramcpy_display(winsys, dt, hDC);
+# else
+   gdi_sw_display(winsys, dt, hDC);
 # endif
 #endif
 }
@@ -323,7 +324,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 #ifdef HAVE_CRTEX
    	  crt_locks_init(CRT_LOCK_CNT);
 #endif
-#ifdef WIN9X
+#if defined(WIN9X) && !defined(NO_FBHDA)
    	  FBHDA_load();
 #endif
 #ifdef UNLOAD_PROTECTED
@@ -370,7 +371,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
          // so set stw_dev to NULL to return immediately if that happens.
          stw_dev = NULL;
       }
-#ifdef WIN9X
+#if defined(WIN9X) && !defined(NO_FBHDA)
    	  FBHDA_free();
 #endif
       break;

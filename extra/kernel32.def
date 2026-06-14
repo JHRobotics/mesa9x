@@ -524,3 +524,6 @@ GetFileSizeEx@8 == GetLogicalDriveStringsW
 FindFirstVolumeW@8 == GetLogicalDriveStringsW
 FindVolumeClose@4 == GetDriveTypeW
 FindNextVolumeW@12 == GetEnvironmentVariableW
+
+; SMP support
+;GetCurrentProcessorNumber@0

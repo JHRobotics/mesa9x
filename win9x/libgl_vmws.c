@@ -86,9 +86,9 @@ struct stw_shared_surface
 static svga_inst_t sSvga;
 
 #if MESA_MAJOR < 21
-static struct pipe_screen *wddm_screen_create(void)
+struct pipe_screen *svga9x_screen_create(void)
 #else
-static struct pipe_screen *wddm_screen_create(HDC hDC)
+struct pipe_screen *svga9x_screen_create(HDC hDC)
 #endif
 {
 	struct pipe_screen *screen = NULL;
@@ -111,12 +111,12 @@ static struct pipe_screen *wddm_screen_create(HDC hDC)
 
 /* present direct to window or screen if possible */
 #if MESA_MAJOR < 21
-static void wddm_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
+static void svga9x_present(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
     struct stw_context *ctx = stw_current_context();
     struct pipe_context *pipe = ctx->st->pipe;
 #else
-static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
+static void svga9x_present(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
 {
 #endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
@@ -135,12 +135,12 @@ static void wddm_present(struct pipe_screen *screen, struct pipe_context *pipe, 
 
 /* present to window */
 #if MESA_MAJOR < 21
-static void wddm_present_window(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
+static void svga9x_present_window(struct pipe_screen *screen, struct pipe_resource *res, HDC hDC)
 {
 	  struct stw_context *ctx = stw_current_context();
     struct pipe_context *pipe = ctx->st->pipe;
 #else
-static void wddm_present_window(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
+static void svga9x_present_window(struct pipe_screen *screen, struct pipe_context *pipe, struct pipe_resource *res, HDC hDC)
 {
 #endif
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
@@ -153,7 +153,7 @@ static void wddm_present_window(struct pipe_screen *screen, struct pipe_context 
         uint32_t cid = GaDrvGetContextId(pipe);
         uint32_t sid = GaDrvGetSurfaceId(screen, res);
         
-        debug_printf("wddm_present_window (%d x %d)\n", res->width0, res->height0);
+        debug_printf("svga_present_window (%d x %d)\n", res->width0, res->height0);
         
         SVGAPresentWinBlt(svga, hDC, cid, sid);
 		}
@@ -175,7 +175,7 @@ wddm_get_adapter_luid(struct pipe_screen *screen, LUID *pAdapterLuid)
 
 
 static struct stw_shared_surface *
-wddm_shared_surface_open(struct pipe_screen *screen, HANDLE hSharedSurface)
+svga9x_shared_surface_open(struct pipe_screen *screen, HANDLE hSharedSurface)
 {
     struct stw_shared_surface *surface = NULL;
 
@@ -204,7 +204,7 @@ wddm_shared_surface_open(struct pipe_screen *screen, HANDLE hSharedSurface)
 }
 
 static void
-wddm_shared_surface_close(struct pipe_screen *screen,
+svga9x_shared_surface_close(struct pipe_screen *screen,
                          struct stw_shared_surface *surface)
 {
     const WDDMGalliumDriverEnv *pEnv = GaDrvGetWDDMEnv(screen);
@@ -219,7 +219,7 @@ wddm_shared_surface_close(struct pipe_screen *screen,
 }
 
 static void
-wddm_compose(struct pipe_screen *screen,
+svga9x_compose(struct pipe_screen *screen,
              struct pipe_resource *res,
              struct stw_shared_surface *dest,
              LPCRECT pRect,
@@ -247,7 +247,7 @@ wddm_compose(struct pipe_screen *screen,
 
 #if MESA_MAJOR >= 21 && MESA_MAJOR < 24
 static unsigned
-wddm_get_pfd_flags(struct pipe_screen *screen)
+svga9x_get_pfd_flags(struct pipe_screen *screen)
 {
    return stw_pfd_gdi_support;
 }
@@ -255,7 +255,7 @@ wddm_get_pfd_flags(struct pipe_screen *screen)
 
 #if 0
 static struct stw_winsys_framebuffer *
-wddm_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
+svga9x_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
 {
 	debug_printf("wddm_create_framebuffer\n");
   return NULL;
@@ -264,7 +264,7 @@ wddm_create_framebuffer(struct pipe_screen *screen, HWND hWnd, int iPixelFormat)
 
 #if MESA_MAJOR >= 21
 static const char *
-wddm_get_name(void)
+svga9x_get_name(void)
 {
    return "SVGA3D";
 }
@@ -272,35 +272,34 @@ wddm_get_name(void)
 
 #if MESA_MAJOR >= 21
 struct stw_winsys stw_winsys = {
-   &wddm_screen_create,
-   //&wddm_present_window,
-   &wddm_present,
+   &svga9x_screen_create,
+   &svga9x_present,
 #if WINVER >= 0xA00
-   &wddm_get_adapter_luid,
+   &svga9x_get_adapter_luid,
 #else
    NULL, /* get_adapter_luid */
 #endif
-//   &wddm_shared_surface_open,
-//   &wddm_shared_surface_close,
- //  &wddm_compose,
+//   &svga9x_shared_surface_open,
+//   &svga9x_shared_surface_close,
+ //  &svga9x_compose,
    NULL,
    NULL,
    NULL,
 #if MESA_MAJOR < 24
-   &wddm_get_pfd_flags,
+   &svga9x_get_pfd_flags,
 #endif
    NULL,  //&wddm_create_framebuffer,
-   &wddm_get_name,
+   &svga9x_get_name,
 };
 #else
 struct stw_winsys stw_winsys = {
-   wddm_screen_create,
+   svga9x_screen_create,
    //wddm_present_window,
-   wddm_present,
-   wddm_get_adapter_luid,
-   wddm_shared_surface_open,
-   wddm_shared_surface_close,
-   wddm_compose
+   svga9x_present,
+   svga9x_get_adapter_luid,
+   svga9x_shared_surface_open,
+   svga9x_shared_surface_close,
+   svga9x_compose
 };
 #endif
 
@@ -341,7 +340,7 @@ DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
    	  /* DIRECT_VRAM ... enabled now */
    	  if(!debug_get_bool_option("DIRECT_VRAM", TRUE))
    	  {
-   	  	stw_winsys.present = wddm_present_window;
+   	  	stw_winsys.present = svga9x_present_window;
    	  }
  
       stw_init(&stw_winsys, hinstDLL);
