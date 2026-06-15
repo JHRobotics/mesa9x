@@ -2,3 +2,6 @@
 	path = winpthreads
 	url = https://github.com/JHRobotics/pthread9x
 	branch = main
+[submodule "fixlink"]
+	path = fixlink
+	url = https://github.com/JHRobotics/fixlink.git

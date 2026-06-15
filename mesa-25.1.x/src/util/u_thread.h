@@ -116,7 +116,7 @@ static inline bool u_thread_is_self(thrd_t thread)
  * util_barrier
  */
 
-#if defined(HAVE_PTHREAD) && !defined(__APPLE__) && !defined(__HAIKU__) || defined(WIN9X)
+#if defined(HAVE_PTHREAD) && !defined(__APPLE__) && !defined(__HAIKU__) || (defined(WIN9X) && defined(HAVE_PTHREAD))
 
 typedef pthread_barrier_t util_barrier;
 

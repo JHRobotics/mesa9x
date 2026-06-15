@@ -60,6 +60,12 @@ enum stw_framebuffer_owner
    STW_FRAMEBUFFER_EGL_WINDOW,
 };
 
+struct stw_framebuffer_mutex
+{
+	CRITICAL_SECTION cs;
+	DWORD threadId;
+};
+
 /**
  * Windows framebuffer.
  */
@@ -73,7 +79,7 @@ struct stw_framebuffer
     * Note: if both this mutex and the stw_device::fb_mutex need to be locked,
     * the stw_device::fb_mutex needs to be locked first.
     */
-   CRITICAL_SECTION mutex;
+   struct stw_framebuffer_mutex mutex;
    
    /*
     * Immutable members.
@@ -212,7 +218,8 @@ static inline void
 stw_framebuffer_lock(struct stw_framebuffer *fb)
 {
    assert(fb);
-   EnterCriticalSection(&fb->mutex);
+   EnterCriticalSection(&fb->mutex.cs);
+   fb->mutex.threadId = GetCurrentThreadId();
 }
 
 

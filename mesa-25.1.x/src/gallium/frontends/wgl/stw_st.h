@@ -34,9 +34,10 @@
 
 struct st_context;
 struct stw_framebuffer;
+struct stw_framebuffer_mutex;
 
 bool
-stw_own_mutex(const CRITICAL_SECTION *cs);
+stw_own_mutex(struct stw_framebuffer_mutex *mutex);
 
 struct pipe_frontend_drawable *
 stw_st_create_framebuffer(struct stw_framebuffer *fb, struct pipe_frontend_screen *fscreen);

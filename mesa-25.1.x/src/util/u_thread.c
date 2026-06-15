@@ -22,7 +22,7 @@
 
 #if DETECT_OS_LINUX && !DETECT_OS_ANDROID
 #include <sched.h>
-#elif defined(_WIN32) && !defined(HAVE_PTHREAD)
+#elif defined(_WIN32)/* && !defined(HAVE_PTHREAD)*/
 #include <windows.h>
 #endif
 
@@ -40,10 +40,10 @@ util_get_current_cpu(void)
 #if DETECT_OS_LINUX && !DETECT_OS_ANDROID
    return sched_getcpu();
 
-#elif defined(WIN9X)
+#elif defined(WIN9X) && !defined(WIN9XSMP)
 	 return 1;
 
-#elif defined(_WIN32) && !defined(HAVE_PTHREAD)
+#elif defined(_WIN32)
    return GetCurrentProcessorNumber();
 
 #else

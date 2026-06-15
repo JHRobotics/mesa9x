@@ -63,24 +63,16 @@ static uint32_t stwfb_ID = 0;
  * Is the given mutex held by the calling thread?
  */
 bool
-stw_own_mutex(const CRITICAL_SECTION *cs)
+stw_own_mutex(struct stw_framebuffer_mutex *mutex)
 {
    // We can't compare OwningThread with our thread handle/id (see
    // http://stackoverflow.com/a/12675635 ) but we can compare with the
    // OwningThread member of a critical section we know we own.
-#ifndef WIN9X
-   CRITICAL_SECTION dummy;
-   InitializeCriticalSection(&dummy);
-   EnterCriticalSection(&dummy);
-   if (0)
-      _debug_printf("%p %p\n", cs->OwningThread, dummy.OwningThread);
-   bool ret = cs->OwningThread == dummy.OwningThread;
-   LeaveCriticalSection(&dummy);
-   DeleteCriticalSection(&dummy);
-   return ret;
-#else
-   return true;
-#endif
+   if(GetCurrentThreadId() == mutex->threadId)
+   {
+      return true;	
+   }
+   return false;
 }
 
 static void
@@ -457,7 +449,7 @@ stw_st_framebuffer_present_locked(HDC hdc,
       stw_framebuffer_unlock(stwfb->fb);
    }
 
-   //assert(!stw_own_mutex(&stwfb->fb->mutex));
+   assert(!stw_own_mutex(&stwfb->fb->mutex));
 
    return true;
 }

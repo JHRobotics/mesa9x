@@ -9,8 +9,11 @@
 
 #if defined(_WIN32) && !defined(HAVE_PTHREAD)
 #include <windows.h>
+
+# if !defined(WIN9X)
 static_assert(sizeof(struct u_rwlock) == sizeof(SRWLOCK),
    "struct u_rwlock should have equal size with SRWLOCK");
+# endif
 #endif
 
 int u_rwlock_init(struct u_rwlock *rwlock)

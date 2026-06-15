@@ -123,7 +123,7 @@ stw_framebuffer_release_locked(struct stw_framebuffer *fb,
 
    stw_framebuffer_unlock(fb);
 
-   DeleteCriticalSection(&fb->mutex);
+   DeleteCriticalSection(&fb->mutex.cs);
 
    FREE( fb );
 }
@@ -364,7 +364,8 @@ stw_framebuffer_create(HWND hWnd, const struct stw_pixelformat_info *pfi, enum s
 
    stw_framebuffer_get_size(fb);
 
-   InitializeCriticalSection(&fb->mutex);
+   InitializeCriticalSection(&fb->mutex.cs);
+   fb->mutex.threadId = 0;
 
    /* This is the only case where we lock the stw_framebuffer::mutex before
     * stw_dev::fb_mutex, since no other thread can know about this framebuffer
@@ -406,7 +407,8 @@ stw_framebuffer_unlock(struct stw_framebuffer *fb)
 {
    assert(fb);
    assert(stw_own_mutex(&fb->mutex));
-   LeaveCriticalSection(&fb->mutex);
+   LeaveCriticalSection(&fb->mutex.cs);
+   fb->mutex.threadId = 0;
 }
 
 

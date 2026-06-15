@@ -21,7 +21,7 @@
 include config.mk
 
 MESA_VER ?= mesa-25.1.x
-DEPS = config.mk Makefile $(MESA_VER).deps
+DEPS = Makefile config.mk $(MESA_VER).deps
 #DEPS = $(MESA_VER).deps
 
 ifeq ($(MESA_VER),mesa-17.3.9)
@@ -327,7 +327,10 @@ else
   endif
   
   DEFS += -DMESA_MAJOR=$(MESA_MAJOR)
-  DEFS += -DWIN9XSMP
+  
+  ifdef WIN9XSMP
+    DEFS += -DWIN9XSMP
+  endif
 
   OPENGL_LIBS = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaUtilLib -lMesaLib
   SVGA_LIBS   = -L. -lMesaLib -lMesaUtilLib -lMesaGalliumAuxLib -lMesaSVGALib -lMesaLib
@@ -686,42 +689,63 @@ MesaSVGAOS_OBJS := $(MesaSVGAOS_SRC:.c=.c_gen$(OBJ))
 MesaSVGAOS_OBJS := $(MesaSVGAOS_OBJS:.cpp=.cpp_gen$(OBJ))
 endif
 
-# software opengl32 replacement
-opengl32.w95.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS)
-	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
+ifdef WIN9XSMP
+  FIXLINK_CMD=-relink
+  FIXLINK_PARMS=mesasmp.dll kernel32.dll msvcrt.dll ws2_32.dll
+else
+  FIXLINK_CMD=-checksum
+endif
 
-opengl32.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS)
+fixlink.exe: fixlink/fixlink.c
+	gcc -std=c89 fixlink/fixlink.c -o $@
+
+# software opengl32 replacement
+opengl32.w95.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS) fixlink.exe
+	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+
+opengl32.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibGLSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # software ICD driver
-mesa3d.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOS_OBJS) mesa3d.res $(LD_DEPS)
+mesa3d.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOS_OBJS) mesa3d.res $(LD_DEPS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibICD_OBJS) $(MesaOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DEPS)
+mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DEPS) fixlink.exe
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(MesaOSSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-# accelerated ICD driver (SVGA3D)
+# accelerated ICD driver (SVGA3D) fixlink.exe
 vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(SVGA_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS)
+svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS) fixlink.exe
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-# accelerated ICD driver (VirGL)
+# accelerated ICD driver (VirGL) fixlink.exe
 virgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-mesa99.dll: mesa3d.w95.dll $(DEPS) $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res
+mesa99.dll: mesa3d.w95.dll $(DEPS) $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA99_LIBS) $(DLLFLAGS) $(MESA99_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-mesa89.dll: $(DEPS) mesa99.dll $(eight_OBJS) mesa89.res
+mesa89.dll: $(DEPS) mesa99.dll $(eight_OBJS) mesa89.res fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(eight_OBJS) mesa89.res $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
-mesad3d10.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10Lib_OBJS)
+mesad3d10.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10Lib_OBJS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaD3D10Lib_OBJS) $(MesaGdiLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(D3D10_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 	
 mesad3d10.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10LibSimd_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10LibSimd_OBJS) $(MesaGdiLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) $(DLLFLAGS) $(D3D10_DEF)
+	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # benchmark
 glchecked_OBJS := $(glchecked_SRC:.cpp=.cpp_app$(OBJ))
