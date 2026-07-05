@@ -33,8 +33,6 @@
  * @author Jose Fonseca <jfonseca@vmware.com>
  */
 
-#define NO_FBHDA
-
 #include <windows.h>
 
 #include "util/u_debug.h"
