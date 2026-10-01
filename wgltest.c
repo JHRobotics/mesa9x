@@ -26,8 +26,8 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <GL/GL.h>
-#include <GL/GLext.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <math.h>
 
 static const char *usage = 

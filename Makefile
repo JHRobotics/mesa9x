@@ -89,6 +89,8 @@ BASE_mesad3d10.w98me.dll  := 0x10000000
 
 NULLOUT=$(if $(filter $(OS),Windows_NT),NUL,/dev/null)
 
+RUNPATH=$(if $(filter $(OS),Windows_NT),.\,./)
+
 VERSION_BUILD := 0
 
 GIT      ?= git
@@ -106,6 +108,11 @@ ifdef LLVM
   ifndef LLVM_VER
     $(error Define LLVM_VER in config.mk please!)
   endif
+endif
+
+ifndef HOST_CC
+  HOST_CC := gcc
+  HOST_SUFFIX := .exe
 endif
 
 $(MESA_VER).target:
@@ -303,6 +310,10 @@ else
   ifdef USE_ASM
     DEFS += -DUSE_X86_ASM -DGLX_X86_READONLY_TEXT
   endif
+  
+  ifdef NO_FBHDA
+  	DEFS += -DNO_FBHDA
+  endif
 
   DEFS_AS = -DGNU_ASSEMBLER -DSTDCALL_API -D__MINGW32__
 
@@ -351,9 +362,27 @@ else
   ifdef LLVM
     SIMD_DEFS = $(DEFS) -DHAVE_LLVM=$(LLVM_VER) -DHAVE_GALLIUM_LLVMPIPE -DGALLIUM_LLVMPIPE -DHAVE_LLVMPIPE -DDRAW_LLVM_AVAILABLE
     SIMD_INCLUDE += $(INCLUDE) -I$(LLVM_DIR)/include
+
+    # try guess LLVM config
+    LLVM_LIBS := -lLLVMMCJIT -lLLVMMCDisassembler -lLLVMInterpreter -lLLVMExecutionEngine -lLLVMRuntimeDyld -lLLVMOrcTargetProcess -lLLVMOrcShared -lLLVMCodeGen -lLLVMTarget -lLLVMScalarOpts -lLLVMInstCombine -lLLVMAggressiveInstCombine -lLLVMObjCARCOpts -lLLVMTransformUtils -lLLVMCodeGenTypes -lLLVMBitWriter -lLLVMAnalysis -lLLVMProfileData -lLLVMSymbolize -lLLVMDebugInfoBTF -lLLVMDebugInfoPDB -lLLVMDebugInfoMSF -lLLVMDebugInfoDWARF -lLLVMObject -lLLVMTextAPI -lLLVMMCParser -lLLVMIRReader -lLLVMAsmParser -lLLVMMC -lLLVMDebugInfoCodeView -lLLVMBitReader -lLLVMCore -lLLVMRemarks -lLLVMBitstreamReader -lLLVMBinaryFormat -lLLVMTargetParser -lLLVMSupport -lLLVMDemangle
+    ifdef LLVM_2024
+    	LLVM_LIBS := -lLLVMPasses -lLLVMHipStdPar -lLLVMCoroutines -lLLVMipo -lLLVMVectorize -lLLVMLinker -lLLVMFrontendOpenMP -lLLVMFrontendOffloading -lLLVMX86TargetMCA -lLLVMMCA -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMInstrumentation -lLLVMIRPrinter -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMCFGuard -lLLVMAsmPrinter $(LLVM_LIBS)
+		endif
+    ifdef LTO
+		  LLVM_LIBS := -lLLVMLTO -lLLVMExtensions  $(LLVM_LIBS)
+    endif
+    LLVM_CFLAGS := -I$(LLVM_DIR)/include -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+    LLVM_CXXFLAGS := -I$(LLVM_DIR)/include -std=c++17   -fno-exceptions -funwind-tables -fno-rtti -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+    
+    # native mode, call llvm-config.exe
+    ifeq "$(PREFIX)" ""
+      LLVM_CFLAGS := $(shell $(LLVM_DIR)/bin/llvm-config --cflags)
+      LLVM_CXXFLAGS := $(shell $(LLVM_DIR)/bin/llvm-config --cxxflags)
+      LLVM_LIBS := $(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static $(LLVM_modules))
+    endif
     
     opengl_simd_LIBS := -L. -L$(LLVM_DIR)/lib -lMesaLibSimd -lMesaUtilLibSimd -lMesaGalliumLLVMPipe -lMesaGalliumAuxLibSimd -lMesaLibSimd -lMesaUtilLibSimd
-    opengl_simd_LIBS := $(opengl_simd_LIBS) $(filter-out -lshell32,$(shell $(LLVM_DIR)/bin/llvm-config --libs --link-static $(LLVM_modules)))
+    opengl_simd_LIBS := $(opengl_simd_LIBS) $(filter-out -lshell32,$(LLVM_LIBS))
     
     # LLVMpipe 6.x required zlib
     MESA_SIMD_LIBS := $(MESA_LIBS) -lpsapi -lole32 -lz -lws2_32
@@ -367,8 +396,6 @@ else
     LIBS_TO_BUILD += $(LIBPREFIX)MesaWglLibSimd$(LIBSUFFIX)
     
     # for LLVM we need same cflags as LLVM itself
-    LLVM_CFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cflags)
-    LLVM_CXXFLAGS = $(shell $(LLVM_DIR)/bin/llvm-config --cxxflags)
     ifndef LP_DEBUG
       SIMD_CFLAGS   = -std=$(CSTD) $(filter-out -pedantic -Wall -W -Wextra -march=westmere -march=core2,$(LLVM_CFLAGS)) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
       SIMD_CXXFLAGS = $(filter-out -pedantic -pedantic -Wall -W -Wextra -march=westmere -march=core2 -std=gnu++11 -std=c++17,$(LLVM_CXXFLAGS)) -std=$(CXXSTD) $(TUNE) $(SIMD_INCLUDE) $(SIMD_DEFS) $(filter-out -DDEBUG -DNDEBUG,$(DD_DEFS))
@@ -696,56 +723,56 @@ else
   FIXLINK_CMD=-checksum
 endif
 
-fixlink.exe: fixlink/fixlink.c
-	gcc -std=c89 fixlink/fixlink.c -o $@
+fixlink$(HOST_SUFFIX): fixlink/fixlink.c
+	$(HOST_CC) -std=c89 fixlink/fixlink.c -o $@
 
 # software opengl32 replacement
 opengl32.w95.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibGL_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $@ $(FIXLINK_PARMS)
 
 opengl32.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) opengl32.res $(LD_DEPS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibGLSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) opengl32.res $(DLLFLAGS) $(OPENGL_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # software ICD driver
 mesa3d.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOS_OBJS) mesa3d.res $(LD_DEPS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibICD_OBJS) $(MesaOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 mesa3d.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaOSSimd_OBJS) mesa3d.res $(LD_DEPS) fixlink.exe
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibICDSimd_OBJS) $(MesaOSSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) mesa3d.res $(DLLFLAGS) $(MESA3D_DEF) 
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # accelerated ICD driver (SVGA3D) fixlink.exe
 vmwsgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVMW_OBJS) $(MesaSVGALib_OBJS) $(MesaSVGAWinsysLib_OBJS) $(MesaSVGAOS_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(SVGA_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 svgagl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) vmwsgl32.res $(LD_DEPS) fixlink.exe
 	$(LD) $(SIMD_LDFLAGS) $(MesaWglLibSimd_OBJS) $(MesaGdiLibVMWSimd_OBJS) $(MesaSVGALibSimd_OBJS) $(MesaSVGAWinsysLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # accelerated ICD driver (VirGL) fixlink.exe
 virgl32.dll: $(DEPS) $(LIBS_TO_BUILD) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) vmwsgl32.res $(LD_DEPS)
 	$(LD) $(LDFLAGS) $(MesaWglLib_OBJS) $(MesaGdiLibVirGL_OBJS) $(MesaVirGLLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) vmwsgl32.res $(DLLFLAGS) $(OPENGL_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 mesa99.dll: mesa3d.w95.dll $(DEPS) $(LIBS_TO_BUILD) $(MesaNineLib_OBJS) mesa99.res fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) mesa99.res $(MESA99_LIBS) $(DLLFLAGS) $(MESA99_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 mesa89.dll: $(DEPS) mesa99.dll $(eight_OBJS) mesa89.res fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaNineLib_OBJS) $(OPENGL_LIBS) $(eight_OBJS) mesa89.res $(MESA89_LIBS) $(DLLFLAGS) $(MESA89_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 mesad3d10.w95.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10Lib_OBJS) fixlink.exe
 	$(LD) $(LDFLAGS) $(MesaD3D10Lib_OBJS) $(MesaGdiLib_OBJS) $(OPENGL_LIBS) $(MESA_LIBS) $(DLLFLAGS) $(D3D10_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 	
 mesad3d10.w98me.dll: $(DEPS) $(LIBS_TO_BUILD) $(LD_DEPS) $(MesaD3D10LibSimd_OBJS)
 	$(LD) $(LDFLAGS) $(MesaD3D10LibSimd_OBJS) $(MesaGdiLibSimd_OBJS) $(opengl_simd_LIBS) $(MESA_SIMD_LIBS) $(DLLFLAGS) $(D3D10_DEF)
-	fixlink.exe $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
+	$(RUNPATH)fixlink$(HOST_SUFFIX) $(FIXLINK_CMD) $@ $(FIXLINK_PARMS)
 
 # benchmark
 glchecked_OBJS := $(glchecked_SRC:.cpp=.cpp_app$(OBJ))

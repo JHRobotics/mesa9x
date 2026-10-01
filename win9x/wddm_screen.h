@@ -39,7 +39,7 @@ struct vmw_winsys_screen_wddm
 #else /* !VBOX */
 
 #include <stdint.h>
-#include <Windows.h>
+#include <windows.h>
 
 #include <svga3d_types.h>
 
